@@ -1,0 +1,3 @@
+-- Tier 1: 12 bảng cốt lõi bán hàng.
+-- DDL đầy đủ: xem docs/02-ky-thuat/database.md và tài liệu ERD Tuần 1-2 của nhóm.
+-- Điền/copy script thật vào đây trước khi chạy migration lần đầu.

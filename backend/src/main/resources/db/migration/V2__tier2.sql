@@ -1,0 +1,2 @@
+-- Tier 2: 6 bảng nâng cao (promotions, promotion_usages, reviews, product_combos,
+-- combo_items, email_notifications). Chỉ chạy sau khi V1 đã ổn định.
