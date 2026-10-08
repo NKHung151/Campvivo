@@ -1,0 +1,264 @@
+/*
+ * Custom shop styles: account/order pages, toast, lightbox and small glue for React rendering.
+ * Visual language: SVN-Gilroy, #497e57 / #2f6a3f greens, #f3f2ef panels.
+ */
+html {
+  scroll-behavior: auto;
+}
+body {
+  background: #fff;
+}
+.cv-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  z-index: 100000;
+  background: #2f6a3f;
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 6px;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.cv-signin-wrap .cv-signin-pop {
+  position: fixed;
+}
+
+/* Lightbox (fancybox replacement) */
+.cv-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(30, 30, 30, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cv-lightbox img {
+  max-width: 90vw;
+  max-height: 86vh;
+  object-fit: contain;
+}
+.cv-lightbox iframe {
+  width: min(960px, 90vw);
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+.cv-lightbox button {
+  position: absolute;
+  background: rgba(30, 30, 30, 0.6);
+  color: #fff;
+  border: 0;
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
+}
+.cv-lightbox .lb-close {
+  top: 10px;
+  right: 10px;
+}
+.cv-lightbox .lb-prev {
+  left: 10px;
+  top: 50%;
+}
+.cv-lightbox .lb-next {
+  right: 10px;
+  top: 50%;
+}
+.cv-lightbox .lb-count {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  color: #ccc;
+  font-size: 14px;
+}
+
+/* Mocked account / order pages */
+.cv-account {
+  padding: 30px 0 60px;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 30px;
+}
+.cv-account aside {
+  background: #f3f2ef;
+  border-radius: 6px;
+  padding: 20px;
+  align-self: start;
+}
+.cv-account aside .name {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+.cv-account aside .pts {
+  color: #2f6a3f;
+  margin: 10px 0 16px;
+}
+.cv-account aside a,
+.cv-account aside button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  font: inherit;
+  color: #333;
+  cursor: pointer;
+}
+.cv-account aside .active {
+  color: #2f6a3f;
+  font-weight: 600;
+}
+.cv-account h1 {
+  font-size: 22px;
+  margin: 0 0 18px;
+}
+.cv-order {
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.cv-order .hd {
+  display: flex;
+  justify-content: space-between;
+  background: #f3f2ef;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+.cv-order .hd b {
+  color: #2f6a3f;
+}
+.cv-order .row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid #eee;
+  font-size: 14px;
+}
+.cv-order .row img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+.cv-order .row .nm {
+  flex: 1;
+}
+.cv-order .ft {
+  padding: 10px 16px;
+  text-align: right;
+  border-top: 1px solid #eee;
+  font-size: 15px;
+}
+.cv-order .ft b {
+  color: #c7370f;
+}
+.cv-empty {
+  padding: 40px 0;
+  color: #666;
+}
+.cv-success {
+  max-width: 760px;
+  margin: 40px auto 70px;
+  text-align: center;
+}
+.cv-success .ic {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #497e57;
+  color: #fff;
+  font-size: 40px;
+  line-height: 72px;
+  margin: 0 auto 18px;
+}
+.cv-success h1 {
+  font-size: 26px;
+  margin: 0 0 10px;
+}
+.cv-success p {
+  color: #555;
+  margin: 6px 0;
+}
+.cv-success .box {
+  text-align: left;
+  margin: 26px 0;
+}
+.cv-success .btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.cv-btn {
+  display: inline-block;
+  padding: 11px 26px;
+  border-radius: 4px;
+  font-weight: 600;
+  background: #2f6a3f;
+  color: #fff !important;
+  border: 1px solid #2f6a3f;
+  cursor: pointer;
+}
+.cv-btn.ghost {
+  background: #fff;
+  color: #2f6a3f !important;
+}
+.cv-demo-note {
+  background: #fff8e1;
+  border: 1px solid #f1d27a;
+  color: #6b5200;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+/* Province/district/ward fields: styled like select2 widgets (275px, 36px tall) */
+.modal-info-cart .select-single {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 15px;
+  color: #333;
+  background: #fff;
+}
+
+@media (max-width: 767px) {
+  .cv-account {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Text logo until the brand mark is designed */
+.masthead .logo .cv-logo {
+  display: inline-block;
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #2f6a3f;
+  line-height: 1;
+}
+
+/* Keep the top bar on one line with the longer Campvivo labels */
+.menuTop .nav_primary a,
+.menuTop .hotline {
+  white-space: nowrap;
+}
+
+/* Mock content that hasn't been rewritten for Campvivo yet */
+.cv-placeholder {
+  margin: 16px 0;
+  padding: 24px;
+  border: 1px dashed #c9c9c9;
+  border-radius: 6px;
+  background: #f7f7f5;
+  color: #777;
+  text-align: center;
+}
