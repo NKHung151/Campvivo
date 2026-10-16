@@ -47,3 +47,18 @@ route trong `docs/03-san-pham/pages.md`. Hiện chạy bằng dữ liệu mock; 
 - [x] Đã test (lint, build, chạy thử luồng mua hàng)
 - [x] Đã cập nhật docs/ (pages.md)
 - [ ] Đã mở PR
+
+## Lệch so với Phase1_v4 / docs 2026-10-17 — xử lý khi nối API
+Xem `docs/03-san-pham/pages.md` (cột API, trạng thái) và `docs/99-ghi-chu/known-issues.md` KI-05.
+- Đăng nhập OTP giả (`LoginPopup`) → đăng nhập email + mật khẩu; tách UI nhập OTP thành
+  `components/ui/OtpInput` dùng cho `/verify-email` và `/reset-password`.
+- `/account` đang là một trang nhiều tab → tách route con `/account/orders`, `/account/orders/[id]`,
+  `/account/reviews`, `/account/favorites`, `/account/notifications`, `/account/support`. Bỏ tab
+  "địa chỉ" (địa chỉ là trường trong hồ sơ — D-02) và tab "điểm" (không có trong báo cáo).
+- `ShopProvider` (giỏ hàng, đơn hàng localStorage) → `cartService`, `orderService`. Giỏ hàng chỉ cho
+  Customer đã đăng nhập; giá luôn lấy từ server; đặt hàng gửi `expectedTotal`.
+- Thanh toán: chỉ VNPay + COD; `/checkout/success` đọc kết quả qua `GET /payments/vnpay/return`.
+- Thương hiệu đọc từ `products.brand` (`GET /brands`); blog/journal/guides đọc `articles.category`.
+  `/blog/category/*`, `/journal/category/*` không có nguồn dữ liệu → bỏ khi nối API.
+- Chưa có: `/combos`, `/combos/[slug]`, tab Combo trong `/search`, toàn bộ `/admin/*`, chuông thông
+  báo, chat hỗ trợ, giao diện mobile.
