@@ -8,3 +8,36 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
 - **Mô tả:**
 - **Ảnh hưởng:**
 - **Vì sao chưa sửa / có sửa không:**
+
+---
+
+### KI-01 — Thanh toán VNPay thành công sau khi đơn đã bị huỷ do quá hạn
+- **Mô tả:** Khách thanh toán chậm, IPN đến sau khi job BR-3 đã huỷ đơn.
+- **Ảnh hưởng:** Khách đã trả tiền nhưng đơn ở CANCELLED. Hệ thống ghi payment `SUCCESS`, đơn giữ
+  nguyên, log WARN (BR-12).
+- **Vì sao chưa sửa:** Hoàn tiền thủ công ngoài hệ thống. Giảm khả năng xảy ra bằng `vnp_ExpireDate`
+  trùng thời gian timeout.
+
+### KI-02 — Chat hỗ trợ không lưu nhân viên nào trả lời, không có trạng thái đã đọc
+- **Mô tả:** `support_messages` chỉ có `is_from_staff` (D-05).
+- **Ảnh hưởng:** Không thống kê được theo nhân viên; không có badge "tin chưa đọc" trong chat (dùng
+  thông báo SUPPORT_MESSAGE thay thế).
+- **Vì sao chưa sửa:** Bám sát bảng của báo cáo. Chatbot AI sau này sẽ cần migration bổ sung.
+
+### KI-03 — Đăng xuất là đăng xuất mọi thiết bị
+- **Mô tả:** Cơ chế `token_version` (D-11).
+- **Vì sao chưa sửa:** Không có bảng refresh token theo thiết bị — chấp nhận cho đồ án.
+
+### KI-04 — Code backend hiện có lệch với docs mới (2026-10-17)
+- **Mô tả:** Code khung viết theo docs cũ: `CartItem.priceAtAdd` (D-04 đã bỏ), `OrderStatus` thiếu
+  `RETURNED`, entity/DTO chưa có combo, `BusinessException` chưa dùng enum `ErrorCode`; migration
+  V1/V2 chỉ là placeholder. Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
+  `support/`. `.env.example` còn biến `MOMO_*` (để trống đến FR-27) và chưa có `NEXT_PUBLIC_WS_URL`.
+- **Xử lý:** Viết lại theo `database.md`/`api.md` khi bắt đầu từng module (plan tạo migration đầy đủ
+  trước). Docs là nguồn đúng.
+
+### KI-05 — Frontend storefront dùng dữ liệu mock lệch schema
+- **Mô tả:** Đăng nhập OTP giả, đơn hàng/giỏ hàng lưu localStorage, tab "địa chỉ"/"điểm" trong
+  `/account`, danh mục con bài viết (`/blog/category/*`, `/journal/category/*`), nội dung/ảnh của
+  cửa hàng tham khảo.
+- **Xử lý:** Khi nối API theo `pages.md` (cột "API"); xem `.agents/plans/active/frontend-shop-ui.md`.
