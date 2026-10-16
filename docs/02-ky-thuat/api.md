@@ -1,103 +1,324 @@
 # API Contract v1
 
-Chuẩn OpenAPI/Swagger. File này là bản tóm tắt — khi thêm/sửa endpoint, cập nhật ở đây
-TRƯỚC khi code (xem skill `api-contract`).
+Nguồn chuẩn cho cả backend và frontend (`frontend/src/types/` phải khớp). Thêm/sửa endpoint →
+cập nhật file này TRƯỚC khi code (skill `api-contract`). Quy tắc nghiệp vụ được tham chiếu bằng
+mã BR-xx (`database.md` mục 4); FR-xx (`features.md`).
 
-## Quy ước chung
-- Base path: `/api`
-- Auth: header `Authorization: Bearer <JWT>` cho mọi endpoint cần đăng nhập.
-- Response lỗi thống nhất:
+## 1. Quy ước chung
+
+- Base path: `/api`. JSON UTF-8. Tên field camelCase.
+- Xác thực: header `Authorization: Bearer <JWT>` (xem `authentication.md`). Cột "Quyền" bên dưới:
+  `Public` = không cần token; `User` = mọi role đã đăng nhập; `Customer` = role CUSTOMER;
+  `Staff` = EMPLOYEE hoặc ADMIN; `Admin` = ADMIN.
+- Tiền: số nguyên VND (`450000`). Thời gian: ISO-8601 có múi giờ (`2026-10-17T09:15:00+07:00`).
+  Ngày (tham số lọc): `yyyy-MM-dd`, hiểu theo giờ `Asia/Ho_Chi_Minh`.
+- ID: số. Trang public dùng `slug`, trang admin/thao tác dùng `id`.
+- Phân trang: query `page` (bắt đầu từ 1, mặc định 1), `limit` (mặc định 12, tối đa 100).
+
+**Thành công**
 ```json
-{ "success": false, "errorCode": "OUT_OF_STOCK", "message": "Chỉ còn 15 sản phẩm khả dụng." }
+{ "success": true, "data": { ... } }
 ```
-- Response thành công có danh sách: bọc trong `data` + `pagination` nếu có phân trang.
+Danh sách có phân trang:
+```json
+{ "success": true, "data": [ ... ],
+  "pagination": { "currentPage": 1, "limit": 12, "totalPages": 3, "totalItems": 25 } }
+```
+**Lỗi**
+```json
+{ "success": false, "errorCode": "OUT_OF_STOCK", "message": "Chỉ còn 3 sản phẩm khả dụng.",
+  "details": { ... } }
+```
+- `message`: tiếng Việt, hiển thị được cho người dùng. `details`: tuỳ lỗi (vd. `fieldErrors`,
+  `items` hết hàng, tổng tiền mới).
+- Lỗi validate DTO → 400 `VALIDATION_ERROR`, `details.fieldErrors = { "email": "Email không hợp lệ" }`.
+- Xử lý tập trung ở `common/exception/GlobalExceptionHandler`. Không trả stack trace.
 
-## Endpoints Tier 1
+## 2. Danh mục mã lỗi
 
-| Method | Path | Actor | Mô tả | Lỗi chính |
-|---|---|---|---|---|
-| POST | `/auth/register` | Guest | Đăng ký | 400 EMAIL_ALREADY_EXISTS |
-| POST | `/auth/login` | Guest | Đăng nhập, trả JWT | 401 INVALID_CREDENTIALS |
-| GET/POST/PUT/DELETE | `/users/addresses` | User | Sổ địa chỉ | 400, 403 ADDRESS_ACCESS_DENIED |
-| GET | `/products` | Guest | Danh sách, filter, phân trang | 400 |
-| GET | `/products/{id}/recommendations` | Guest | 4 sản phẩm gợi ý mua kèm | 404 |
-| POST | `/cart/items` | Customer | Thêm giỏ hàng | 409 OUT_OF_STOCK, 400 PRODUCT_INACTIVE |
-| POST | `/orders` | Customer | Tạo đơn từ giỏ hàng | 400 INVALID_PROMOTION_CODE, 409 INSUFFICIENT_STOCK_CONCURRENCY, 502 PAYMENT_GATEWAY_ERROR |
-| POST | `/payments/webhook` | System (MoMo/VNPay) | Callback thanh toán, idempotent theo `transactionId` | — |
-| GET | `/orders/{id}` | Customer | Chi tiết đơn | 403, 404 |
-| POST | `/admin/products` | Admin | Thêm sản phẩm + ảnh | 401, 403, 400 |
-| POST | `/admin/categories` | Admin | Thêm danh mục | 404 PARENT_CATEGORY_NOT_FOUND, 400 CIRCULAR_CATEGORY_DEPENDENCY |
-| PATCH | `/admin/products/{id}/inventory` | Admin/Employee | Điều chỉnh tồn kho | 400 INVALID_STOCK_ADJUSTMENT |
-| PATCH | `/admin/orders/{id}/status` | Employee/Admin | Đổi trạng thái đơn | 400, 401, 403, 404 |
+| HTTP | errorCode | Khi nào |
+|---|---|---|
+| 400 | VALIDATION_ERROR | DTO không hợp lệ |
+| 401 | UNAUTHORIZED | Thiếu/sai/hết hạn token, `tokenVersion` lệch |
+| 403 | FORBIDDEN | Đúng token nhưng sai role |
+| 404 | NOT_FOUND | Không tồn tại, hoặc thuộc user khác (không tiết lộ) |
+| 409 | SLUG_ALREADY_EXISTS | Trùng slug |
+| **auth/user** | | |
+| 409 | EMAIL_ALREADY_EXISTS | Đăng ký email đã xác thực |
+| 401 | INVALID_CREDENTIALS | Sai email/mật khẩu |
+| 403 | EMAIL_NOT_VERIFIED | Đăng nhập khi chưa xác thực email |
+| 403 | ACCOUNT_DISABLED | Tài khoản bị khoá |
+| 400 | INVALID_OTP | Sai mã / không có mã đúng mục đích |
+| 400 | OTP_EXPIRED | Mã hết hạn |
+| 429 | OTP_TOO_MANY_ATTEMPTS | Sai quá số lần cho phép |
+| 429 | OTP_RESEND_TOO_SOON | Gửi lại mã quá sớm |
+| 400 | INVALID_CURRENT_PASSWORD | Đổi mật khẩu sai mật khẩu cũ |
+| 400 | CANNOT_MODIFY_SELF | Admin tự khoá/hạ quyền mình |
+| 502 | EMAIL_SEND_FAILED | Không gửi được email OTP |
+| **catalog/inventory** | | |
+| 404 | PARENT_CATEGORY_NOT_FOUND | |
+| 400 | CIRCULAR_CATEGORY_DEPENDENCY | |
+| 409 | CATEGORY_NOT_EMPTY | Xoá danh mục còn con/hàng |
+| 400 | INVALID_STOCK_ADJUSTMENT | change = 0 hoặc làm stock < reserved |
+| **cart/order/payment** | | |
+| 400 | PRODUCT_INACTIVE | Mặt hàng ngừng kinh doanh |
+| 409 | OUT_OF_STOCK | Vượt `available`; `details.items = [{type, id, name, availableQuantity}]` |
+| 400 | CART_EMPTY | |
+| 409 | PRICE_CHANGED | `expectedTotal` lệch; `details` = bảng giá mới (như response preview) |
+| 400 | INVALID_VOUCHER | Không tồn tại / đã tắt |
+| 400 | VOUCHER_EXPIRED | Ngoài thời hạn |
+| 400 | VOUCHER_MIN_ORDER_NOT_MET | `details.minOrderValue` |
+| 409 | VOUCHER_EXHAUSTED | Hết lượt |
+| 409 | VOUCHER_ALREADY_USED | User đã dùng mã |
+| 409 | VOUCHER_IN_USE | Xoá voucher đã có đơn dùng |
+| 409 | ORDER_NOT_CANCELLABLE | Huỷ khi không PENDING |
+| 409 | INVALID_STATUS_TRANSITION | Sai máy trạng thái (đơn hoặc yêu cầu trả hàng) |
+| 502 | PAYMENT_GATEWAY_ERROR | Không tạo được URL thanh toán |
+| **return/review** | | |
+| 400 | RETURN_NOT_ALLOWED | Đơn không ở COMPLETED |
+| 400 | RETURN_WINDOW_EXPIRED | Quá hạn trả |
+| 409 | RETURN_ALREADY_EXISTS | |
+| 403 | NOT_PURCHASED | Đánh giá khi chưa mua |
+| 409 | REVIEW_ALREADY_EXISTS | |
 
-## Endpoints Tier 2
+## 3. Kiểu dữ liệu dùng chung (đặt trong `frontend/src/types/`)
 
-| Method | Path | Actor | Mô tả |
+```ts
+type Money = number;                                   // VND, số nguyên
+type ItemType = "PRODUCT" | "COMBO";
+type Role = "CUSTOMER" | "EMPLOYEE" | "ADMIN";
+type OrderStatus = "PENDING" | "CONFIRMED" | "SHIPPING" | "COMPLETED"
+                 | "CANCELLED" | "PAYMENT_FAILED" | "RETURNED";
+type PaymentMethod = "VNPAY" | "COD";
+type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
+type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
+type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
+type NotificationType = "ORDER_STATUS" | "ORDER_NEW" | "RETURN_STATUS" | "RETURN_NEW" | "SUPPORT_MESSAGE";
+
+interface UserProfile { id: number; email: string; fullName: string; phone: string | null;
+  address: string | null; role: Role; }
+
+interface ItemSummary {                                // sản phẩm hoặc combo trong danh sách
+  type: ItemType; id: number; name: string; slug: string; primaryImageUrl: string | null;
+  originalPrice: Money; price: Money;                  // price = giá sau chiến dịch (BR-6)
+  availableQuantity: number; averageRating: number | null; reviewCount: number;
+  brand?: string | null;                               // chỉ PRODUCT
+}
+```
+
+## 4. Endpoints
+
+### 4.1 auth — FR-01, FR-02, FR-03
+| Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| POST | `/promotions/validate` | Customer | Kiểm tra mã giảm giá hợp lệ, tính số tiền giảm |
-| GET | `/combos` | Guest | Danh sách combo |
-| POST | `/reviews` | Customer | Viết đánh giá (chỉ khi đơn COMPLETED) — lỗi 400 ORDER_NOT_COMPLETED, 409 REVIEW_ALREADY_EXISTS |
-| GET | `/admin/analytics/revenue` | Admin | Doanh thu theo ngày/tháng |
-| GET | `/admin/analytics/top-products` | Admin | Top sản phẩm bán chạy |
+| POST | `/auth/register` | Public | `{email, password, fullName}` → 201 `{email}`; gửi OTP VERIFY_EMAIL |
+| POST | `/auth/verify-email` | Public | `{email, code}` → 200 `{accessToken, user: UserProfile}` (đăng nhập luôn) |
+| POST | `/auth/resend-code` | Public | `{email, purpose: "VERIFY_EMAIL" \| "RESET_PASSWORD"}` → 200 (luôn trả 200 nếu email không tồn tại) |
+| POST | `/auth/login` | Public | `{email, password}` → 200 `{accessToken, user: UserProfile}` |
+| POST | `/auth/logout` | User | → 200; tăng `token_version` |
+| POST | `/auth/forgot-password` | Public | `{email}` → 200 (luôn 200); gửi OTP RESET_PASSWORD nếu email tồn tại |
+| POST | `/auth/reset-password` | Public | `{email, code, newPassword}` → 200 |
 
-## Payload mẫu
+Mật khẩu: 8–64 ký tự, có ít nhất 1 chữ và 1 số. `fullName` 2–100 ký tự.
 
-### `GET /products`
-Query: `category=leu&minPrice=100000&maxPrice=500000&sortBy=price_asc&page=1&limit=10`
-```json
-{
-  "success": true,
-  "data": [
-    { "id": 12, "name": "Lều cắm trại 2 người chống nước", "slug": "leu-cam-trai-2-nguoi",
-      "price": 450000.00, "stockQuantity": 15,
-      "primaryImageUrl": "https://cdn.campvivo.vn/images/leu-2-nguoi.jpg" }
-  ],
-  "pagination": { "currentPage": 1, "totalPages": 3, "totalItems": 25 }
+### 4.2 user — FR-04, FR-18, FR-20
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| GET | `/users/me` | User | → `UserProfile` |
+| PUT | `/users/me` | User | `{fullName, phone, address}` → `UserProfile` |
+| PUT | `/users/me/password` | User | `{currentPassword, newPassword}` → 200 (token cũ hết hiệu lực) |
+| GET | `/users/me/reviews` | Customer | `?page&limit` → `[ReviewMine]` |
+| GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ArticleSummary, createdAt}]` |
+
+### 4.3 catalog / combo / article (public) — FR-07, FR-21a, FR-25
+| Method | Path | Quyền | Query / Response |
+|---|---|---|---|
+| GET | `/categories` | Public | → cây `[{id, name, slug, children: [...]}]` |
+| GET | `/products` | Public | `category` (slug, gồm danh mục con), `brand`, `minPrice`, `maxPrice` (theo giá sau chiến dịch), `sortBy=price_asc\|price_desc\|newest` (mặc định newest), `page`, `limit` → `[ItemSummary]` |
+| GET | `/products/{slug}` | Public | → `ProductDetail` |
+| GET | `/products/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` (FR-25) |
+| GET | `/products/{id}/reviews` | Public | `?page&limit` → `{averageRating, reviewCount, items: [Review]}` |
+| GET | `/brands` | Public | → `[{name, productCount}]` (distinct `products.brand`) |
+| GET | `/combos` | Public | như `/products` (không có `brand`) → `[ItemSummary]` |
+| GET | `/combos/{slug}` | Public | → `ComboDetail` |
+| GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
+| GET | `/combos/{id}/reviews` | Public | như sản phẩm |
+| GET | `/search` | Public | `q` (bắt buộc, ≥ 2 ký tự), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` → `{products: [...], combos: [...], articles: [...]}` (+ `pagination` khi có `type`) |
+| GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
+| GET | `/articles` | Public | `category`, `page`, `limit` → `[ArticleSummary]` (chỉ đã xuất bản, mới nhất trước) |
+| GET | `/articles/{slug}` | Public | → `ArticleDetail` |
+
+```ts
+interface ProductDetail extends ItemSummary {
+  description: string | null; brand: string | null;
+  category: { id: number; name: string; slug: string; path: {name: string; slug: string}[] };
+  images: { url: string; isPrimary: boolean }[];
+  campaign: { name: string; slug: string; endDate: string } | null;   // chiến dịch đang áp
+  isFavorite?: boolean;                                                // khi có token
+}
+interface ComboDetail extends ItemSummary {
+  description: string | null; category: {...}; images: {...}[];
+  items: { product: ItemSummary; quantity: number }[];                 // chỉ hiển thị
+  isFavorite?: boolean;
+}
+interface ArticleSummary { id: number; title: string; slug: string; summary: string | null;
+  thumbnailUrl: string | null; category: ArticleCategory; publishedAt: string; }
+interface ArticleDetail extends ArticleSummary { content: string; authorName: string; isFavorite?: boolean; }
+interface Review { id: number; userFullName: string; rating: number; content: string | null;
+  createdAt: string; updatedAt: string; }
+interface ReviewMine extends Review { item: { type: ItemType; id: number; name: string; slug: string;
+  primaryImageUrl: string | null } }
+```
+
+### 4.4 cart — FR-09
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| GET | `/cart` | Customer | → `Cart` |
+| POST | `/cart/items` | Customer | `{productId?, comboId?, quantity}` (đúng 1 trong 2 id) → `Cart`. Đã có → cộng dồn |
+| PATCH | `/cart/items/{id}` | Customer | `{quantity}` (≥ 1) → `Cart` |
+| DELETE | `/cart/items/{id}` | Customer | → `Cart` |
+
+```ts
+interface Cart {
+  items: { id: number; item: ItemSummary & { isActive: boolean }; quantity: number;
+           lineTotal: Money; }[];                     // giá hiện hành (D-04)
+  subtotal: Money;
+  hasProblems: boolean;                               // có dòng hết hàng/ngừng bán/vượt available
 }
 ```
+Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`.
 
-### `POST /cart/items`
-```json
-{ "productId": 12, "quantity": 2 }
-```
-Lỗi 409:
-```json
-{ "success": false, "errorCode": "OUT_OF_STOCK", "message": "Chỉ còn 15 sản phẩm khả dụng trong kho." }
-```
+### 4.5 order / payment — FR-10, FR-11, FR-12, FR-19a
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| POST | `/vouchers/validate` | Customer | `{code}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
+| POST | `/orders/preview` | Customer | `{voucherCode?}` → `OrderPreview` (dùng để hiển thị trang thanh toán và lấy `expectedTotal`) |
+| POST | `/orders` | Customer | `CreateOrderRequest` → 201 `{orderId, orderCode, status, finalAmount, paymentMethod, paymentUrl: string \| null}` |
+| GET | `/orders` | Customer | `?status&page&limit` → `[OrderSummary]` (của chính mình) |
+| GET | `/orders/{id}` | Customer | → `OrderDetail` |
+| POST | `/orders/{id}/cancel` | Customer | `{reason?}` → `OrderDetail` |
+| POST | `/orders/{id}/returns` | Customer | `{reason}` (10–1000 ký tự) → 201 `ReturnRequestDto` |
+| GET | `/payments/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12) |
+| GET | `/payments/vnpay/return` | Public | query `vnp_*` → `{orderId, orderCode, status, paymentStatus}` — chỉ đọc |
 
-### `POST /orders`
-```json
-{ "cartId": 5, "shippingAddressId": 2, "paymentMethod": "MOMO", "promotionCode": "CAMPVIVO2025" }
-```
-Response 201:
-```json
-{
-  "success": true,
-  "data": {
-    "orderId": 108, "orderCode": "ORD-20250315-99",
-    "totalAmount": 900000.00, "discountAmount": 90000.00, "finalAmount": 810000.00,
-    "status": "PENDING", "paymentUrl": "https://momo.vn/pay/sandbox/ORD-20250315-99"
-  }
+```ts
+interface OrderPreview {
+  items: { type: ItemType; id: number; name: string; quantity: number;
+           originalPrice: Money; unitPrice: Money; lineTotal: Money }[];
+  subtotal: Money; discountAmount: Money; shippingFee: Money; finalAmount: Money;
+  voucherCode: string | null;
 }
-```
-
-### `POST /promotions/validate`
-```json
-{ "code": "CAMPVIVO2025", "orderValue": 900000.00 }
-```
-```json
-{
-  "success": true,
-  "data": { "code": "CAMPVIVO2025", "discountType": "PERCENTAGE", "discountValue": 10.00,
-    "calculatedDiscount": 90000.00, "isValid": true }
+interface CreateOrderRequest {
+  recipientName: string; recipientPhone: string; shippingAddress: string;
+  saveAsDefault: boolean; paymentMethod: PaymentMethod; voucherCode?: string;
+  note?: string; expectedTotal: Money;                // = OrderPreview.finalAmount client đang thấy
 }
+interface OrderSummary { id: number; orderCode: string; status: OrderStatus; paymentMethod: PaymentMethod;
+  finalAmount: Money; itemCount: number; firstItemName: string; firstItemImageUrl: string | null;
+  createdAt: string; }
+interface OrderDetail extends OrderSummary {
+  items: { type: ItemType; itemId: number; name: string; imageUrl: string | null; originalPrice: Money;
+           unitPrice: Money; quantity: number; lineTotal: Money; canReview: boolean }[];
+  subtotal: Money; discountAmount: Money; shippingFee: Money; voucherCode: string | null;
+  recipientName: string; recipientPhone: string; shippingAddress: string; note: string | null;
+  payment: { method: PaymentMethod; status: PaymentStatus; paidAt: string | null };
+  history: { oldStatus: OrderStatus | null; newStatus: OrderStatus; note: string | null; createdAt: string }[];
+  returnRequest: ReturnRequestDto | null;
+  canCancel: boolean; canReturn: boolean; completedAt: string | null;
+}
+interface ReturnRequestDto { id: number; orderId: number; reason: string; status: ReturnStatus;
+  note: string | null; processedAt: string | null; createdAt: string; }
+```
+Ví dụ `POST /orders` VNPay:
+```json
+{ "recipientName": "Nguyễn Văn A", "recipientPhone": "0901234567",
+  "shippingAddress": "12 Lê Lợi, Q.1, TP.HCM", "saveAsDefault": true,
+  "paymentMethod": "VNPAY", "voucherCode": "CAMPVIVO10", "expectedTotal": 840000 }
+```
+```json
+{ "success": true, "data": { "orderId": 108, "orderCode": "ORD-20261017-7K2Q9A",
+  "status": "PENDING", "finalAmount": 840000, "paymentMethod": "VNPAY",
+  "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..." } }
+```
+Lỗi `POST /orders`: `CART_EMPTY`, `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `PRICE_CHANGED`, các lỗi
+voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `VALIDATION_ERROR`.
+
+### 4.6 review / favorite — FR-18, FR-20
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| POST | `/reviews` | Customer | `{productId?, comboId?, rating (1–5), content?}` → 201 `Review` |
+| PUT | `/reviews/{id}` | Customer (chủ) | `{rating, content?}` → `Review` |
+| DELETE | `/reviews/{id}` | Customer (chủ) | → 200 |
+| POST | `/favorites` | Customer | `{productId? \| comboId? \| articleId?}` → 201 `{id}` (đã có → 200, trả id cũ) |
+| DELETE | `/favorites/{id}` | Customer (chủ) | → 200 |
+| DELETE | `/favorites?productId=\|comboId=\|articleId=` | Customer | → 200 (bỏ thích từ trang chi tiết) |
+
+### 4.7 notification — FR-22
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| GET | `/notifications` | User | `?isRead=true\|false&page&limit` → `[{id, type, title, content, link, isRead, createdAt}]` + `unreadCount` trong `data` wrapper: `{items, unreadCount}` |
+| PATCH | `/notifications/{id}/read` | User (chủ) | → 200 |
+| PATCH | `/notifications/read-all` | User | → `{updated: number}` |
+
+### 4.8 support chat — FR-26
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| GET | `/support/messages` | Customer | `?before=<id>&limit=30` → `[SupportMessage]` (hội thoại của chính mình, mới nhất trước) |
+| POST | `/support/messages` | Customer | `{content}` (1–2000) → 201 `SupportMessage` |
+| GET | `/admin/support/conversations` | Staff | `?page&limit` → `[{customer: {id, fullName, email}, lastMessage: SupportMessage}]` sắp theo tin mới nhất |
+| GET | `/admin/support/conversations/{customerId}/messages` | Staff | `?before&limit` → `[SupportMessage]` |
+| POST | `/admin/support/conversations/{customerId}/messages` | Staff | `{content}` → 201 `SupportMessage` (lưu `user_id = customerId`, `is_from_staff = true`) |
+
+```ts
+interface SupportMessage { id: number; customerId: number; content: string; isFromStaff: boolean; createdAt: string; }
 ```
 
-### `PATCH /admin/orders/{id}/status`
-```json
-{ "status": "SHIPPING", "note": "Đã bàn giao cho đơn vị vận chuyển." }
-```
-```json
-{ "success": true, "data": { "orderId": 108, "oldStatus": "CONFIRMED", "newStatus": "SHIPPING",
-  "updatedAt": "2025-03-15T09:15:00Z" } }
-```
+### 4.9 WebSocket (STOMP) — FR-22, FR-26
+- Endpoint: `/ws` (SockJS fallback). Header CONNECT: `Authorization: Bearer <JWT>`.
+- Server đẩy (client SUBSCRIBE):
+  - `/user/queue/notifications` → `{id, type, title, content, link, isRead, createdAt}`
+  - `/user/queue/support` → `SupportMessage` (khách nhận tin của nhân viên; nhân viên nhận tin của mọi khách)
+- Client chỉ gửi qua REST (POST ở 4.8); WebSocket chỉ để nhận. Mất kết nối → client gọi lại REST để đồng bộ.
+
+### 4.10 admin
+| Method | Path | Quyền | Ghi chú |
+|---|---|---|---|
+| GET | `/admin/users` | Admin | `?q` (email/họ tên), `role`, `isActive`, `page`, `limit` |
+| GET | `/admin/users/{id}` | Admin | + số đơn, tổng chi tiêu (đơn COMPLETED) |
+| PATCH | `/admin/users/{id}` | Admin | `{fullName?, phone?, role?, isActive?}`; đổi role/khoá → tăng token_version; `CANNOT_MODIFY_SELF` |
+| GET | `/admin/categories` | Admin | cây đầy đủ + số sản phẩm/combo |
+| POST | `/admin/categories` | Admin | `{name, slug?, parentId?}` |
+| PUT | `/admin/categories/{id}` | Admin | `{name, slug, parentId?}` (BR-13) |
+| DELETE | `/admin/categories/{id}` | Admin | `CATEGORY_NOT_EMPTY` |
+| GET | `/admin/products` | Admin | `?q&categoryId&isActive&page&limit` (gồm `stockQuantity`, `reservedQuantity`) |
+| GET | `/admin/products/{id}` | Admin | |
+| POST | `/admin/products` | Admin | `{name, slug?, description?, brand?, price, categoryId, isActive, images: [{url, isPrimary, displayOrder}]}` |
+| PUT | `/admin/products/{id}` | Admin | như POST (thay toàn bộ danh sách ảnh) |
+| POST | `/admin/uploads/images` | Admin | multipart `file` (jpg/png/webp ≤ 5MB) → `{url}` (Cloudinary) |
+| GET/POST | `/admin/combos` | Admin | POST `{name, slug?, description?, categoryId, comboPrice, isActive, images, items: [{productId, quantity}]}` |
+| GET/PUT | `/admin/combos/{id}` | Admin | |
+| GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO&q&lowStock=true&page&limit` → `[{type, id, name, stockQuantity, reservedQuantity, availableQuantity, isLowStock}]` |
+| POST | `/admin/inventory/adjustments` | Staff | `{productId? \| comboId?, changeQuantity, reason: IMPORT\|EXPORT\|ADJUST, note?}` → log mới |
+| GET | `/admin/inventory/logs` | Staff | `?productId&comboId&from&to&page&limit` |
+| GET | `/admin/orders` | Staff | `?status&paymentMethod&q (orderCode/email/SĐT)&from&to&page&limit` |
+| GET | `/admin/orders/{id}` | Staff | `OrderDetail` + thông tin khách |
+| PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` (mục 5.1 `database.md`) → `{orderId, oldStatus, newStatus, updatedAt}` |
+| GET | `/admin/returns` | Staff | `?status&page&limit` |
+| GET | `/admin/returns/{id}` | Staff | + `OrderDetail` |
+| PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT" \| "COMPLETE", note?}` (REJECT bắt buộc note) |
+| GET/POST | `/admin/vouchers` | Admin | POST `{code, discountType, discountValue, maxDiscount?, minOrderValue, quantity, startDate, expiryDate, isActive}` |
+| GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | DELETE → `VOUCHER_IN_USE` nếu đã dùng |
+| GET/POST | `/admin/campaigns` | Admin | POST `{name, slug?, description?, bannerUrl?, discountType, discountValue, startDate, endDate, isActive, productIds: number[]}` |
+| GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | |
+| GET/POST | `/admin/articles` | Admin | `?category&isPublished&q`; POST `{title, slug?, summary?, content, thumbnailUrl?, category, isPublished}` |
+| GET/PUT/DELETE | `/admin/articles/{id}` | Admin | |
+| GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
+| GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
+| GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
+
+## 5. Ánh xạ sang frontend
+- Mỗi nhóm endpoint ↔ `frontend/src/services/<module>Service.ts` (auth, user, catalog, cart, order,
+  review, favorite, notification, support, admin…). Component không gọi `fetch/axios` trực tiếp.
+- Client HTTP chung `services/apiClient.ts` (axios): gắn token, bóc `data`, chuyển lỗi thành
+  `ApiError { errorCode, message, details }`; 401 → xoá token, chuyển về đăng nhập.
