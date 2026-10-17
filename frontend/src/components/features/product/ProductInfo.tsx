@@ -37,7 +37,6 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
   const [warn, setWarn] = useState(false);
   const [popup, setPopup] = useState<"voucher" | "policy" | null>(null);
   const [memberDes, setMemberDes] = useState(false);
-  const [pointDes, setPointDes] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState("");
   const left = useCountdown(p.saleEnds);
   const allSoldOut = p.variants.length > 0 && firstAvail === -1;
@@ -294,15 +293,6 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
             {p.viewsToday && (
               <div className="count_today">
                 <b>{p.viewsToday}</b> người đã xem hôm nay
-              </div>
-            )}
-            {p.wepoint && (
-              <div className="loyalty__main__point">
-                <div className="point-text">
-                  {" "}
-                  + <b>{p.wepoint} </b> điểm tích lũy WePoint <div className="ic-question" onClick={() => setPointDes((v) => !v)} />
-                </div>
-                <ul className={`point-des${pointDes ? " show" : ""}`} dangerouslySetInnerHTML={{ __html: st.pointDesHtml }} />
               </div>
             )}
             <div className="groupButton">

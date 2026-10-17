@@ -2,7 +2,7 @@
  "promoBar": [
   {
    "href": "#",
-   "html": "Đặc quyền Tích điểm <b>WePoint</b> &amp; Khuyến mãi <b>5%</b> cho <b>Khách hàng thân thiết</b> !"
+   "html": "Đặc quyền Khuyến mãi <b>5%</b> cho <b>Khách hàng thân thiết</b> !"
   },
   {
    "href": "/brands/leu-cam-trai-snowline",
@@ -229,7 +229,6 @@
     "installment": true,
     "rating": null,
     "sold": "3 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-zero",
      "bar": "100%",
@@ -249,7 +248,6 @@
     "installment": false,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "40%",
@@ -269,7 +267,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "66%",
@@ -289,7 +286,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "66%",
@@ -309,7 +305,6 @@
     "installment": false,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "33%",
@@ -329,7 +324,6 @@
     "installment": true,
     "rating": null,
     "sold": "137 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "41%",
@@ -349,7 +343,6 @@
     "installment": false,
     "rating": null,
     "sold": "8 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-critical",
      "bar": "80%",
@@ -369,7 +362,6 @@
     "installment": true,
     "rating": null,
     "sold": "3 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-critical",
      "bar": "75%",
@@ -389,7 +381,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "66%",
@@ -409,7 +400,6 @@
     "installment": true,
     "rating": null,
     "sold": "4 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-critical",
      "bar": "80%",
@@ -429,7 +419,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "66%",
@@ -449,7 +438,6 @@
     "installment": false,
     "rating": null,
     "sold": "4 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "30%",
@@ -469,7 +457,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "66%",
@@ -489,7 +476,6 @@
     "installment": false,
     "rating": null,
     "sold": "4 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "44%",
@@ -509,7 +495,6 @@
     "installment": true,
     "rating": null,
     "sold": "546 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-critical",
      "bar": "89%",
@@ -529,7 +514,6 @@
     "installment": true,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-zero",
      "bar": "0%",
@@ -549,7 +533,6 @@
     "installment": true,
     "rating": null,
     "sold": "165 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "56%",
@@ -569,7 +552,6 @@
     "installment": true,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-zero",
      "bar": "100%",
@@ -589,7 +571,6 @@
     "installment": true,
     "rating": null,
     "sold": "4 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-zero",
      "bar": "100%",
@@ -609,7 +590,6 @@
     "installment": false,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "40%",
@@ -629,7 +609,6 @@
     "installment": false,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -649,7 +628,6 @@
     "installment": true,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -669,7 +647,6 @@
     "installment": true,
     "rating": null,
     "sold": "3 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-zero",
      "bar": "100%",
@@ -689,7 +666,6 @@
     "installment": false,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -709,7 +685,6 @@
     "installment": true,
     "rating": null,
     "sold": "1 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "50%",
@@ -729,7 +704,6 @@
     "installment": true,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -749,7 +723,6 @@
     "installment": true,
     "rating": null,
     "sold": "1 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-low",
      "bar": "50%",
@@ -769,7 +742,6 @@
     "installment": false,
     "rating": null,
     "sold": "2 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "25%",
@@ -789,7 +761,6 @@
     "installment": false,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -809,7 +780,6 @@
     "installment": false,
     "rating": null,
     "sold": "0 đã mua",
-    "wepoint": null,
     "inv": {
      "cls": "inv-ok",
      "bar": "0%",
@@ -837,7 +807,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.695 WePoint",
      "inv": null
     },
     {
@@ -853,7 +822,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 989 WePoint",
      "inv": null
     },
     {
@@ -869,7 +837,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 690 WePoint",
      "inv": null
     },
     {
@@ -885,7 +852,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     },
     {
@@ -901,7 +867,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 690 WePoint",
      "inv": null
     },
     {
@@ -917,7 +882,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.599 WePoint",
      "inv": null
     },
     {
@@ -933,7 +897,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 830 WePoint",
      "inv": null
     },
     {
@@ -949,7 +912,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.899 WePoint",
      "inv": null
     },
     {
@@ -965,7 +927,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 5.399 WePoint",
      "inv": null
     },
     {
@@ -981,7 +942,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.460 WePoint",
      "inv": null
     },
     {
@@ -997,7 +957,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     },
     {
@@ -1013,7 +972,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     },
     {
@@ -1029,7 +987,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.799 WePoint",
      "inv": null
     },
     {
@@ -1045,7 +1002,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.189 WePoint",
      "inv": null
     },
     {
@@ -1061,7 +1017,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.395 WePoint",
      "inv": null
     },
     {
@@ -1077,7 +1032,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.890 WePoint",
      "inv": null
     },
     {
@@ -1093,7 +1047,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 689 WePoint",
      "inv": null
     },
     {
@@ -1109,7 +1062,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.680 WePoint",
      "inv": null
     },
     {
@@ -1125,7 +1077,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 830 WePoint",
      "inv": null
     },
     {
@@ -1141,7 +1092,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.495 WePoint",
      "inv": null
     },
     {
@@ -1157,7 +1107,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 7.500 WePoint",
      "inv": null
     },
     {
@@ -1173,7 +1122,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 830 WePoint",
      "inv": null
     },
     {
@@ -1189,7 +1137,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.609 WePoint",
      "inv": null
     },
     {
@@ -1205,7 +1152,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.865 WePoint",
      "inv": null
     }
    ]
@@ -1228,7 +1174,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.980 WePoint",
      "inv": null
     },
     {
@@ -1244,7 +1189,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 585 WePoint",
      "inv": null
     },
     {
@@ -1260,7 +1204,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 431 WePoint",
      "inv": null
     },
     {
@@ -1276,7 +1219,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 25 WePoint",
      "inv": null
     },
     {
@@ -1292,7 +1234,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 202 WePoint",
      "inv": null
     },
     {
@@ -1308,7 +1249,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 350 WePoint",
      "inv": null
     },
     {
@@ -1324,7 +1264,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 120 WePoint",
      "inv": null
     },
     {
@@ -1340,7 +1279,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 699 WePoint",
      "inv": null
     },
     {
@@ -1356,7 +1294,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 790 WePoint",
      "inv": null
     },
     {
@@ -1372,7 +1309,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 279 WePoint",
      "inv": null
     },
     {
@@ -1388,7 +1324,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 279 WePoint",
      "inv": null
     },
     {
@@ -1404,7 +1339,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.290 WePoint",
      "inv": null
     },
     {
@@ -1420,7 +1354,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 60 WePoint",
      "inv": null
     },
     {
@@ -1436,7 +1369,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 865 WePoint",
      "inv": null
     },
     {
@@ -1452,7 +1384,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 699 WePoint",
      "inv": null
     },
     {
@@ -1468,7 +1399,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 559 WePoint",
      "inv": null
     },
     {
@@ -1484,7 +1414,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 55 WePoint",
      "inv": null
     },
     {
@@ -1500,7 +1429,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 980 WePoint",
      "inv": null
     },
     {
@@ -1516,7 +1444,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 375 WePoint",
      "inv": null
     },
     {
@@ -1532,7 +1459,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.104 WePoint",
      "inv": null
     },
     {
@@ -1548,7 +1474,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 25 WePoint",
      "inv": null
     },
     {
@@ -1564,7 +1489,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 699 WePoint",
      "inv": null
     },
     {
@@ -1580,7 +1504,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 49 WePoint",
      "inv": null
     },
     {
@@ -1596,7 +1519,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.350 WePoint",
      "inv": null
     }
    ]
@@ -1619,7 +1541,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 599 WePoint",
      "inv": null
     },
     {
@@ -1635,7 +1556,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.250 WePoint",
      "inv": null
     },
     {
@@ -1651,7 +1571,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 7.500 WePoint",
      "inv": null
     },
     {
@@ -1667,7 +1586,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.999 WePoint",
      "inv": null
     },
     {
@@ -1683,7 +1601,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.599 WePoint",
      "inv": null
     },
     {
@@ -1699,7 +1616,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.999 WePoint",
      "inv": null
     },
     {
@@ -1715,7 +1631,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     },
     {
@@ -1731,7 +1646,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.399 WePoint",
      "inv": null
     },
     {
@@ -1747,7 +1661,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.399 WePoint",
      "inv": null
     },
     {
@@ -1763,7 +1676,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 4.299 WePoint",
      "inv": null
     },
     {
@@ -1779,7 +1691,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     },
     {
@@ -1795,7 +1706,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.499 WePoint",
      "inv": null
     },
     {
@@ -1811,7 +1721,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.155 WePoint",
      "inv": null
     },
     {
@@ -1827,7 +1736,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.699 WePoint",
      "inv": null
     },
     {
@@ -1843,7 +1751,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.399 WePoint",
      "inv": null
     }
    ]
@@ -1866,7 +1773,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 465 WePoint",
      "inv": null
     },
     {
@@ -1882,7 +1788,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 855 WePoint",
      "inv": null
     },
     {
@@ -1898,7 +1803,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.125 WePoint",
      "inv": null
     },
     {
@@ -1914,7 +1818,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 985 WePoint",
      "inv": null
     },
     {
@@ -1930,7 +1833,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.625 WePoint",
      "inv": null
     },
     {
@@ -1946,7 +1848,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.495 WePoint",
      "inv": null
     },
     {
@@ -1962,7 +1863,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.495 WePoint",
      "inv": null
     },
     {
@@ -1978,7 +1878,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 525 WePoint",
      "inv": null
     },
     {
@@ -1994,7 +1893,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.250 WePoint",
      "inv": null
     },
     {
@@ -2010,7 +1908,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.625 WePoint",
      "inv": null
     },
     {
@@ -2026,7 +1923,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.625 WePoint",
      "inv": null
     }
    ]
@@ -2049,7 +1945,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2065,7 +1960,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2081,7 +1975,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2097,7 +1990,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2113,7 +2005,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2129,7 +2020,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2145,7 +2035,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 899 WePoint",
      "inv": null
     },
     {
@@ -2161,7 +2050,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2177,7 +2065,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2193,7 +2080,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2209,7 +2095,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     },
     {
@@ -2225,7 +2110,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 999 WePoint",
      "inv": null
     }
    ]
@@ -2248,7 +2132,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 22.995 WePoint",
      "inv": null
     },
     {
@@ -2264,7 +2147,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 465 WePoint",
      "inv": null
     },
     {
@@ -2280,7 +2162,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.590 WePoint",
      "inv": null
     },
     {
@@ -2296,7 +2177,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 10.995 WePoint",
      "inv": null
     },
     {
@@ -2312,7 +2192,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.750 WePoint",
      "inv": null
     },
     {
@@ -2328,7 +2207,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.479 WePoint",
      "inv": null
     },
     {
@@ -2344,7 +2222,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 685 WePoint",
      "inv": null
     },
     {
@@ -2360,7 +2237,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.600 WePoint",
      "inv": null
     },
     {
@@ -2376,7 +2252,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 12.995 WePoint",
      "inv": null
     },
     {
@@ -2392,7 +2267,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.190 WePoint",
      "inv": null
     },
     {
@@ -2408,7 +2282,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.465 WePoint",
      "inv": null
     },
     {
@@ -2424,7 +2297,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.550 WePoint",
      "inv": null
     },
     {
@@ -2440,7 +2312,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 895 WePoint",
      "inv": null
     },
     {
@@ -2456,7 +2327,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.995 WePoint",
      "inv": null
     },
     {
@@ -2472,7 +2342,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.255 WePoint",
      "inv": null
     },
     {
@@ -2488,7 +2357,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 19.995 WePoint",
      "inv": null
     },
     {
@@ -2504,7 +2372,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.969 WePoint",
      "inv": null
     },
     {
@@ -2520,7 +2387,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 8.995 WePoint",
      "inv": null
     },
     {
@@ -2536,7 +2402,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.590 WePoint",
      "inv": null
     },
     {
@@ -2552,7 +2417,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 7.999 WePoint",
      "inv": null
     },
     {
@@ -2568,7 +2432,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.995 WePoint",
      "inv": null
     },
     {
@@ -2584,7 +2447,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 1.590 WePoint",
      "inv": null
     },
     {
@@ -2600,7 +2462,6 @@
      "installment": true,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 3.150 WePoint",
      "inv": null
     },
     {
@@ -2616,7 +2477,6 @@
      "installment": false,
      "rating": 100,
      "sold": null,
-     "wepoint": "+ 2.650 WePoint",
      "inv": null
     }
    ]

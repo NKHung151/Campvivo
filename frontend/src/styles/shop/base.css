@@ -1898,59 +1898,6 @@ header {
   position: relative;
   z-index: 5;
 }
-.menuTop {
-  background: #292929;
-  min-height: 40px;
-}
-.menuTop .container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.menuTop .nav_primary {
-  display: flex;
-  min-height: 40px;
-}
-.menuTop .hotline {
-  color: #999;
-  display: flex;
-  align-items: flex-start;
-}
-.menuTop .hotline a {
-  color: #c7370f;
-  text-shadow: #c7370f 0.5px 0 0;
-  margin: 0 5px;
-}
-.nav_primary a {
-  color: #999;
-  padding: 10px;
-  font-size: 15px;
-  position: relative;
-}
-.nav_primary a:hover,
-.menuTop a.active {
-  color: #fff;
-}
-.nav_primary a.active:before,
-.menuTop a.active:after {
-  content: "";
-  color: #f7f7f7;
-  position: absolute;
-  bottom: -1px;
-  left: 48%;
-  border: 11px solid transparent;
-  border-top-width: 0 !important;
-  border-bottom-color: inherit;
-  transform: translate(-13px);
-  border-radius: 5px;
-}
-.nav_primary a.active:after {
-  border-width: 0 8px 8px;
-  transform: translate(-2px);
-}
-.nav_primary a:first-child {
-  padding-left: 0;
-}
 .masthead .container {
   display: flex;
   align-items: center;
@@ -2412,8 +2359,6 @@ footer .social a:hover img {
 
 .BuyNowFrame .item.dn{display:none}
 
-
-
 .cv-signin-wrap{position:relative;display:inline-block}
 .cv-signin-pop{display:none;position:fixed;width:280px;background:#fff;border:1px solid #e2e2e2;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.15);padding:16px;z-index:99999;text-align:left;color:#222;font-weight:400}
 .cv-signin-pop.open{display:block}
@@ -2426,9 +2371,6 @@ footer .social a:hover img {
 .cv-pop-btn{display:block;text-align:center;padding:10px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:8px;font-size:14px}
 .cv-pop-primary{background:#497e57;color:#fff}
 .cv-pop-second{background:#fff;color:#222;border:1px solid #ccc}
-
-
-
 
 #homepage-slogan{text-align:center;color:#333;font-size:28px;font-weight:600;margin:18px auto 0;padding:10px 20px;line-height:1.6;position:relative}
 #homepage-slogan::before{content:'\201C\00A0';font-size:1.8rem;font-family:Georgia,serif;line-height:0;vertical-align:-0.35em;color:#333}

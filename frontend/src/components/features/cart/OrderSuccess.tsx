@@ -52,7 +52,7 @@ export function OrderSuccess() {
           >
             Đăng nhập
           </a>{" "}
-          để theo dõi đơn hàng và tích điểm WePoint.
+          để theo dõi đơn hàng.
         </p>
       )}
       <div className="btns">

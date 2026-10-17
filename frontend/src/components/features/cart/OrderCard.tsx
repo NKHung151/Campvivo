@@ -33,7 +33,7 @@ export function OrderCard({ order }: { order: Order }) {
         Tạm tính {vnd(order.subtotal)}
         {order.voucher ? ` · Voucher -${vnd(order.voucher)}` : ""}
         {order.member ? ` · Member -${vnd(order.member)}` : ""}
-        {order.points ? ` · WePoint -${vnd(order.points)}` : ""} · Tổng tiền <b>{vnd(order.total)}</b>
+        {" "}· Tổng tiền <b>{vnd(order.total)}</b>
       </div>
     </div>
   );

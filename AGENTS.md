@@ -101,9 +101,9 @@ Theo 4 module cốt lõi của báo cáo (nhóm xác nhận lại — `docs/01-t
 | Người | Module báo cáo | Module backend | Module frontend |
 |---|---|---|---|
 | Người 1 | Mua hàng | `cart`, `order` (gồm trả hàng), `payment` | giỏ hàng/thanh toán, đơn cá nhân, admin đơn hàng/trả hàng |
-| Người 2 | Quản trị hệ thống | `catalog`, `combo`, `inventory`, `promotion`, `article`, `analytics` | admin sản phẩm/danh mục/combo/tồn kho/voucher/chiến dịch/bài viết/dashboard |
-| Người 3 | Xác thực và thông tin người dùng | `auth`, `user`, `common` | layout, `components/ui`, trang auth/hồ sơ, admin user |
-| Người 4 | Khám phá và hỗ trợ + Hệ thống | `review`, `favorite`, `support`, `notification`, `recommendation` | trang khám phá/tìm kiếm/bài viết, đánh giá, yêu thích, chat, thông báo |
+| Người 2 | Quản trị hệ thống | `catalog`, `combo`, `inventory`, , `article`, `analytics` | admin sản phẩm/danh mục/combo/tồn kho/bài viết/dashboard |
+| Người 3 | Xác thực và thông tin người dùng | `auth`, `user`, `common`, `support` | layout, `components/ui`, trang auth/hồ sơ, admin user | trang khám phá/tìm kiếm/bài viết, chat realtime
+| Người 4 | Khám phá và hỗ trợ + Hệ thống | `review`, `favorite`, , `notification`, `recommendation`, `promotion` | đánh giá, yêu thích, chat, thông báo, voucher/chiến dịch |
 
 ## 10. Công cụ cụ thể
 - **Claude Code**: `CLAUDE.md` ở root chỉ là shim trỏ sang file này — đọc `AGENTS.md`, theo
