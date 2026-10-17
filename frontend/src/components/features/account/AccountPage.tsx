@@ -6,17 +6,16 @@ import { GridCard } from "@/components/features/catalog/ProductCard";
 import { useShop } from "@/components/features/shop/ShopProvider";
 import { OrderCard } from "@/components/features/cart/OrderCard";
 
-type Tab = "orders" | "wishlist" | "address" | "points";
+type Tab = "orders" | "wishlist" | "address";
 const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Đơn hàng của tôi" },
   { id: "wishlist", label: "Danh sách yêu thích" },
   { id: "address", label: "Địa chỉ nhận hàng" },
-  { id: "points", label: "WePoint" },
 ];
 
 /**
  * Member area, backed by the mock store until the account API exists, so this is authored
- * from what the site promises members (orders, wishlist, WePoint) using its visual language.
+ * from what the site promises members (orders, wishlist) using its visual language.
  */
 export function AccountPage() {
   const { ready, user, orders, wishlist, customer, openLogin, logout } = useShop();
@@ -36,7 +35,7 @@ export function AccountPage() {
     return (
       <div className="pageContent cv-success">
         <h1>Tài khoản Campvivo</h1>
-        <p>Đăng nhập để xem đơn hàng, danh sách yêu thích và điểm WePoint.</p>
+        <p>Đăng nhập để xem đơn hàng và danh sách yêu thích.</p>
         <div className="btns">
           <button type="button" className="cv-btn" onClick={openLogin}>
             Đăng nhập
@@ -60,9 +59,6 @@ export function AccountPage() {
         <aside>
           <div className="name">{user.name}</div>
           <div>{user.phone}</div>
-          <div className="pts">
-            WePoint: <b>{user.points.toLocaleString("de-DE")}</b> điểm
-          </div>
           {TABS.map((t) => (
             <button key={t.id} type="button" className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>
               {t.label}
@@ -103,15 +99,6 @@ export function AccountPage() {
             ) : (
               <div className="cv-empty">Chưa có địa chỉ. Địa chỉ sẽ được lưu khi bạn đặt hàng.</div>
             ))}
-          {tab === "points" && (
-            <div className="cv-order">
-              <div className="row" style={{ display: "block", lineHeight: 1.7 }}>
-                Bạn đang có <b>{user.points.toLocaleString("de-DE")}</b> điểm WePoint.
-                <br />
-                Tích điểm WePoint cho mọi đơn hàng: <b>1.000 VNĐ = 1 điểm</b>. Tri ân <b>5%</b> giá trị đơn hàng cho mọi đơn hàng tiếp theo.
-              </div>
-            </div>
-          )}
         </section>
       </div>
     </div>

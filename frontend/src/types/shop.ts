@@ -23,7 +23,6 @@ export interface ProductCard {
   installment: boolean;
   rating: number | null;
   sold: string | null;
-  wepoint: string | null;
   inv?: InventoryBar | null;
   swatches?: Swatch[];
 }
@@ -206,7 +205,6 @@ export interface Order {
   subtotal: number;
   voucher: number;
   member: number;
-  points: number;
   shipping: string;
   total: number;
   payment: string;
@@ -217,7 +215,6 @@ export interface Order {
 export interface User {
   phone: string;
   name: string;
-  points: number;
 }
 
 /** Outdoor Journal (community articles): list index, categories and filters. */

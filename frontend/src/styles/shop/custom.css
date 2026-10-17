@@ -93,10 +93,7 @@ body {
   font-size: 18px;
   margin-bottom: 4px;
 }
-.cv-account aside .pts {
-  color: #2f6a3f;
-  margin: 10px 0 16px;
-}
+
 .cv-account aside a,
 .cv-account aside button {
   display: block;
@@ -244,12 +241,6 @@ body {
   letter-spacing: -1px;
   color: #2f6a3f;
   line-height: 1;
-}
-
-/* Keep the top bar on one line with the longer Campvivo labels */
-.menuTop .nav_primary a,
-.menuTop .hotline {
-  white-space: nowrap;
 }
 
 /* Mock content that hasn't been rewritten for Campvivo yet */

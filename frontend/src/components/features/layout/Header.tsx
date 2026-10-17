@@ -6,18 +6,7 @@ import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/shop";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { useShop } from "@/components/features/shop/ShopProvider";
-import { CartIcon, PhoneIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
-import { DEAD } from "@/lib/dead-link";
-
-const TOP_LINKS = [
-  { name: "New arrivals", href: "/categories/san-pham-moi" },
-  { name: "Campvivology", href: "/guides" },
-  { name: "Outdoor Journal", href: "/journal" },
-  { name: "WeExperience", href: DEAD },
-  { name: "WePoints", href: DEAD },
-  { name: "Why Campvivo", href: DEAD },
-  { name: "Tuyển dụng", href: DEAD },
-];
+import { CartIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
   const { cart, user, ready, openLogin } = useShop();
@@ -54,20 +43,6 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
 
   return (
     <header>
-      <section className="menuTop">
-        <div className="container">
-          <div className="nav_primary">
-            {TOP_LINKS.map((l) => (
-              <SmartLink key={l.name} className="nm" title={l.name} href={l.href}>
-                {l.name}{" "}
-              </SmartLink>
-            ))}
-          </div>
-          <div className="hotline">
-            <PhoneIcon /> Gọi đặt hàng (miễn phí): <a href={DEAD} data-dead=""> 1900 0000</a> (9.30 - 21.30){" "}
-          </div>
-        </div>
-      </section>
       <section className="masthead">
         <div className="container">
           <Link className="logo" href="/">
@@ -110,7 +85,7 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                     <UserIcon /> Đăng nhập
                   </a>
                 )}
-                <div className={`cv-signin-pop${popOpen && !user ? " open" : ""}`} id="wtSigninPop" style={{ top: 123, right: "calc(50% - 466px)" }}>
+                <div className={`cv-signin-pop${popOpen && !user ? " open" : ""}`} id="wtSigninPop" style={{ top: 83, right: "calc(50% - 466px)" }}>
                   <button type="button" className="cv-pop-x" onClick={closePop} aria-label="Đóng">
                     ×
                   </button>
@@ -120,7 +95,7 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                   <ul className="cv-pop-list">
                     <li>Thanh toán nhanh hơn</li>
                     <li>Theo dõi đơn hàng dễ dàng</li>
-                    <li>Tích &amp; dùng điểm WePoint, giảm 5% từ đơn thứ 2</li>
+                    <li>Giảm 5% từ đơn thứ 2</li>
                   </ul>
                   {(["Tạo tài khoản", "Đăng nhập"] as const).map((t, i) => (
                     <a

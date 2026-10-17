@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { Customer } from "@/types/shop";
 import { productHref, vnd } from "@/lib/format";
-import { POINT_VALUE, useShop } from "@/components/features/shop/ShopProvider";
+import { useShop } from "@/components/features/shop/ShopProvider";
 import { DISTRICTS } from "@/components/features/cart/geo";
 
 const Chevron = ({ color = "#000" }: { color?: string }) => (
@@ -45,7 +45,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
   const [code, setCode] = useState("");
   const [voucher, setVoucher] = useState<{ code: string; amount: number } | null>(null);
   const [voucherMsg, setVoucherMsg] = useState("");
-  const [usePoints, setUsePoints] = useState(false);
   const [popup, setPopup] = useState<"csvc" | "pvc" | null>(null);
   const [variantFor, setVariantFor] = useState<string | null>(null);
   const [form, setForm] = useState<Customer>(EMPTY_CUSTOMER);
@@ -60,9 +59,7 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
   const subtotal = selected.reduce((n, c) => n + c.price * c.qty, 0);
   const memberDiscount = user && orders.length > 0 ? Math.round(subtotal * 0.05) : 0;
   const voucherDiscount = voucher && subtotal >= (VOUCHERS[voucher.code]?.min ?? 0) ? voucher.amount : 0;
-  const pointsAvail = (user?.points ?? 0) * POINT_VALUE;
-  const pointsDiscount = usePoints ? Math.min(pointsAvail, Math.max(0, subtotal - memberDiscount - voucherDiscount)) : 0;
-  const total = Math.max(0, subtotal - memberDiscount - voucherDiscount - pointsDiscount);
+  const total = Math.max(0, subtotal - memberDiscount - voucherDiscount);
   const shipping = subtotal >= 1_000_000 ? "Miễn phí (tối đa 30.000 đ)" : "Tính theo ĐVVC";
   const count = selected.reduce((n, c) => n + c.qty, 0);
   const districts = useMemo(() => DISTRICTS[form.province] ?? null, [form.province]);
@@ -118,7 +115,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
       subtotal,
       voucher: voucherDiscount,
       member: memberDiscount,
-      points: pointsDiscount,
       shipping,
       total,
       payment: PAYMENTS.find((p) => p.id === payment)!.label,
@@ -352,24 +348,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
                     <span>Tạm tính</span>
                     <span>Voucher</span>
                     <span>Ưu đãi Member</span>
-                    <div className="use-point">
-                      <span>Dùng điểm quà tặng WePoint</span>
-                      <label className="toggle-switch">
-                        <input
-                          type="checkbox"
-                          id="useVipPoint"
-                          checked={usePoints}
-                          onChange={(e) => {
-                            if (!user) {
-                              shop.openLogin();
-                              return;
-                            }
-                            setUsePoints(e.target.checked);
-                          }}
-                        />
-                        <span className="slider" />
-                      </label>
-                    </div>
                     <a
                       id="phivanchuyen"
                       className="hv_underline"
@@ -391,15 +369,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
                     <span id="SubTotal">{vnd(subtotal)}</span>
                     <span id="VoucherDiscount">{voucherDiscount ? `-${vnd(voucherDiscount)}` : 0}</span>
                     <span id="MemberDiscount">{memberDiscount ? `-${vnd(memberDiscount)}` : 0}</span>
-                    <span id="PointDiscount">
-                      {usePoints ? (
-                        `-${vnd(pointsDiscount)}`
-                      ) : (
-                        <div className="point-customer">
-                          Bạn có {(user?.points ?? 0).toLocaleString("de-DE")} điểm = {vnd(pointsAvail, " ₫")}
-                        </div>
-                      )}
-                    </span>
                     <span id="Ship">{shipping}</span>
                     <span id="cartTotalMoney">{vnd(total)}</span>
                   </div>

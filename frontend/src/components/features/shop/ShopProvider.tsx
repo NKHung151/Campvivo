@@ -36,8 +36,6 @@ interface ShopState {
 }
 
 const ShopContext = createContext<ShopState | null>(null);
-/** Demo redemption rate for WePoint (placeholder until the promotion module defines it). */
-export const POINT_VALUE = 100;
 const KEY = "campvivo-shop-v1";
 
 interface Persisted {
@@ -132,7 +130,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       login: (phone, name) =>
         update((s) => ({
           ...s,
-          user: { phone, name: name || s.customer?.name || `Camper ${phone.slice(-4)}`, points: s.user?.points ?? 0 },
+          user: { phone, name: name || s.customer?.name || `Camper ${phone.slice(-4)}` },
         })),
       logout: () => update((s) => ({ ...s, user: null })),
       openLogin: () => setLoginOpen(true),
@@ -145,14 +143,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
           date: new Date().toISOString(),
           status: "Chờ xác nhận",
         };
-        update((s) => ({
-          ...s,
-          orders: [order, ...s.orders],
-          // Earn 1 WePoint per 1.000đ; redeemed points are worth POINT_VALUE đ each.
-          user: s.user
-            ? { ...s.user, points: s.user.points - Math.round(order.points / POINT_VALUE) + Math.floor(order.total / 1000) }
-            : s.user,
-        }));
+        update((s) => ({ ...s, orders: [order, ...s.orders] }));
         return order;
       },
       toggleWishlist: (slug) =>

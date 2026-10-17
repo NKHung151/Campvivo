@@ -54,7 +54,6 @@ export interface ProductFull {
   maxQty: number | null;
   variantLabel: string | null;
   variants: { name: string; inv: number }[];
-  wepoint: string | null;
   viewsToday: string | null;
   images: { big: string; thumb: string; alt: string }[];
   breadcrumbs: LinkItem[];
@@ -83,5 +82,4 @@ export interface PdpStatic {
   benefitsHtml: string;
   memberDesHtml: string;
   policyHtml: string;
-  pointDesHtml: string;
 }

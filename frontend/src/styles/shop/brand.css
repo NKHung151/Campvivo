@@ -341,7 +341,6 @@
 .pg-brand .sub-category .horizon-prev{ left: 0;}
 .pg-brand .sub-category .horizon-next{ right: 0; }
 
-
 .pg-brand .article-expert-advice{display:flex;justify-content:center;gap:30px;flex-wrap:wrap;margin-bottom:20px}
 .pg-brand .article-expert-advice .item{
     display: flex;flex-direction:column;
@@ -377,15 +376,6 @@
     margin: 5px 15px;
     padding: 10px 0;
     font-weight: bold;
-}
-
-.pg-brand .points-purple {
-    background: #e3f2fd;
-    color: #2f7abb;
-    padding: 10px 0;
-    font-size: 16px;
-    text-align: center;
-    margin: 5px 15px;
 }
 
 /* ── Brand Intro (giống category) ── */

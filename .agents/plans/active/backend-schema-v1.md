@@ -1,5 +1,9 @@
 # Plan: Migration đầy đủ 22 bảng + khung entity (thay V1/V2 placeholder)
 
+> **Cập nhật 2026-10-17:** phần migration được tách theo người thành task F-05 → F-09
+> (`V1__users` … `V5__interaction`, seed `V6__seed_dev`) trong `backend-roadmap.md` mục 4 để làm song
+> song. Phạm vi và cách test dưới đây vẫn áp dụng; thứ tự thực hiện theo `backend-roadmap.md`.
+
 - **Tier:** 1 (nền cho mọi module)
 - **Module backend liên quan:** tất cả (entity), `common`
 - **Module/feature frontend liên quan:** không

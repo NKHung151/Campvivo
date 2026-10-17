@@ -34,8 +34,6 @@ function Price({ p }: { p: Card }) {
   );
 }
 
-const points = (p: Card) => p.wepoint || (p.price ? `+ ${Math.floor(p.price / 1000).toLocaleString("de-DE")} WePoint` : "");
-
 /** Card used in the home page carousels (`.owl-style-home a.item`). */
 export function HomeCard({ p }: { p: Card }) {
   return (
@@ -54,7 +52,6 @@ export function HomeCard({ p }: { p: Card }) {
       </div>
       {p.memberPrice ? <div className="loyalty-price">Giá Member {vnd(p.memberPrice)}</div> : null}
       <Price p={p} />
-      <div className="points-purple">{points(p)}</div>
     </Link>
   );
 }
@@ -80,7 +77,6 @@ export function SearchCard({ p }: { p: Card }) {
         </div>
       ) : null}
       <Price p={p} />
-      <div className="points-purple">{points(p)}</div>
     </Link>
   );
 }
@@ -154,7 +150,6 @@ export function GridCard({
         </div>
         {p.memberPrice ? <div className="loyalty-price">Giá Member {vnd(p.memberPrice)}</div> : null}
         <Price p={p} />
-        <div className="points-purple">{points(p)}</div>
       </Link>
       {onCompare && (
         <button className={`cmp-tag${comparing ? " active" : ""}`} type="button" onClick={() => onCompare(p)}>

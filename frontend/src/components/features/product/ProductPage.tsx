@@ -47,7 +47,6 @@ export function ProductPage({ p }: { p: ProductFull }) {
       installment: false,
       rating: r.rating,
       sold: null,
-      wepoint: null,
     }));
 
   return (
