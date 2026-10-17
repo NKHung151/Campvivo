@@ -287,11 +287,11 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/users` | Admin | `?q` (email/họ tên), `role`, `isActive`, `page`, `limit` |
 | GET | `/admin/users/{id}` | Admin | + số đơn, tổng chi tiêu (đơn COMPLETED) |
 | PATCH | `/admin/users/{id}` | Admin | `{fullName?, phone?, role?, isActive?}`; đổi role/khoá → tăng token_version; `CANNOT_MODIFY_SELF` |
-| GET | `/admin/categories` | Admin | cây đầy đủ + số sản phẩm/combo |
+| GET | `/admin/categories` | Admin | cây `AdminCategoryNode[]` (+ `productCount`, `comboCount`, `parentId`) |
 | POST | `/admin/categories` | Admin | `{name, slug?, parentId?}` |
 | PUT | `/admin/categories/{id}` | Admin | `{name, slug, parentId?}` (BR-13) |
 | DELETE | `/admin/categories/{id}` | Admin | `CATEGORY_NOT_EMPTY` |
-| GET | `/admin/products` | Admin | `?q&categoryId&isActive&page&limit` (gồm `stockQuantity`, `reservedQuantity`) |
+| GET | `/admin/products` | Admin | `?q&categoryId&isActive&page&limit` → `[AdminProductSummary]` |
 | GET | `/admin/products/{id}` | Admin | |
 | POST | `/admin/products` | Admin | `{name, slug?, description?, brand?, price, categoryId, isActive, images: [{url, isPrimary, displayOrder}]}` |
 | PUT | `/admin/products/{id}` | Admin | như POST (thay toàn bộ danh sách ảnh) |
@@ -316,6 +316,23 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
+
+### 4.11 Kiểu dữ liệu admin catalog
+Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:
+```ts
+interface AdminCategoryNode { id: number; name: string; slug: string; parentId: number | null;
+  productCount: number; comboCount: number; children: AdminCategoryNode[]; }
+interface CategoryRequest { name: string; slug?: string; parentId?: number | null; }
+interface AdminProductSummary { id: number; name: string; slug: string; brand: string | null;
+  categoryId: number; categoryName: string; price: Money; stockQuantity: number;
+  reservedQuantity: number; isActive: boolean; primaryImageUrl: string | null; updatedAt: string; }
+interface AdminProductImage { url: string; isPrimary: boolean; displayOrder: number; }
+interface AdminProductDetail extends AdminProductSummary { description: string | null;
+  images: AdminProductImage[]; createdAt: string; }
+interface ProductRequest { name: string; slug?: string; description?: string | null;
+  brand?: string | null; price: Money; categoryId: number; isActive: boolean;
+  images: AdminProductImage[]; }   // thay toàn bộ ảnh, đúng 1 ảnh isPrimary
+```
 
 ## 5. Ánh xạ sang frontend
 - Mỗi nhóm endpoint ↔ `frontend/src/services/<module>Service.ts` (auth, user, catalog, cart, order,

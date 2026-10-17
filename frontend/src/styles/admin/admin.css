@@ -1,0 +1,141 @@
+/* CSS riêng khu vực admin — chỉ nạp trong app/(admin)/layout.tsx. Giao diện chính do Ant Design lo. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.cv-admin-sider {
+  border-right: 1px solid #f0f0f0;
+  z-index: 10;
+}
+.cv-admin-brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cv-admin-brand b {
+  color: #2f6a3f;
+  font-weight: 600;
+}
+.cv-admin-brand-icon {
+  font-size: 24px;
+  color: #2f6a3f;
+}
+.ant-layout-sider-collapsed .cv-admin-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+.cv-admin-menu-scroll {
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 8px 0 56px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9c9c9 transparent;
+}
+.cv-admin-menu-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.cv-admin-menu-scroll::-webkit-scrollbar-thumb {
+  background: #c9c9c9;
+  border-radius: 3px;
+}
+.cv-admin-sider .ant-menu-light.ant-menu-root.ant-menu-inline {
+  border-inline-end: 0;
+}
+
+.cv-admin-sider .ant-menu-item-group-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  padding: 16px 20px 6px !important;
+}
+.cv-admin-sider .ant-menu-item-group:first-child .ant-menu-item-group-title {
+  padding-top: 8px !important;
+}
+
+.cv-admin-sider .ant-menu-item-selected {
+  font-weight: 600;
+}
+
+.cv-admin-sider .ant-menu-submenu-selected > .ant-menu-submenu-title {
+  color: #2f6a3f;
+  background: #f0f2f0;
+  font-weight: 600;
+}
+
+.cv-admin-sider .ant-menu-sub.ant-menu-inline {
+  background: transparent !important;
+}
+.cv-admin-sider .ant-menu-sub .ant-menu-item {
+  padding-left: 48px !important;
+}
+
+.cv-admin-sider .ant-menu-inline .ant-menu-item,
+.cv-admin-sider .ant-menu-inline .ant-menu-submenu-title {
+  height: auto;
+  min-height: 40px;
+  line-height: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  white-space: normal;
+}
+.cv-admin-sider .ant-menu-inline .ant-menu-title-content {
+  white-space: normal;
+}
+
+.cv-admin-sider .ant-menu-inline-collapsed .ant-menu-item-group-title {
+  font-size: 0 !important;
+  padding: 0 !important;
+  margin: 10px 20px;
+  border-top: 1px solid #f0f0f0;
+}
+.cv-admin-sider .ant-menu-inline-collapsed .ant-menu-item-group:first-child .ant-menu-item-group-title {
+  border-top: 0;
+  margin-top: 0;
+}
+
+.cv-admin-collapse {
+  position: absolute;
+  right: -12px;
+  bottom: 20px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  z-index: 11;
+}
+.cv-admin-collapse:hover {
+  color: #2f6a3f;
+  border-color: #2f6a3f;
+  box-shadow: 0 2px 8px rgba(47, 106, 63, 0.2);
+}
+.cv-admin-collapse:focus-visible {
+  outline: 2px solid #2f6a3f;
+  outline-offset: 2px;
+}

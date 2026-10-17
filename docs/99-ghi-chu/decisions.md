@@ -143,6 +143,24 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   vùng/khối lượng.
 - **Giả định:** nhóm chưa chốt con số; chỉ đổi giá trị cấu hình, không đổi code.
 
+### 2026-10-17 — D-18: Admin dùng Ant Design, tách root layout (store)/(admin)
+- **Bối cảnh:** Storefront dùng CSS thuần chép từ trang tham khảo (`styles/shop/*`, có selector toàn
+  cục `header`, `footer`). Trong App Router, CSS đã nạp không bị gỡ khi điều hướng phía client, nên
+  admin dùng chung root layout sẽ bị dính style storefront. Admin có nhiều trang bảng/form.
+- **Quyết định:**
+  - Hai root layout bằng route group: `app/(store)/layout.tsx` (storefront, tài khoản, auth — nạp CSS
+    storefront) và `app/(admin)/layout.tsx` (admin — Ant Design). Không còn `app/layout.tsx` chung.
+    Chuyển giữa hai bên luôn tải lại toàn trang → CSS tách hẳn. URL không đổi.
+  - Admin dùng **Ant Design 5** (`antd`, `@ant-design/icons`, `@ant-design/nextjs-registry`), locale
+    `vi_VN`, màu chủ đạo `#2f6a3f`. Storefront giữ CSS hiện có, không dùng antd.
+  - URL không khớp route nào → catch-all `(store)/[...notFound]` → trang 404 storefront. Trang admin có
+    trong menu nhưng chưa làm → catch-all `(admin)/admin/[...slug]` hiển thị "đang xây dựng".
+- **Lý do:** antd có sẵn Table, Form, Upload, TreeSelect, DatePicker — rút ngắn đáng kể thời gian làm
+  ~12 trang admin; tách root layout là cách chuẩn của Next để cô lập CSS.
+- **Phương án khác:** Tailwind + tự viết component (tốn công); app admin riêng (trùng types/services,
+  thêm deploy và CORS).
+- Thay thế dòng "CSS: Tailwind (admin, component mới)" cũ trong `tech-stack.md`.
+
 ---
 
 ## Quyết định trước đó
