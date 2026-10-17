@@ -41,3 +41,10 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
   `/account`, danh mục con bài viết (`/blog/category/*`, `/journal/category/*`), nội dung/ảnh của
   cửa hàng tham khảo.
 - **Xử lý:** Khi nối API theo `pages.md` (cột "API"); xem `.agents/plans/active/frontend-shop-ui.md`.
+
+### KI-06 — Phiên đăng nhập admin đang là bản giả lập
+- **Mô tả:** `frontend/src/hooks/useAdminSession.ts` trả user giả (role từ `NEXT_PUBLIC_ADMIN_DEV_ROLE`,
+  đổi được bằng ô "Dev" trên header admin, lưu localStorage). Chưa gọi API, chưa có token.
+- **Ảnh hưởng:** ai cũng vào được `/admin` ở môi trường dev; nút Đăng xuất bị tắt.
+- **Xử lý:** khi có auth thật (N3-03 + F-14) thay ruột `useAdminSession` bằng AuthProvider (`GET /users/me`),
+  bỏ ô "Dev". Các trang admin chỉ dùng `useAdmin()` nên không phải sửa.

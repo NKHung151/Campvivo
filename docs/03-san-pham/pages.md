@@ -3,7 +3,7 @@
 Agent code frontend PHẢI dùng đúng route dưới đây — không tự đặt tên khác. Cột "API" là endpoint
 nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI (dữ liệu mock), ⬜ chưa có.
 
-## Public (Guest trở lên) — nhóm `src/app/(shop)/`
+## Public (Guest trở lên) — nhóm `src/app/(store)/(shop)/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
 | `/` | Trang chủ: sản phẩm mới, combo, chiến dịch, bài viết | `/products`, `/combos`, `/articles` | ✅ |
@@ -22,7 +22,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/blog/category/[slug]`, `/journal/category/[slug]` | Danh mục con của bài viết | **Không có nguồn dữ liệu** — schema chỉ có `articles.category` (3 giá trị). Bỏ route khi nối API, trừ khi nhóm quyết định bổ sung | ✅ (mock) |
 | `/pages/[slug]` | Trang tĩnh: giới thiệu, chính sách (đổi trả, vận chuyển, bảo mật) | Nội dung tĩnh trong frontend, không có API | ✅ |
 
-## Auth — nhóm `src/app/(auth)/`
+## Auth — nhóm `src/app/(store)/(auth)/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
 | `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ⬜ (hiện là popup OTP giả — phải thay) |
@@ -31,7 +31,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/forgot-password` | Nhập email nhận mã | `POST /auth/forgot-password` | ⬜ |
 | `/reset-password?email=` | Nhập OTP + mật khẩu mới | `POST /auth/reset-password` | ⬜ |
 
-## Customer (role CUSTOMER) — `src/app/(shop)/cart`, `src/app/account/`
+## Customer (role CUSTOMER) — `src/app/(store)/(shop)/cart`, `src/app/(store)/account/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
 | `/cart` | Giỏ hàng + thanh toán trên **một trang** (quyết định có chủ đích): danh sách dòng (giá hiện hành, cảnh báo hết hàng/ngừng bán), form người nhận (tự điền từ hồ sơ, tick "lưu làm mặc định"), voucher, phương thức VNPay/COD, tóm tắt tiền | `/cart`, `/orders/preview`, `/vouchers/validate`, `POST /orders` | ✅ (mock) |
@@ -49,7 +49,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 bỏ (không có sổ địa chỉ — D-02; không có tích điểm trong báo cáo). Chuông thông báo trên header hiển
 thị số chưa đọc cho mọi user đã đăng nhập.
 
-## Admin (role EMPLOYEE/ADMIN) — `src/app/admin/`
+## Admin (role EMPLOYEE/ADMIN) — `src/app/(admin)/admin/` (Ant Design, root layout riêng — D-18)
 | Route | Trang | Quyền | API |
 |---|---|---|---|
 | `/admin` | Dashboard: doanh thu, số đơn theo trạng thái, biểu đồ theo ngày/tháng/năm, top mặt hàng. Employee vào `/admin` được chuyển tới `/admin/orders` | Admin | `/admin/analytics/*` |
@@ -65,6 +65,10 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/vouchers` | Voucher: danh sách, thêm/sửa (modal), xoá/tắt | Admin | `/admin/vouchers` |
 | `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]` | Chiến dịch giảm giá + chọn sản phẩm | Admin | `/admin/campaigns` |
 | `/admin/articles`, `/admin/articles/new`, `/admin/articles/[id]` | Bài viết: danh sách, soạn (rich text), xuất bản | Admin | `/admin/articles` |
+
+Khung admin đã có (`AdminShell`): sidebar theo quyền khai báo ở `src/lib/admin/nav.ts`; trang có trong
+menu nhưng chưa làm hiển thị "đang xây dựng"; khách hàng vào `/admin` thấy trang 403. Phiên đăng nhập
+admin hiện là bản giả lập (`useAdminSession`, đổi role ở header) đến khi có auth thật (F-14).
 
 Layout admin: sidebar theo quyền (Employee chỉ thấy Đơn hàng, Trả hàng, Tồn kho, Hỗ trợ). Truy cập
 trang không đủ quyền → trang 403; chưa đăng nhập → `/login?redirect=...`. Backend luôn kiểm tra lại.
