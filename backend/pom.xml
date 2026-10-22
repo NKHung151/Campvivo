@@ -13,6 +13,12 @@
   <name>campvivo-backend</name>
   <properties>
     <java.version>17</java.version>
+    <!-- Không do Spring Boot quản lý version: tự ghi. springdoc 2.6.x ứng với Spring Boot 3.3.x -->
+    <jjwt.version>0.12.7</jjwt.version>
+    <springdoc.version>2.6.0</springdoc.version>
+    <owasp-sanitizer.version>20260921.1</owasp-sanitizer.version>
+    <cloudinary.version>1.39.0</cloudinary.version>
+    <greenmail.version>2.1.14</greenmail.version>
   </properties>
   <dependencies>
     <dependency>
@@ -38,6 +44,52 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- WebSocket STOMP /ws: thông báo, chat hỗ trợ (N3-08) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <!-- Template email OTP và email nghiệp vụ -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+    <!-- JWT (F-10) -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- Làm sạch HTML mô tả sản phẩm, nội dung bài viết -->
+    <dependency>
+      <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+      <artifactId>owasp-java-html-sanitizer</artifactId>
+      <version>${owasp-sanitizer.version}</version>
+    </dependency>
+    <!-- Upload ảnh (N3-09) -->
+    <dependency>
+      <groupId>com.cloudinary</groupId>
+      <artifactId>cloudinary-http44</artifactId>
+      <version>${cloudinary.version}</version>
+    </dependency>
+    <!-- Swagger UI: /swagger-ui.html -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>${springdoc.version}</version>
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
@@ -65,6 +117,13 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- SMTP giả để test gửi OTP/email -->
+    <dependency>
+      <groupId>com.icegreen</groupId>
+      <artifactId>greenmail-junit5</artifactId>
+      <version>${greenmail.version}</version>
       <scope>test</scope>
     </dependency>
     <!-- assertj đã có sẵn qua spring-boot-starter-test, khai báo tường minh để rõ ràng -->
