@@ -32,7 +32,7 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
 - **Mô tả:** Code khung viết theo docs cũ: `CartItem.priceAtAdd` (D-04 đã bỏ), `OrderStatus` thiếu
   `RETURNED`, entity/DTO chưa có combo, `BusinessException` chưa dùng enum `ErrorCode`; migration
   V1/V2 chỉ là placeholder. Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
-  `support/`. `.env.example` còn biến `MOMO_*` (để trống đến FR-27) và chưa có `NEXT_PUBLIC_WS_URL`.
+  `support/`. `.env.example` còn biến `MOMO_*` (để trống đến FR-27).
 - **Xử lý:** Viết lại theo `database.md`/`api.md` khi bắt đầu từng module (plan tạo migration đầy đủ
   trước). Docs là nguồn đúng.
 
