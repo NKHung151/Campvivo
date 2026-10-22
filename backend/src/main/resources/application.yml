@@ -7,6 +7,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+logging:
+  pattern:
+    # Thêm mã request (RequestIdFilter) vào mỗi dòng log
+    level: "%5p [%X{requestId:-}]"
 server:
   port: 8080
 management:
