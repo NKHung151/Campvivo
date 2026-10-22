@@ -17,6 +17,27 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-22 — Người 3 — backend (nền móng: F-01, F-02, F-03)
+- Đã làm: nhánh `feature/common-foundation`.
+  - F-01: thêm dependency jjwt, websocket, thymeleaf, OWASP sanitizer, cloudinary, springdoc 2.6.0
+    (khớp Spring Boot 3.3), greenmail (test). `TemporarySecurityConfig` mở Swagger — XOÁ ở F-10.
+  - F-02: `ErrorCode` (39 mã, khớp `api.md` mục 2, có test đối chiếu docs), `BusinessException(ErrorCode, details)`,
+    `GlobalExceptionHandler` (validate → `fieldErrors`, 401/403, 500 không lộ chi tiết), `PageResponse`, `Money`,
+    `SlugUtil`, `HtmlSanitizer`, bean `Clock` (Asia/Ho_Chi_Minh), `RequestIdFilter` (X-Request-Id → MDC/log).
+    Thêm mã `INTERNAL_ERROR` (500) vào `api.md`.
+  - F-03: `AppProperties` (`app.*`, secret JWT bắt buộc ≥ 32 ký tự), `application.yml`
+    (`ddl-auto=validate`, `open-in-view=false`), `.env.example` thêm `NEXT_PUBLIC_WS_URL`.
+- Còn dang dở / TODO tiếp theo:
+  - `ddl-auto=validate` khiến app không khởi động đến khi F-05 xong (entity lệch migration placeholder, KI-04);
+    tạm dùng `ddl-auto: none` trong `application-dev.yml` local.
+  - Máy Windows có JVM timezone `Asia/Saigon` → PostgreSQL từ chối; chạy với `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh`.
+  - `OrderServiceIT` hiện không chạy trong `mvn test` (tên `*IT`, chưa có failsafe) — nhờ N4 (F-04) xử lý.
+  - `BusinessException(String, String, HttpStatus)` là `@Deprecated`; `ProductService`, `OutOfStockException`
+    cần chuyển sang `ErrorCode` (N2, N1). DTO phải ghi message validate bằng tiếng Việt.
+  - Test tích hợp sau này phải cấp `app.jwt.secret` (CI chưa có `JWT_SECRET`).
+  - Tiếp theo: F-05 (bảng users), F-10 (security), F-14 (apiClient FE), F-12 (seed).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-01 → F-03)
+
 ### 2026-10-17 — Nguyen Khai Hung — frontend (khung admin)
 - Đã làm: tách root layout `app/(store)` (storefront, CSS `styles/shop` chuyển lên layout này) và `app/(admin)`
   (Ant Design 5, locale vi_VN); `AdminShell` với sidebar theo role (`lib/admin/nav.ts`), `RequireRole`, trang
