@@ -5,8 +5,35 @@ export type Money = number;
 
 export type Role = "CUSTOMER" | "EMPLOYEE" | "ADMIN";
 export type ItemType = "PRODUCT" | "COMBO";
+export type OrderStatus =
+  | "PENDING"
+  | "CONFIRMED"
+  | "SHIPPING"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "PAYMENT_FAILED"
+  | "RETURNED";
+export type PaymentMethod = "VNPAY" | "COD";
+export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
+export type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 export type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
+export type NotificationType =
+  | "ORDER_STATUS"
+  | "ORDER_NEW"
+  | "RETURN_STATUS"
+  | "RETURN_NEW"
+  | "SUPPORT_MESSAGE";
+
+/** Thông tin người dùng đăng nhập (api.md mục 3). */
+export interface UserProfile {
+  id: number;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  address: string | null;
+  role: Role;
+}
 
 export interface Pagination {
   currentPage: number;
@@ -19,6 +46,13 @@ export interface Pagination {
 export interface Page<T> {
   data: T[];
   pagination: Pagination;
+}
+
+/** Body thành công chuẩn của backend: `{ success: true, data }`, kèm `pagination` với danh sách phân trang. */
+export interface ApiSuccessBody<T> {
+  success: true;
+  data: T;
+  pagination?: Pagination;
 }
 
 /** Body lỗi chuẩn của backend. */
