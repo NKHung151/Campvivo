@@ -43,6 +43,7 @@ Danh sách có phân trang:
 | 403 | FORBIDDEN | Đúng token nhưng sai role |
 | 404 | NOT_FOUND | Không tồn tại, hoặc thuộc user khác (không tiết lộ) |
 | 409 | SLUG_ALREADY_EXISTS | Trùng slug |
+| 500 | INTERNAL_ERROR | Lỗi hệ thống không lường trước (không trả chi tiết, chỉ ghi log phía server) |
 | **auth/user** | | |
 | 409 | EMAIL_ALREADY_EXISTS | Đăng ký email đã xác thực |
 | 401 | INVALID_CREDENTIALS | Sai email/mật khẩu |
