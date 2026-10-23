@@ -17,6 +17,24 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-23 — Người 3 — frontend (F-14: nền gọi API)
+- Đã làm: nhánh `feature/frontend-f-14-api-client`. `services/apiClient.ts` (axios, tự gắn token, bóc `{success,data}`,
+  `getPage` cho danh sách phân trang, lỗi → `ApiError`, 401 `UNAUTHORIZED` → xoá token + `setUnauthorizedHandler`;
+  401 `INVALID_CREDENTIALS` KHÔNG bị coi là hết phiên), `services/serverApi.ts` (`serverGet`/`serverGetPage` cho SSR,
+  chỉ endpoint công khai), `services/apiError.ts`, `services/apiConfig.ts`, `lib/authToken.ts` (key `campvivo_token`),
+  `lib/errorMessages.ts` (39 mã backend khớp `ErrorCode.java` + `NETWORK_ERROR`/`UNKNOWN_ERROR`, `getErrorMessage`),
+  bổ sung kiểu `OrderStatus`, `PaymentMethod`, `PaymentStatus`, `ReturnStatus`, `NotificationType`, `UserProfile`,
+  `ApiSuccessBody` vào `types/api/common.ts`. Xoá `lib/api-client.ts` (bản khung chưa ai dùng, thay bằng bản mới).
+- Kiểm chứng: lint, tsc, build xanh. Frontend chưa có test runner nên kiểm bằng script tạm ngoài repo (tsx): 16 ca
+  với máy chủ giả + 5 ca với backend thật (401/404/mất kết nối/serverGet) đều đạt.
+- Còn dang dở / TODO tiếp theo:
+  - Handler 401 mặc định chỉ xoá token; chuyển về `/login?redirect=...` do `AuthProvider` đăng ký qua
+    `setUnauthorizedHandler` (task nối phiên thật, thay `useAdminSession` giả lập — KI-06).
+  - Bảng `errorMessages.ts` chép tay từ `ErrorCode.java`: thêm mã mới ở backend thì thêm ở đây.
+  - Chưa có API đăng nhập (N3-03) và `GET /users/me` (N3-05); `catalogService` vẫn đọc mock (N2-04).
+  - Tiếp theo: N3-01 (OTP + mail), N3-02, N3-03, N3-05 (`GET /users/me`), rồi task điều hướng theo role + trang `/login`.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-14)
+
 ### 2026-10-23 — Người 3 — backend (F-10: security khung)
 - Đã làm: nhánh `feature/auth-f-10-security`. `JwtService` (HS256, claim sub/role/tv, dùng `Clock`),
   `JwtAuthenticationFilter` (kiểm `token_version`, `is_active`, role lấy từ DB; principal = userId `Long`),
