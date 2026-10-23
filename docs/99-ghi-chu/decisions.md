@@ -123,6 +123,8 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   trên môi trường nào.
 - **Quyết định:** Được thay bằng migration đầy đủ 22 bảng (một lần duy nhất, qua plan riêng).
   Từ sau đó áp dụng nghiêm quy tắc "không sửa migration đã merge".
+- **Cập nhật 2026-10-23:** placeholder đã được thay bằng `V1__users.sql` (F-05). Các bảng còn lại thêm
+  bằng migration riêng theo từng người (F-06 → F-09), không gộp 22 bảng một lần.
 
 ### 2026-10-17 — D-15: Realtime bằng WebSocket (STOMP)
 - **Quyết định:** Thông báo realtime và chat hỗ trợ dùng chung Spring WebSocket + STOMP, xác

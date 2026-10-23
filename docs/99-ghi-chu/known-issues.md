@@ -31,7 +31,7 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
 ### KI-04 — Code backend hiện có lệch với docs mới (2026-10-17)
 - **Mô tả:** Code khung viết theo docs cũ: `CartItem.priceAtAdd` (D-04 đã bỏ), `OrderStatus` thiếu
   `RETURNED`, entity/DTO chưa có combo, `BusinessException` chưa dùng enum `ErrorCode`; migration
-  V1/V2 chỉ là placeholder. Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
+  mới có `V1__users`, các bảng còn lại chưa tạo (F-06 → F-09). Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
   `support/`. `.env.example` còn biến `MOMO_*` (để trống đến FR-27).
 - **Xử lý:** Viết lại theo `database.md`/`api.md` khi bắt đầu từng module (plan tạo migration đầy đủ
   trước). Docs là nguồn đúng.
