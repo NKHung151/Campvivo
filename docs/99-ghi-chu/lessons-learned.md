@@ -23,6 +23,13 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 - **Áp dụng lại lần sau:** Khi một thành viên báo "Docker chạy mà test không chạy", kiểm tra phiên bản thư viện so với
   phiên bản Docker; ghi cách xử lý vào `troubleshooting.md`.
 
+### Token cũ còn trong trình duyệt chặn đăng nhập
+- **Bài học:** Backend từ chối mọi token sai/hết hạn ngay cả ở endpoint công khai (đúng `authentication.md`). Frontend tự gắn
+  token vào mọi request, nên người dùng còn token cũ trong `localStorage` bị 401 `UNAUTHORIZED` ngay ở bước đăng nhập, trước
+  cả khi xét mật khẩu. Lỗi chỉ lộ khi thử với token cũ thật, không lộ khi test từng tầng riêng lẻ.
+- **Áp dụng lại lần sau:** Endpoint xác thực công khai dùng `skipAuth`; khi làm luồng đầu-cuối luôn thử cả kịch bản
+  "đã có token cũ".
+
 ### Không để task "nền" tồn đọng chặn cả nhóm
 - **Bài học:** Chuỗi migration F-05 → F-09 phải tuần tự (số phiên bản Flyway) nên người sau phải chờ người trước; F-11
   (interface + stub) chỉ làm được khi cả chuỗi xong. Một seed dùng số phiên bản lớn (V6) làm sớm sẽ gây lỗi thứ tự.

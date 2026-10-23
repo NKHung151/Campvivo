@@ -17,6 +17,29 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-24 — Người 3 — frontend (đăng nhập thật + điều hướng theo role)
+- Đã làm: nhánh `feature/frontend-auth-login-redirect`. `AuthProvider`/`useAuth` (khôi phục phiên bằng `GET /users/me`,
+  trạng thái `loading|authenticated|unauthenticated|error`, đồng bộ giữa các tab, nối `setUnauthorizedHandler`), `authService`,
+  trang `/login` (`LoginForm`, `components/ui/Button`, `Input` — hai component dùng chung đầu tiên), `lib/auth/redirect.ts`
+  (`safeRedirectPath` chặn open redirect, `canAccessPath`, `landingFor`, `resolveLanding`, `loginHref`). Điều hướng: có `?redirect`
+  hợp lệ và role được vào → đó; không thì ADMIN `/admin`, EMPLOYEE `/admin/orders`, CUSTOMER `/`. Admin: thay `useAdminSession`
+  giả lập bằng phiên thật (xoá ô "Dev", bật Đăng xuất, chưa đăng nhập → `/login?redirect=`, lỗi mạng → "Thử lại").
+  Storefront: bỏ `LoginPopup` OTP giả và login giả trong `ShopProvider` (`user` lấy từ phiên thật, `openLogin` → `/login`).
+  Sửa `apiClient`: thêm `skipAuth` (endpoint xác thực công khai không gắn token — token cũ còn sót chặn đăng nhập).
+  Docs: `pages.md`, `authentication.md`, `known-issues.md` (KI-06 đã xử lý), `lessons-learned.md`; bỏ `NEXT_PUBLIC_ADMIN_DEV_ROLE`.
+- Kiểm chứng: lint, tsc, build xanh; script tạm ngoài repo: 12 nhóm kiểm tra hàm điều hướng (18 dạng URL độc hại bị chặn),
+  13 ca luồng thật với backend (3 tài khoản mẫu: đăng nhập, `/users/me`, đăng xuất, sai mật khẩu, validate, `?redirect`),
+  2 ca hồi quy token cũ; server Next thật phục vụ `/login`, `/admin`, `/`, `/account`, `/cart` (200); CSS storefront không lẫn vào admin.
+- Còn dang dở / TODO tiếp theo:
+  - CHƯA kiểm tra trên trình duyệt thật (bố cục `/login`, mobile 375px, thao tác click) — người dùng kiểm theo checklist.
+  - `EMAIL_NOT_VERIFIED` chỉ hiện thông báo; tự gửi lại mã + chuyển `/verify-email` làm ở N3-02. Chưa có liên kết "Tạo tài khoản",
+    "Quên mật khẩu?" (trang chưa có). Nút "Tạo tài khoản" ở popover Header hiện cũng dẫn tới `/login`.
+  - `/api/admin/**` ở backend vẫn cho EMPLOYEE vào mọi đường dẫn admin; frontend đã chặn menu theo role nhưng backend phải chặn thật.
+  - Endpoint xác thực công khai mới (register, verify-email, resend-code, forgot/reset-password) phải gọi với `{ skipAuth: true }`.
+  - Giỏ hàng/đơn/yêu thích của storefront vẫn là mock (Người 1); `user` giả cũ trong localStorage bị bỏ qua.
+  - Chuyển giữa storefront và admin tải lại toàn trang nên phiên được khôi phục lại bằng `GET /users/me` mỗi lần.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (nối frontend auth, tuần 7)
+
 ### 2026-10-23 — Người 3 — backend (N3-03: đăng nhập/đăng xuất + GET /users/me)
 - Đã làm: nhánh `feature/auth-n3-03-login`. `POST /auth/login` (sai email và sai mật khẩu trả CÙNG `INVALID_CREDENTIALS`,
   BCrypt giả cho email không tồn tại để chống dò email qua độ trễ; chỉ khi mật khẩu đúng mới báo `EMAIL_NOT_VERIFIED` /

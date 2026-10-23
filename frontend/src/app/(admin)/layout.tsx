@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AdminProviders } from "@/components/admin/shell/AdminProviders";
+import { AuthProvider } from "@/components/features/auth/AuthProvider";
 import "@/styles/admin/admin.css";
 
 /**
@@ -22,7 +23,9 @@ export default function AdminRootLayout({ children }: { children: React.ReactNod
     <html lang="vi">
       <body>
         <AntdRegistry>
-          <AdminProviders>{children}</AdminProviders>
+          <AuthProvider>
+            <AdminProviders>{children}</AdminProviders>
+          </AuthProvider>
         </AntdRegistry>
       </body>
     </html>

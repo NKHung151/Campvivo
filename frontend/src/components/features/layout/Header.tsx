@@ -6,10 +6,15 @@ import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/shop";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { useAuth } from "@/components/features/auth/AuthProvider";
+import { landingFor } from "@/lib/auth/redirect";
 import { CartIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
   const { cart, user, ready, openLogin } = useShop();
+  const auth = useAuth();
+  // Nhân viên / quản trị viên không dùng khu vực tài khoản khách hàng: liên kết dẫn tới trang quản trị.
+  const isStaff = auth.user?.role === "ADMIN" || auth.user?.role === "EMPLOYEE";
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [popOpen, setPopOpen] = useState(false);
@@ -68,7 +73,12 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
             </Link>
             <div className="box-member-header">
               <div className="cv-signin-wrap">
-                {user ? (
+                {user && isStaff ? (
+                  // <a>: /admin thuộc root layout khác → tải lại trang để nạp đúng CSS
+                  <a className="action" href={landingFor(auth.user!.role)}>
+                    <UserIcon /> {user.name}
+                  </a>
+                ) : user ? (
                   <Link className="action" href="/account">
                     <UserIcon /> {user.name}
                   </Link>
