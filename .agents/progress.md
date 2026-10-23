@@ -17,6 +17,19 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-23 — Người 3 — backend (F-05: bảng users)
+- Đã làm: nhánh `feature/user-f-05`. `V1__users.sql` (16 cột theo `database.md` 3.1, CHECK `role`/`otp_purpose`),
+  entity `User` (email tự chuẩn hoá chữ thường), `Role`, `OtpPurpose`, `UserRepository.findByEmail`. Xoá
+  `V1__init_tier1.sql`, `V2__tier2.sql` (placeholder, D-14). `UserRepositoryTest` (5 test, PostgreSQL thật,
+  `ddl-auto=validate`). Nâng Testcontainers 1.19.8 → 1.21.4 (bản cũ không kết nối được Docker Desktop 29, API ≥ 1.44).
+  Docs: `database.md` mục 1, D-14, KI-04.
+- Còn dang dở / TODO tiếp theo:
+  - Ai pull nhánh này: chạy `mvn clean` một lần (target/ còn migration cũ gây "more than one migration with version 1")
+    và reset DB local (`docker compose down -v` rồi `up -d`) vì lịch sử Flyway đổi.
+  - `ddl-auto=validate` vẫn lỗi cho đến khi F-06 (N2) và F-08 (N1) tạo các bảng còn lại; tạm `ddl-auto: none` ở file dev.
+  - Tiếp theo: F-10 (security, xoá `TemporarySecurityConfig`), F-14 (apiClient FE), F-12 (seed), F-11 (cả nhóm).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-05)
+
 ### 2026-10-22 — Người 3 — backend (nền móng: F-01, F-02, F-03)
 - Đã làm: nhánh `feature/common-foundation`.
   - F-01: thêm dependency jjwt, websocket, thymeleaf, OWASP sanitizer, cloudinary, springdoc 2.6.0

@@ -19,8 +19,10 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 - Chuỗi ngắn `VARCHAR(255)` trừ khi ghi khác; nội dung dài `TEXT`.
 - Ký hiệu trong bảng cột: **U** = unique, **N** = nullable (không ghi = NOT NULL),
   **(+)** = cột bổ sung so với báo cáo.
-- Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. V1/V2 hiện là
-  placeholder, sẽ được thay bằng migration đầy đủ (decisions D-14).
+- Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
+  migration đầu tiên; các bảng còn lại được thêm dần bằng migration mới theo
+  `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
+  (decisions D-14).
 
 ## 2. Ánh xạ báo cáo → bảng vật lý
 
