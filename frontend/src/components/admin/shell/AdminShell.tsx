@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, Button, Dropdown, Layout, Menu, Result, Select, Space, Spin, Tag, Typography } from "antd";
+import { Avatar, Button, Dropdown, Layout, Menu, Result, Space, Spin, Tag, Typography } from "antd";
 import type { MenuProps } from "antd";
 import {
   AppstoreOutlined,
@@ -24,7 +24,8 @@ import {
 } from "@ant-design/icons";
 import type { Role } from "@/types/api/common";
 import { ADMIN_NAV, findNavItem, findParentKey, isNavParent, type AdminNavItem } from "@/lib/admin/nav";
-import { AdminSessionProvider, useAdmin } from "@/components/admin/shell/AdminSession";
+import { useAdmin } from "@/components/admin/shell/AdminSession";
+import { loginHref } from "@/lib/auth/redirect";
 
 const { Sider, Header, Content } = Layout;
 
@@ -55,23 +56,26 @@ const leaf = (i: AdminNavItem, icon?: React.ReactNode): MenuItem => ({
 const ROLE_LABEL: Record<Role, string> = { ADMIN: "Quản trị viên", EMPLOYEE: "Nhân viên", CUSTOMER: "Khách hàng" };
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <AdminSessionProvider>
-      <ShellFrame>{children}</ShellFrame>
-    </AdminSessionProvider>
-  );
+  return <ShellFrame>{children}</ShellFrame>;
 }
 
 function ShellFrame({ children }: { children: React.ReactNode }) {
-  const { ready, user, setDevRole, isDevSession } = useAdmin();
+  const { ready, status, user, logout, retry } = useAdmin();
   const pathname = usePathname();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
 
-  // TODO(F-14): khi có đăng nhập thật, user null → chuyển tới /login?redirect=<trang hiện tại>.
+  // Chưa đăng nhập → /login?redirect=<trang hiện tại>. /login thuộc root layout storefront nên tải lại trang.
+  // (Lỗi mạng khi khôi phục phiên là status "error", không chuyển hướng: token vẫn còn, cho thử lại.)
   useEffect(() => {
-    if (ready && !user) router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-  }, [ready, user, pathname, router]);
+    if (status === "unauthenticated") {
+      window.location.replace(loginHref(`${window.location.pathname}${window.location.search}`));
+    }
+  }, [status]);
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.assign("/");
+  };
 
   const current = findNavItem(pathname);
   const parentKey = findParentKey(pathname);
@@ -96,6 +100,24 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
     })).filter((g) => g.children.length > 0);
   }, [user]);
 
+  if (status === "error") {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f5f5f5" }}>
+        <Result
+          status="warning"
+          title="Không kết nối được máy chủ"
+          subTitle="Chưa kiểm tra được phiên đăng nhập của bạn. Vui lòng kiểm tra mạng rồi thử lại."
+          extra={
+            <Button type="primary" onClick={retry}>
+              Thử lại
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Đang khôi phục phiên, hoặc chưa đăng nhập và đang chuyển tới /login.
   if (!ready || !user) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
@@ -103,19 +125,6 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  const devSwitch = isDevSession && (
-    <Space size={6}>
-      <Tag color="orange">Dev</Tag>
-      <Select<Role>
-        size="small"
-        value={user.role}
-        onChange={setDevRole}
-        style={{ width: 140 }}
-        options={(["ADMIN", "EMPLOYEE", "CUSTOMER"] as Role[]).map((r) => ({ value: r, label: ROLE_LABEL[r] }))}
-      />
-    </Space>
-  );
 
   // Khách hàng không vào khu vực admin.
   if (user.role === "CUSTOMER") {
@@ -131,7 +140,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
               <Button type="primary" href="/">
                 Về trang chủ
               </Button>
-              {devSwitch}
+              <Button onClick={handleLogout}>Đăng xuất</Button>
             </Space>
           }
         />
@@ -142,8 +151,8 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
   const userMenu: MenuProps = {
     items: [
       { key: "store", icon: <ShopOutlined />, label: <a href="/">Xem cửa hàng</a> },
-      // TODO(F-14): gọi POST /auth/logout rồi chuyển về /login.
-      { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất", disabled: true },
+      // Đăng xuất mọi thiết bị (POST /auth/logout), xoá token rồi về trang chủ cửa hàng.
+      { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất", onClick: handleLogout },
     ],
   };
 
@@ -204,7 +213,6 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
             {current?.label ?? "Quản trị"}
           </Typography.Title>
           <Space size={16}>
-            {devSwitch}
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: "pointer" }}>
                 <Avatar size="small" icon={<UserOutlined />} />

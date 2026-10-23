@@ -13,6 +13,17 @@ import { ApiError, CLIENT_ERROR_CODES, networkError, toApiError } from "@/servic
  * - 401 UNAUTHORIZED (token sai/hết hạn/bị thu hồi) → xoá token và báo cho `setUnauthorizedHandler`.
  *   401 INVALID_CREDENTIALS (đăng nhập sai) KHÔNG bị coi là hết phiên.
  */
+declare module "axios" {
+  interface AxiosRequestConfig {
+    /**
+     * Không gắn Authorization cho request này. Dùng cho endpoint xác thực công khai (đăng nhập, đăng ký...):
+     * backend từ chối mọi token sai/hết hạn ngay cả ở endpoint công khai (authentication.md mục 3), nên một token
+     * cũ còn sót trong localStorage sẽ chặn đăng nhập nếu bị gửi kèm.
+     */
+    skipAuth?: boolean;
+  }
+}
+
 const http = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15_000,
@@ -38,7 +49,7 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
 
 http.interceptors.request.use((config) => {
   const token = getToken();
-  if (token) config.headers.set("Authorization", `Bearer ${token}`);
+  if (token && !config.skipAuth) config.headers.set("Authorization", `Bearer ${token}`);
   return config;
 });
 

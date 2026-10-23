@@ -1,0 +1,110 @@
+/*
+ * Component dùng chung của storefront (components/ui/Button, Input).
+ * Design token của nhóm chưa chốt (ui-guidelines.md): giá trị màu lấy từ styles/shop/custom.css
+ * (xanh rừng #2f6a3f, cùng màu admin); đổi sang biến CSS khi nhóm chốt token.
+ */
+.cv-ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 24px;
+  border-radius: 4px;
+  border: 1px solid #2f6a3f;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.cv-ui-btn:focus-visible {
+  outline: 3px solid rgba(47, 106, 63, 0.35);
+  outline-offset: 2px;
+}
+.cv-ui-btn--primary {
+  background: #2f6a3f;
+  color: #fff;
+}
+.cv-ui-btn--primary:hover:not(:disabled) {
+  background: #265733;
+}
+.cv-ui-btn--secondary {
+  background: #fff;
+  color: #2f6a3f;
+}
+.cv-ui-btn--secondary:hover:not(:disabled) {
+  background: #f1f6f2;
+}
+.cv-ui-btn--danger {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+}
+.cv-ui-btn--danger:hover:not(:disabled) {
+  background: #8f1f18;
+}
+.cv-ui-btn--full {
+  width: 100%;
+}
+.cv-ui-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.cv-ui-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: cv-ui-spin 0.7s linear infinite;
+}
+@keyframes cv-ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-ui-spinner {
+    animation-duration: 2s;
+  }
+}
+
+.cv-ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.cv-ui-field__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+}
+.cv-ui-field__input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #b8b8b8;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 16px; /* >= 16px: iOS không tự phóng to khi focus */
+  color: #222;
+  background: #fff;
+}
+.cv-ui-field__input:focus {
+  outline: 3px solid rgba(47, 106, 63, 0.3);
+  border-color: #2f6a3f;
+}
+.cv-ui-field--error .cv-ui-field__input {
+  border-color: #b3261e;
+}
+.cv-ui-field__error {
+  margin: 0;
+  font-size: 13px;
+  color: #b3261e;
+}
+.cv-ui-field__hint {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+}

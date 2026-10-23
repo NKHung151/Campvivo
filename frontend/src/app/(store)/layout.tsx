@@ -9,10 +9,14 @@ import "@/styles/shop/guides.css";
 import "@/styles/shop/search.css";
 import "@/styles/shop/journal.css";
 import "@/styles/shop/custom.css";
+import "@/styles/shop/ui.css";
+import "@/styles/shop/auth.css";
+import { AuthProvider } from "@/components/features/auth/AuthProvider";
 
 /**
  * Root layout của storefront (route group `(store)`: cửa hàng, tài khoản, đăng nhập). CSS storefront nạp
  * ở đây để mọi trang — kể cả trang 404 — đều có; khu vực admin dùng root layout riêng `(admin)`.
+ * AuthProvider (phiên đăng nhập thật) bọc toàn bộ; token dùng chung với root layout admin qua localStorage.
  */
 export const metadata: Metadata = {
   title: "Campvivo – Trang thiết bị dã ngoại",
@@ -27,7 +31,9 @@ export const viewport: Viewport = {
 export default function StoreRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
