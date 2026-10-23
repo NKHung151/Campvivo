@@ -17,6 +17,24 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-23 — Người 3 — backend (N3-03: đăng nhập/đăng xuất + GET /users/me)
+- Đã làm: nhánh `feature/auth-n3-03-login`. `POST /auth/login` (sai email và sai mật khẩu trả CÙNG `INVALID_CREDENTIALS`,
+  BCrypt giả cho email không tồn tại để chống dò email qua độ trễ; chỉ khi mật khẩu đúng mới báo `EMAIL_NOT_VERIFIED` /
+  `ACCOUNT_DISABLED`), `POST /auth/logout` (tăng `token_version` bằng UPDATE nguyên tử), `GET /users/me`
+  (`UserService`, `UserController`), bean `PasswordEncoder` BCrypt strength 10. Test `AuthLoginIntegrationTest`
+  (14, PostgreSQL thật); sửa `SecurityIntegrationTest` (đường dẫn thử đổi sang `/api/notifications` vì `/users/me` đã có controller).
+  Kiểm tay trên app thật với 3 tài khoản mẫu: đúng role, đúng quyền, logout làm token cũ 401.
+  Docs: `local-development.md` (chèn tay tài khoản mẫu), D-19, `troubleshooting.md`, `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Làm N3-03 TRƯỚC N3-01/N3-02 (roadmap ghi phụ thuộc N3-02 nhưng không phụ thuộc kỹ thuật; test tạo user bằng repository).
+    Ưu tiên của buổi: điều hướng theo role cho trang admin/staff. N3-01 (OTP + mail), N3-02, N3-04 làm sau.
+  - N3-05 mới có phần `GET /users/me`; chưa có `PUT /users/me` và `PUT /users/me/password` → KHÔNG tick N3-05.
+  - Chưa có giới hạn số lần đăng nhập sai (docs không yêu cầu); cân nhắc rate limit trước khi triển khai thật.
+  - Tài khoản mẫu chèn tay (D-19) — F-12 chính thức làm sau khi F-06 → F-09 merge.
+  - `UserController` import `CurrentUserId` của module `auth` (annotation dùng chung); có thể chuyển sang `common` nếu cần.
+  - Tiếp theo: PR frontend (AuthProvider, `/login`, `landingFor(role, redirect)`, bảo vệ layout admin; thay `useAdminSession` — KI-06).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-03)
+
 ### 2026-10-23 — Người 3 — frontend (F-14: nền gọi API)
 - Đã làm: nhánh `feature/frontend-f-14-api-client`. `services/apiClient.ts` (axios, tự gắn token, bóc `{success,data}`,
   `getPage` cho danh sách phân trang, lỗi → `ApiError`, 401 `UNAUTHORIZED` → xoá token + `setUnauthorizedHandler`;
