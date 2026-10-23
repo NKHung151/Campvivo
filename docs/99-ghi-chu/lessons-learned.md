@@ -7,3 +7,24 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 ### <Chủ đề>
 - **Bài học:**
 - **Áp dụng lại lần sau:**
+
+---
+
+### PR mở nhầm base `master` thay vì `dev`
+- **Bài học:** GitHub chọn mặc định base là nhánh mặc định của kho (`master`), nên PR dễ vào nhầm. Khi đó cả lịch sử
+  `dev` bị kéo vào `master`. Ngoài ra workflow CI (`backend-ci.yml`, `frontend-ci.yml`) chỉ kích hoạt cho PR vào `dev`
+  và `main`, nhưng nhánh chính thật tên là `master` → PR vào `master` không chạy CI. Tài liệu (`git.md`) cũng ghi `main`.
+- **Áp dụng lại lần sau:** Luôn kiểm tra ô `base: dev` trước khi bấm Create pull request. Nhóm nên thống nhất tên nhánh
+  chính và sửa workflow/tài liệu cho khớp (hoặc bật branch protection).
+
+### Công cụ mới hơn thư viện: Docker Desktop 29 và Testcontainers cũ
+- **Bài học:** Lỗi chỉ xuất hiện trên máy dùng Docker mới còn CI (Docker cũ hơn) vẫn xanh, nên CI xanh không đảm bảo máy
+  mọi thành viên chạy được.
+- **Áp dụng lại lần sau:** Khi một thành viên báo "Docker chạy mà test không chạy", kiểm tra phiên bản thư viện so với
+  phiên bản Docker; ghi cách xử lý vào `troubleshooting.md`.
+
+### Không để task "nền" tồn đọng chặn cả nhóm
+- **Bài học:** Chuỗi migration F-05 → F-09 phải tuần tự (số phiên bản Flyway) nên người sau phải chờ người trước; F-11
+  (interface + stub) chỉ làm được khi cả chuỗi xong. Một seed dùng số phiên bản lớn (V6) làm sớm sẽ gây lỗi thứ tự.
+- **Áp dụng lại lần sau:** Thống nhất trước số phiên bản migration cho từng người và làm song song; seed dev chỉ làm sau
+  khi các bảng đã vào `dev` (D-19).

@@ -44,5 +44,22 @@ Mặc định chạy ở `http://localhost:3000`, gọi API tại `NEXT_PUBLIC_A
 
 Chỉ dùng cho môi trường dev; không seed các tài khoản này ở production.
 
+**Tạm thời đến khi có seed chính thức (F-12, xem D-19):** tự chèn 3 tài khoản vào DB local. Lệnh idempotent
+(chạy lại nhiều lần không lỗi, không ghi đè tài khoản đã có). Chạy ở thư mục gốc repo, khi container Postgres
+đang chạy:
+```bash
+docker exec -i campvivo-postgres psql -U campvivo -d campvivo <<'SQL'
+INSERT INTO users (email, password_hash, full_name, role, email_verified) VALUES
+  ('admin@campvivo.local',    '$2a$10$1d9xWG4uRfdBTLokOuNzQuyS69CWwhE83qkd3JmHIp8XXroPmFLZW', 'Admin Dev',      'ADMIN',    true),
+  ('staff@campvivo.local',    '$2a$10$WNM792SndqN0s2npCYDnrudtYKrr/u7IWrA8ZyXAhpyxSIWkLfWpm', 'Nhân viên Dev',  'EMPLOYEE', true),
+  ('customer@campvivo.local', '$2a$10$6BAvQ1PpgOoUIhB1syMznOHka98mbJpfpWVVj3gQeP/wJdUiC1nB2', 'Khách hàng Dev', 'CUSTOMER', true)
+ON CONFLICT (email) DO NOTHING;
+SQL
+```
+Chuỗi `$2a$10$...` là mã băm BCrypt (strength 10) của mật khẩu ở bảng trên. Trên PowerShell, `<<'SQL'` không dùng được:
+lưu đoạn SQL vào một file rồi `Get-Content file.sql | docker exec -i campvivo-postgres psql -U campvivo -d campvivo`.
+Phải chạy lại sau mỗi lần reset DB (`docker compose down -v`). Đăng xuất làm tăng `token_version` của tài khoản đó
+(đăng xuất mọi thiết bị) nhưng không ảnh hưởng việc đăng nhập lại.
+
 ## Lệnh chuẩn
 `./scripts/agent-build.sh`, `./scripts/agent-lint.sh`, `./scripts/agent-test.sh` (xem `AGENTS.md` mục 11).
