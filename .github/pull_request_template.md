@@ -2,9 +2,10 @@
 <Mô tả ngắn gọn PR này làm gì>
 
 ## Module liên quan
-- [ ] auth  - [ ] user  - [ ] catalog  - [ ] inventory  - [ ] cart  - [ ] order
-- [ ] payment  - [ ] promotion  - [ ] combo  - [ ] review  - [ ] notification
-- [ ] recommendation  - [ ] analytics  - [ ] rental (Tier 3)
+- [ ] auth  - [ ] user  - [ ] catalog  - [ ] combo  - [ ] inventory  - [ ] cart
+- [ ] order  - [ ] payment  - [ ] promotion  - [ ] review  - [ ] favorite  - [ ] article
+- [ ] support  - [ ] notification  - [ ] recommendation  - [ ] analytics  - [ ] common
+- FR / use case liên quan: ____________
 - [ ] frontend (route/feature): ____________
 
 ## Loại thay đổi
@@ -16,10 +17,11 @@
 
 ## Checklist trước khi xin review
 - [ ] Đã đọc `AGENTS.md` và rule liên quan (`general.md` + rule theo stack)
-- [ ] `mvn test` xanh (nếu đụng backend) / `npm run lint && npm run build` xanh (nếu đụng frontend)
+- [ ] `./scripts/agent-lint.sh` và `./scripts/agent-test.sh` xanh
 - [ ] Không có secret commit nhầm
 - [ ] Đã cập nhật `docs/` nếu hành vi nghiệp vụ/API/schema thay đổi (skill `documentation-sync`)
-- [ ] Nếu liên quan tồn kho/thanh toán/trạng thái đơn: có test cho nhánh chính + nhánh lỗi
+- [ ] Nếu liên quan tồn kho/voucher/thanh toán/trạng thái đơn: có test nhánh chính + nhánh lỗi (+ race condition)
+- [ ] Schema/endpoint/mã lỗi khớp `database.md` / `api.md`
 
 ## Cách test
 <Các bước để reviewer tự kiểm tra>

@@ -1,0 +1,961 @@
+{
+ "journeyRules": [
+  {
+   "keys": [
+    "giày leo núi",
+    "giày trekking",
+    "giày lội nước",
+    "giày chạy địa hình",
+    "đế đinh"
+   ],
+   "journeys": [
+    {
+     "icon": "🥾",
+     "title": "Trekking địa hình",
+     "sub": "Đường mòn đất ướt, đá trơn"
+    },
+    {
+     "icon": "⛅",
+     "title": "Thời tiết thay đổi",
+     "sub": "Mưa nhẹ / Gió lạnh"
+    },
+    {
+     "icon": "🚧",
+     "title": "Nhiều ngày liên tục",
+     "sub": "Cần ôm chân, chống mỏi"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "giày chạy bộ",
+    "giày chạy đường phố",
+    "giày chạy"
+   ],
+   "journeys": [
+    {
+     "icon": "🏃",
+     "title": "Chạy bộ hàng ngày",
+     "sub": "Nhẹ, đệm tốt"
+    },
+    {
+     "icon": "🚧",
+     "title": "Chạy địa hình nhẹ",
+     "sub": "Trail ngắn, hỗn hợp"
+    },
+    {
+     "icon": "⛅",
+     "title": "Mọi thời tiết",
+     "sub": "Thoáng khí / chống nước"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "giày đạp xe"
+   ],
+   "journeys": [
+    {
+     "icon": "🚴",
+     "title": "Đạp xe đường dài",
+     "sub": "Bám pedal tốt, cứng đế"
+    },
+    {
+     "icon": "🏙",
+     "title": "Đi làm hàng ngày",
+     "sub": "Nhẹ, thoải mái đi bộ"
+    },
+    {
+     "icon": "⛰",
+     "title": "Đạp xe địa hình",
+     "sub": "Địa hình off-road"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "giày đi mưa",
+    "giày xe máy",
+    "giày patin"
+   ],
+   "journeys": [
+    {
+     "icon": "🌧️",
+     "title": "Mưa & đường trơn",
+     "sub": "Chống trượt, chống ướt"
+    },
+    {
+     "icon": "🏙",
+     "title": "Di chuyển hàng ngày",
+     "sub": "Bền, thoải mái"
+    },
+    {
+     "icon": "⛅",
+     "title": "Mọi thời tiết",
+     "sub": "Đa năng, linh hoạt"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "balo leo núi",
+    "balo trekking",
+    "balo nước"
+   ],
+   "journeys": [
+    {
+     "icon": "🎒",
+     "title": "Trekking nhiều ngày",
+     "sub": "35–70L, khung lưng tốt"
+    },
+    {
+     "icon": "💧",
+     "title": "Cần mang nước nhiều",
+     "sub": "Hydration pack, ống hút"
+    },
+    {
+     "icon": "⛺",
+     "title": "Cắm trại overnight",
+     "sub": "Đủ không gian đồ ngủ"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "balo",
+    "ba lô",
+    "ba lo"
+   ],
+   "journeys": [
+    {
+     "icon": "🎒",
+     "title": "Hành trình 1–3 ngày",
+     "sub": "20–35L phù hợp"
+    },
+    {
+     "icon": "✈️",
+     "title": "Du lịch bay",
+     "sub": "Cabin size, nhẹ chuẩn"
+    },
+    {
+     "icon": "⛺",
+     "title": "Cắm trại overnight",
+     "sub": "Cần đủ không gian đồ ngủ"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "túi ngủ"
+   ],
+   "journeys": [
+    {
+     "icon": "🌙",
+     "title": "Ngủ ngoài trời",
+     "sub": "Rừng núi / thời tiết lạnh"
+    },
+    {
+     "icon": "❄️",
+     "title": "Nhiệt độ thấp",
+     "sub": "Dưới 10°C cần túi 3 mùa"
+    },
+    {
+     "icon": "⛺",
+     "title": "Cắm trại nhiều đêm",
+     "sub": "Chống ẩm, nhẹ"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "túi khô",
+    "túi chống nước",
+    "đồ chống nước",
+    "hộp chống nước"
+   ],
+   "journeys": [
+    {
+     "icon": "🌊",
+     "title": "Kayak & SUP",
+     "sub": "Thiết bị không bị ướt"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Mưa & ẩm ướt",
+     "sub": "Bảo vệ điện thoại, giấy tờ"
+    },
+    {
+     "icon": "⛺",
+     "title": "Cắm trại nhiều ngày",
+     "sub": "Không lo mưa đêm"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "túi",
+    "hành lý du lịch",
+    "vali"
+   ],
+   "journeys": [
+    {
+     "icon": "✈️",
+     "title": "Du lịch bay",
+     "sub": "Gọn, đúng kích thước cabin"
+    },
+    {
+     "icon": "🏙",
+     "title": "Đi công tác",
+     "sub": "Chuyên nghiệp, dễ lấy đồ"
+    },
+    {
+     "icon": "🎒",
+     "title": "Weekend trip",
+     "sub": "1–2 ngày, nhẹ tiện lợi"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "lều",
+    "trại",
+    "mái che",
+    "tấm tăng"
+   ],
+   "journeys": [
+    {
+     "icon": "⛺",
+     "title": "Cắm trại rừng núi",
+     "sub": "2–4 người, nhẹ"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Mưa to / gió lạnh",
+     "sub": "Chống nước tốt"
+    },
+    {
+     "icon": "☀️",
+     "title": "Mùa hè ngoài trời",
+     "sub": "Thoáng khí, chống UV"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "đệm",
+    "chăn",
+    "gối",
+    "võng",
+    "tấm trải",
+    "tấm lót",
+    "giường cắm trại"
+   ],
+   "journeys": [
+    {
+     "icon": "🌙",
+     "title": "Ngủ ngoài trời",
+     "sub": "Cần lờbp cách nhiệt với đất"
+    },
+    {
+     "icon": "❄️",
+     "title": "Thời tiết lạnh",
+     "sub": "Chống gió, giữ ấm ban đêm"
+    },
+    {
+     "icon": "⛺",
+     "title": "Nhiều đêm liên tục",
+     "sub": "Êhm, dễ cuộn gọn"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "quần bơi",
+    "áo bơi",
+    "bộ đồ bơi",
+    "trang phục bơi",
+    "đồ đi biển"
+   ],
+   "journeys": [
+    {
+     "icon": "🏄",
+     "title": "Bơi lội hồ / biển",
+     "sub": "Co giãn, chống clo/muối"
+    },
+    {
+     "icon": "☀️",
+     "title": "Nắng bãi biển",
+     "sub": "Chống UV, mau khô"
+    },
+    {
+     "icon": "🌊",
+     "title": "Lặn & Snorkeling",
+     "sub": "Vừa vặn, không cọ da"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "áo khoác",
+    "áo gió",
+    "áo mưa",
+    "áo mau khô",
+    "áo thun",
+    "áo sơ mi",
+    "trang phục",
+    "quần mau",
+    "áo nỉ",
+    "hoodie",
+    "áo rằn",
+    "quần rằn",
+    "áo bảo hộ",
+    "áo đi mưa",
+    "áo cờ",
+    "quần nỉ",
+    "tất"
+   ],
+   "journeys": [
+    {
+     "icon": "🌧️",
+     "title": "Mưa nhiều",
+     "sub": "Chống nước, thoát hơi"
+    },
+    {
+     "icon": "⛅",
+     "title": "Nhiều thời tiết",
+     "sub": "Lờbp giữ ấm linh hoạt"
+    },
+    {
+     "icon": "🔥",
+     "title": "Vận động mạnh",
+     "sub": "Thông thoáng nhanh khô"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "găng tay",
+    "khăn",
+    "mũ",
+    "kính",
+    "nón",
+    "xà cạp",
+    "khẩu trang",
+    "dây lưng"
+   ],
+   "journeys": [
+    {
+     "icon": "❄️",
+     "title": "Thời tiết lạnh",
+     "sub": "Bảo vệ tay / đầu / mặt"
+    },
+    {
+     "icon": "☀️",
+     "title": "Nắng mạnh",
+     "sub": "Chống UV, tia hồng ngoại"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Mưa & gió",
+     "sub": "Chống ướt, giữ ấm"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "bàn cắm trại",
+    "ghế cắm trại",
+    "giá kệ",
+    "xe kéo cắm trại",
+    "bàn ghế"
+   ],
+   "journeys": [
+    {
+     "icon": "⛺",
+     "title": "Basecamp dã ngoái",
+     "sub": "Cắm trại có xe hoặc ô tô"
+    },
+    {
+     "icon": "🌳",
+     "title": "Picnic & ngoài trời",
+     "sub": "Gia đình, nhóm bạn"
+    },
+    {
+     "icon": "🌮",
+     "title": "Glamping",
+     "sub": "Cắm trại tiện nghi"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "bếp",
+    "dụng cụ nấu",
+    "ấm dã ngoái",
+    "chão dã ngoái",
+    "xoong",
+    "nồi",
+    "bật lửa",
+    "đánh lửa",
+    "diêm",
+    "gas",
+    "than",
+    "củi",
+    "cồn",
+    "nhiên liệu"
+   ],
+   "journeys": [
+    {
+     "icon": "🍳",
+     "title": "Nấu ăn dã ngoái",
+     "sub": "Cắm trại, hành trình dài"
+    },
+    {
+     "icon": "⛺",
+     "title": "Overnight trekking",
+     "sub": "Cần bếp nhẹ, gọn"
+    },
+    {
+     "icon": "👨",
+     "title": "Cắm trại gia đình",
+     "sub": "Nấu đủ suất ăn, dễ dùng"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "đựng nước",
+    "bình nước",
+    "bi đông",
+    "lọc nước",
+    "túi đựng nước",
+    "bình giữ nhiệt",
+    "bình đá",
+    "thùng đá",
+    "thùng giữ nhiệt",
+    "tủ lạnh di động"
+   ],
+   "journeys": [
+    {
+     "icon": "💧",
+     "title": "Trekking dài ngày",
+     "sub": "Đủ nước sạch trên đường"
+    },
+    {
+     "icon": "⛺",
+     "title": "Cắm trại xa nguồn nước",
+     "sub": "Trữ nước, lọc nước"
+    },
+    {
+     "icon": "☀️",
+     "title": "Thời tiết nóng",
+     "sub": "Giữ lạnh, bổ sung nhanh"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "dao",
+    "dụng cụ đa năng",
+    "kìm đa năng",
+    "thẻ đa năng",
+    "thẻ sinh tồn",
+    "survival",
+    "sinh tồn",
+    "còi cứu hộ",
+    "vòng tay sinh",
+    "dây - đai",
+    "mền cứu sinh"
+   ],
+   "journeys": [
+    {
+     "icon": "🌲",
+     "title": "Sinh tồn dã ngoái",
+     "sub": "Đa năng, tình huống khẩn cấp"
+    },
+    {
+     "icon": "⛺",
+     "title": "Trekking xa văn minh",
+     "sub": "Cần công cụ độc lập"
+    },
+    {
+     "icon": "🛡",
+     "title": "An toàn hành trình",
+     "sub": "Phòng ngừa, cứu hộ cơ bản"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "gậy leo núi",
+    "gậy chạy bộ"
+   ],
+   "journeys": [
+    {
+     "icon": "⛰",
+     "title": "Trekking dốc cao",
+     "sub": "Giảm tải đầu gối, tăng ổn định"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Đường trơn / bùn",
+     "sub": "Giữ thăng bằng tốt hơn"
+    },
+    {
+     "icon": "🏃",
+     "title": "Trail running",
+     "sub": "Gậy nhẹ, carbon, xếp gọn"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "sức khỏe",
+    "y tế",
+    "cứu sinh",
+    "first-aid",
+    "vệ sinh cá nhân",
+    "côn trùng",
+    "sát trùng",
+    "kem chống",
+    "chống muỗi"
+   ],
+   "journeys": [
+    {
+     "icon": "🩹",
+     "title": "An toàn hành trình",
+     "sub": "Sơ cứu, phòng bệnh cơ bản"
+    },
+    {
+     "icon": "🌲",
+     "title": "Vùng sâu vùng xa",
+     "sub": "Không có cơ sở y tế gần"
+    },
+    {
+     "icon": "🦟",
+     "title": "Côn trùng & muỗi",
+     "sub": "Bảo vệ da, chống côn trùng"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "đèn",
+    "đèn pin"
+   ],
+   "journeys": [
+    {
+     "icon": "🔦",
+     "title": "Cắm trại ban đêm",
+     "sub": "Chiếu sáng lều, đường mòn"
+    },
+    {
+     "icon": "🌲",
+     "title": "Trekking sớm / tối",
+     "sub": "Đèn đeo trán, pin dài"
+    },
+    {
+     "icon": "🚨",
+     "title": "Khẩn cấp",
+     "sub": "Tín hiệu cứu hộ, đèn flash"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "camera",
+    "gopro",
+    "máy quay",
+    "flycam"
+   ],
+   "journeys": [
+    {
+     "icon": "📷",
+     "title": "Ghi lại hành trình",
+     "sub": "Action cam góc rộng"
+    },
+    {
+     "icon": "🌊",
+     "title": "Dưới nước",
+     "sub": "Chống nước, lặn sâu"
+    },
+    {
+     "icon": "🚀",
+     "title": "Trên cao / Flycam",
+     "sub": "Góc máy bay, cảnh quan"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "điện tử",
+    "sạc",
+    "pin dự phòng",
+    "bộ lưu điện",
+    "điện thoại chống nước"
+   ],
+   "journeys": [
+    {
+     "icon": "🔋",
+     "title": "Hành trình dài ngày",
+     "sub": "Thiết bị không hết pin"
+    },
+    {
+     "icon": "☀️",
+     "title": "Năng lượng mặt trời",
+     "sub": "Sạc pin nơi không có điện"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Mọi điều kiện",
+     "sub": "Chống nước, chịu va đập"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "ống nhòm",
+    "la bàn",
+    "định vị gps",
+    "đồng hồ thể thao",
+    "đồng hồ"
+   ],
+   "journeys": [
+    {
+     "icon": "🦭",
+     "title": "Định hướng dã ngoái",
+     "sub": "Không lạc đường, đọc địa hình"
+    },
+    {
+     "icon": "🌲",
+     "title": "Trekking xa bản đồ",
+     "sub": "Cần la bàn, GPS offline"
+    },
+    {
+     "icon": "📊",
+     "title": "Theo dõi sức khỏe",
+     "sub": "Nhịp tim, độ cao, bước chân"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "xe đạp địa hình",
+    "xe đạp gấp",
+    "xe đạp đường",
+    "xe đạp fixed",
+    "xe đạp đua"
+   ],
+   "journeys": [
+    {
+     "icon": "🚴",
+     "title": "Đạp xe địa hình",
+     "sub": "MTB, off-road, trail"
+    },
+    {
+     "icon": "🏙",
+     "title": "Commute hàng ngày",
+     "sub": "Nhanh, nhẹ, bền"
+    },
+    {
+     "icon": "🚧",
+     "title": "Đường trường (Road)",
+     "sub": "Tốc độ cao, aerodynamic"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "xe đạp",
+    "đạp xe"
+   ],
+   "journeys": [
+    {
+     "icon": "🚴",
+     "title": "Đạp xe đa địa hình",
+     "sub": "MTB / Road / City"
+    },
+    {
+     "icon": "🏙",
+     "title": "Commute hàng ngày",
+     "sub": "Bền, gọn, dễ bảo trì"
+    },
+    {
+     "icon": "🚧",
+     "title": "Đạp xe đường dài",
+     "sub": "Tốc độ, khí động học"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "xe máy",
+    "thùng xe",
+    "baga",
+    "giáp bảo hộ",
+    "đồ bảo hộ",
+    "đồ đi mưa"
+   ],
+   "journeys": [
+    {
+     "icon": "🏄",
+     "title": "Phượt xe máy",
+     "sub": "Hành trình đường dài"
+    },
+    {
+     "icon": "🌧️",
+     "title": "Mưa & bụi",
+     "sub": "Bảo vệ toàn thân"
+    },
+    {
+     "icon": "🚧",
+     "title": "An toàn giao thông",
+     "sub": "Giáp, mũ, tay, chân"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "chạy bộ"
+   ],
+   "journeys": [
+    {
+     "icon": "🏃",
+     "title": "Chạy bộ hàng ngày",
+     "sub": "Công viên, đường phẳng"
+    },
+    {
+     "icon": "🚧",
+     "title": "Trail running",
+     "sub": "Địa hình, dốc, đá"
+    },
+    {
+     "icon": "🏆",
+     "title": "Race / Marathon",
+     "sub": "Thi đấu, cần nhẹ & nhanh"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "bơi",
+    "lặn",
+    "chân vịt",
+    "ống thở",
+    "kính bơi"
+   ],
+   "journeys": [
+    {
+     "icon": "🏄",
+     "title": "Bơi lội & lặn biển",
+     "sub": "Chống nước hoàn toàn"
+    },
+    {
+     "icon": "🌊",
+     "title": "Snorkeling & freediving",
+     "sub": "Rạn san hô, độ sâu vừa"
+    },
+    {
+     "icon": "☀️",
+     "title": "Hoạt động biển hè",
+     "sub": "Chống UV, bền với muối"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "thuyền",
+    "kayak",
+    "sup",
+    "ván chèo",
+    "mái chèo",
+    "áo phao"
+   ],
+   "journeys": [
+    {
+     "icon": "🚣",
+     "title": "Kayak & SUP",
+     "sub": "Sông hồ, biển lặng"
+    },
+    {
+     "icon": "🌊",
+     "title": "Vùng nước mở",
+     "sub": "Cần áo phao, kỹ năng lái"
+    },
+    {
+     "icon": "🌲",
+     "title": "Thám hiểm sông ngòi",
+     "sub": "Đa địa hình nước"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "patin",
+    "skate"
+   ],
+   "journeys": [
+    {
+     "icon": "🛹",
+     "title": "Patin đường phố",
+     "sub": "Công viên, đường bằng phẳng"
+    },
+    {
+     "icon": "🏆",
+     "title": "Skate park",
+     "sub": "Halfpipe, ramp, trick"
+    },
+    {
+     "icon": "🛡",
+     "title": "Cần bảo hộ đầy đủ",
+     "sub": "Mũ, giáp, tay, chân"
+    }
+   ]
+  },
+  {
+   "keys": [
+    "yoga",
+    "fitness",
+    "máy chạy bộ"
+   ],
+   "journeys": [
+    {
+     "icon": "🧘",
+     "title": "Yoga & thiền",
+     "sub": "Trong nhà, thảm êm, yên tĩnh"
+    },
+    {
+     "icon": "🏋",
+     "title": "Strength training",
+     "sub": "Tạ, kháng lực, cardio"
+    },
+    {
+     "icon": "🏃",
+     "title": "Cardio & HIIT",
+     "sub": "Đốt mỡ, nâng cao thể lực"
+    }
+   ]
+  }
+ ],
+ "educationTips": [
+  {
+   "keys": [
+    "giày leo núi",
+    "giày trekking",
+    "giày lội nước"
+   ],
+   "tips": [
+    "👟 Chọn size lớn hơn 0.5 — chân phù khi leo dốc dài",
+    "💧 Đế Vibram / Continental bám tốt đường đất ướt",
+    "🔒 Cổ cao giữ mắt cá trên địa hình đá, dốc đứng"
+   ]
+  },
+  {
+   "keys": [
+    "giày chạy",
+    "trail running"
+   ],
+   "tips": [
+    "⚡ Chọn đúng drop (heel-to-toe) theo kiểu chạy bộ",
+    "🏃 Lugs sâu > 4mm cho địa hình bùn đất",
+    "🌬️ Upper thoáng khí quan trọng hơn chống nước khi chạy"
+   ]
+  },
+  {
+   "keys": [
+    "balo leo núi",
+    "balo trekking"
+   ],
+   "tips": [
+    "🎒 Dung tích: 1 ngày = 20–25L, 2–3 ngày = 35–45L, dài ngày = 50L+",
+    "⚖️ Khung lưng cứng giảm mỏi vai khi mang nặng > 10kg",
+    "💧 Túi hydration tích hợp tiết kiệm dừng nghỉ lấy nước"
+   ]
+  },
+  {
+   "keys": [
+    "balo",
+    "ba lô"
+   ],
+   "tips": [
+    "📐 Kiểm tra chiều dài thân (torso length) để chọn size lưng đúng",
+    "🔑 Ngăn laptop độc lập giúp qua an ninh sân bay nhanh hơn",
+    "🌧️ Rain cover đi kèm tiết kiệm hơn mua riêng"
+   ]
+  },
+  {
+   "keys": [
+    "áo khoác",
+    "áo gió",
+    "áo mưa"
+   ],
+   "tips": [
+    "🌧️ Rating chống nước: 10.000mm dùng mưa nhẹ, 20.000mm+ cho mưa to",
+    "💨 Chỉ số thoát hơi (breathability) quan trọng khi vận động mạnh",
+    "🧵 3 lớp (3L) bền hơn 2.5L nhưng nặng hơn — cân theo mục đích dùng"
+   ]
+  },
+  {
+   "keys": [
+    "túi ngủ",
+    "sleeping bag"
+   ],
+   "tips": [
+    "🌡️ Nhiệt độ comfort = nhiệt độ thấp nhất bạn dự kiến ngủ",
+    "🪶 Down (lông vũ) nhẹ hơn, Synthetic giữ ấm khi ướt tốt hơn",
+    "📏 Mummy bag ấm hơn rectangular cùng trọng lượng"
+   ]
+  },
+  {
+   "keys": [
+    "lều",
+    "tent"
+   ],
+   "tips": [
+    "👥 4 người? Chọn lều 6 người — cần chỗ để đồ",
+    "🌬️ Cọc lều titanium nhẹ hơn nhôm 30% nhưng đắt hơn",
+    "⛺ Mái lều đôi (double wall) cách nhiệt và chống đọng sương tốt hơn"
+   ]
+  },
+  {
+   "keys": [
+    "gậy leo núi",
+    "trekking pole"
+   ],
+   "tips": [
+    "📏 Chiều cao gậy đúng: khuỷu tay 90° khi cầm trên địa hình bằng",
+    "🎋 Carbon nhẹ hơn nhôm 20–30%, chọn nhôm nếu hay leo đá dễ gãy",
+    "🔧 Khóa vặn (twist lock) chắc hơn khóa kẹp (flick lock) khi leo dốc"
+   ]
+  },
+  {
+   "keys": [
+    "đèn pin",
+    "đèn đeo trán",
+    "headlamp"
+   ],
+   "tips": [
+    "💡 300+ lumen đủ cho trail đêm, 100 lumen đủ cắm trại",
+    "🔋 Pin sạc USB tiện hơn nhưng pin AA dễ thay ở vùng xa",
+    "🔴 Chế độ đèn đỏ bảo toàn thị giác ban đêm"
+   ]
+  }
+ ],
+ "genericJourneys": [
+  {
+   "icon": "🥾",
+   "title": "Trekking & Leo núi",
+   "sub": "Địa hình đa dạng, nhiều ngày"
+  },
+  {
+   "icon": "⛺",
+   "title": "Cắm trại & Dã ngoại",
+   "sub": "Rừng núi, bờ biển, đồng bằng"
+  },
+  {
+   "icon": "⛅",
+   "title": "Hoạt động ngoài trời",
+   "sub": "Mọi điều kiện thời tiết"
+  }
+ ]
+}

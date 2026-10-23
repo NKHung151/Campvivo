@@ -1,0 +1,258 @@
+{
+ "csvcHtml": "<a href=\"javascript:;\" id=\"closePopup\" class=\"closePopup\">Đóng X</a> <p style=\"text-align:justify\"><strong>CHÍNH SÁCH GIAO HÀNG:</strong></p> <p style=\"text-align:justify\">WETREK.VN áp dụng chính sách giao hàng cho tất cả các đơn hàng trên Toàn quốc như sau:</p> <p style=\"text-align:justify\"><strong>1. Chính sách Miễn phí giao hàng:</strong></p> <p style=\"text-align:justify\">* WETREK.VN miễn phí giao hàng cho các đơn hàng có giá trị từ 1.000.000 VNĐ trở lên (hỗ trợ tối đa 30.000 VNĐ/đơn hàng, Quý khách thanh toán khoản chênh lệch còn lại nếu có).</p> <p style=\"text-align:justify\"><strong>2. Chính sách COD:</strong></p> <p style=\"text-align:justify\">* Khu vực nội thành Hà Nội, TP.HCM: Áp dụng chính sách COD cho tất cả các đơn hàng.</p> <p style=\"text-align:justify\">* Ngoại thành Hà Nội, TP.HCM và liên tỉnh: Áp dụng chính sách COD cho các đơn hàng có giá trị dưới 2.000.000 VNĐ. Các đơn hàng có giá trị khác (trên 2.000.000 VNĐ) không áp dụng chính sách COD, khách hàng vui lòng thanh toán toàn bộ giá trị đơn hàng.</p> <p style=\"text-align:justify\">* Phí giao hàng COD: Do các công ty vận chuyển chuyên nghiệp quy định và được WETREK.VN hỗ trợ phí vận chuyển như quy định tại Mục 1 - Chính sách giao hàng.</p> <p style=\"text-align:justify\"><strong>3. Thời gian giao hàng:</strong></p> <p style=\"text-align:justify\">* Đối với các đơn hàng giao trong khu vực nội thành Hà Nội, TP.HCM, Quý khách có thể mua sắm liền tay với dịch vụ giao hàng nhanh. Trong vòng 2-4 tiếng đồng hồ, chúng tôi sẽ giao hàng tại nơi Quý khách yêu cầu.</p> <p style=\"text-align:justify\">* Đối với các đơn hàng giao trong khu vực ngoại thành Hà Nội, TP.HCM: Thời gian giao hàng từ 1-2 ngày kể từ ngày mua hàng.</p> <p style=\"text-align:justify\">* Đối với các đơn hàng liên tỉnh, thời gian giao hàng từ 3-7 ngày theo chính sách giao hàng của hãng vận chuyển kể từ ngày mua hàng.</p>",
+ "pvcHtml": "<a href=\"javascript:;\" id=\"closePopup2\" class=\"closePopup\">Đóng X</a> <p>Hoạt động ship hàng&nbsp;do các đơn vận chuyển chuyên nghiệp thực hiện (WeTrek cam kết lựa chọn đơn vị&nbsp;vận chuyển uy tín nhất &amp; thông báo cước phí vận chuyển tới Quý khách).</p>",
+ "provinces": [
+  {
+   "v": "79",
+   "n": "Thành phố Hồ Chí Minh"
+  },
+  {
+   "v": "01",
+   "n": "Thành phố Hà Nội"
+  },
+  {
+   "v": "92",
+   "n": "Thành phố Cần Thơ"
+  },
+  {
+   "v": "48",
+   "n": "Thành phố Đà Nẵng"
+  },
+  {
+   "v": "31",
+   "n": "Thành phố Hải Phòng"
+  },
+  {
+   "v": "89",
+   "n": "Tỉnh An Giang"
+  },
+  {
+   "v": "77",
+   "n": "Tỉnh Bà Rịa - Vũng Tàu"
+  },
+  {
+   "v": "24",
+   "n": "Tỉnh Bắc Giang"
+  },
+  {
+   "v": "06",
+   "n": "Tỉnh Bắc Kạn"
+  },
+  {
+   "v": "95",
+   "n": "Tỉnh Bạc Liêu"
+  },
+  {
+   "v": "27",
+   "n": "Tỉnh Bắc Ninh"
+  },
+  {
+   "v": "83",
+   "n": "Tỉnh Bến Tre"
+  },
+  {
+   "v": "52",
+   "n": "Tỉnh Bình Định"
+  },
+  {
+   "v": "74",
+   "n": "Tỉnh Bình Dương"
+  },
+  {
+   "v": "70",
+   "n": "Tỉnh Bình Phước"
+  },
+  {
+   "v": "60",
+   "n": "Tỉnh Bình Thuận"
+  },
+  {
+   "v": "96",
+   "n": "Tỉnh Cà Mau"
+  },
+  {
+   "v": "04",
+   "n": "Tỉnh Cao Bằng"
+  },
+  {
+   "v": "66",
+   "n": "Tỉnh Đắk Lắk"
+  },
+  {
+   "v": "67",
+   "n": "Tỉnh Đắk Nông"
+  },
+  {
+   "v": "11",
+   "n": "Tỉnh Điện Biên"
+  },
+  {
+   "v": "75",
+   "n": "Tỉnh Đồng Nai"
+  },
+  {
+   "v": "87",
+   "n": "Tỉnh Đồng Tháp"
+  },
+  {
+   "v": "64",
+   "n": "Tỉnh Gia Lai"
+  },
+  {
+   "v": "02",
+   "n": "Tỉnh Hà Giang"
+  },
+  {
+   "v": "35",
+   "n": "Tỉnh Hà Nam"
+  },
+  {
+   "v": "42",
+   "n": "Tỉnh Hà Tĩnh"
+  },
+  {
+   "v": "30",
+   "n": "Tỉnh Hải Dương"
+  },
+  {
+   "v": "93",
+   "n": "Tỉnh Hậu Giang"
+  },
+  {
+   "v": "17",
+   "n": "Tỉnh Hoà Bình"
+  },
+  {
+   "v": "33",
+   "n": "Tỉnh Hưng Yên"
+  },
+  {
+   "v": "56",
+   "n": "Tỉnh Khánh Hòa"
+  },
+  {
+   "v": "91",
+   "n": "Tỉnh Kiên Giang"
+  },
+  {
+   "v": "62",
+   "n": "Tỉnh Kon Tum"
+  },
+  {
+   "v": "12",
+   "n": "Tỉnh Lai Châu"
+  },
+  {
+   "v": "68",
+   "n": "Tỉnh Lâm Đồng"
+  },
+  {
+   "v": "20",
+   "n": "Tỉnh Lạng Sơn"
+  },
+  {
+   "v": "10",
+   "n": "Tỉnh Lào Cai"
+  },
+  {
+   "v": "80",
+   "n": "Tỉnh Long An"
+  },
+  {
+   "v": "36",
+   "n": "Tỉnh Nam Định"
+  },
+  {
+   "v": "40",
+   "n": "Tỉnh Nghệ An"
+  },
+  {
+   "v": "37",
+   "n": "Tỉnh Ninh Bình"
+  },
+  {
+   "v": "58",
+   "n": "Tỉnh Ninh Thuận"
+  },
+  {
+   "v": "25",
+   "n": "Tỉnh Phú Thọ"
+  },
+  {
+   "v": "54",
+   "n": "Tỉnh Phú Yên"
+  },
+  {
+   "v": "44",
+   "n": "Tỉnh Quảng Bình"
+  },
+  {
+   "v": "49",
+   "n": "Tỉnh Quảng Nam"
+  },
+  {
+   "v": "51",
+   "n": "Tỉnh Quảng Ngãi"
+  },
+  {
+   "v": "22",
+   "n": "Tỉnh Quảng Ninh"
+  },
+  {
+   "v": "45",
+   "n": "Tỉnh Quảng Trị"
+  },
+  {
+   "v": "94",
+   "n": "Tỉnh Sóc Trăng"
+  },
+  {
+   "v": "14",
+   "n": "Tỉnh Sơn La"
+  },
+  {
+   "v": "72",
+   "n": "Tỉnh Tây Ninh"
+  },
+  {
+   "v": "34",
+   "n": "Tỉnh Thái Bình"
+  },
+  {
+   "v": "19",
+   "n": "Tỉnh Thái Nguyên"
+  },
+  {
+   "v": "38",
+   "n": "Tỉnh Thanh Hóa"
+  },
+  {
+   "v": "46",
+   "n": "Tỉnh Thừa Thiên Huế"
+  },
+  {
+   "v": "82",
+   "n": "Tỉnh Tiền Giang"
+  },
+  {
+   "v": "84",
+   "n": "Tỉnh Trà Vinh"
+  },
+  {
+   "v": "08",
+   "n": "Tỉnh Tuyên Quang"
+  },
+  {
+   "v": "86",
+   "n": "Tỉnh Vĩnh Long"
+  },
+  {
+   "v": "26",
+   "n": "Tỉnh Vĩnh Phúc"
+  },
+  {
+   "v": "15",
+   "n": "Tỉnh Yên Bái"
+  }
+ ]
+}
