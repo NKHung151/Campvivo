@@ -17,6 +17,23 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-23 — Người 3 — backend (F-10: security khung)
+- Đã làm: nhánh `feature/auth-f-10-security`. `JwtService` (HS256, claim sub/role/tv, dùng `Clock`),
+  `JwtAuthenticationFilter` (kiểm `token_version`, `is_active`, role lấy từ DB; principal = userId `Long`),
+  `SecurityConfig` (phân quyền theo path như `authentication.md` mục 5, stateless, `@EnableMethodSecurity`),
+  `JsonSecurityErrorHandler` (401/403 trả `ApiErrorResponse`), CORS theo `app.cors.allowed-origins`,
+  `@CurrentUserId`. Xoá `TemporarySecurityConfig`. Test: `JwtServiceTest` (7), `SecurityIntegrationTest` (13, DB thật).
+- Còn dang dở / TODO tiếp theo:
+  - Controller của module khác dùng `@CurrentUserId Long userId` (hoặc `@AuthenticationPrincipal Long`, đang dùng ở
+    `OrderController`); endpoint chỉ dành Admin phải thêm `@PreAuthorize("hasRole('ADMIN')")`. Endpoint mới phải thêm vào
+    ma trận phân quyền N3-10.
+  - Swagger (`/swagger-ui.html`, `/v3/api-docs`) đang mở công khai để cả nhóm thử API — đóng/giới hạn khi triển khai.
+  - Đường dẫn mới ngoài danh sách trong `SecurityConfig` mặc định cần đăng nhập (401 với khách); endpoint công khai mới
+    (GET) phải thêm vào `SecurityConfig`.
+  - STOMP `/ws/**` đang permitAll ở tầng HTTP; xác thực JWT khi CONNECT làm ở N3-08.
+  - Tiếp theo: F-14 (apiClient FE), F-12 (seed), F-11 (cả nhóm), rồi N3-01 (OTP).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-10)
+
 ### 2026-10-23 — Người 3 — backend (F-05: bảng users)
 - Đã làm: nhánh `feature/user-f-05`. `V1__users.sql` (16 cột theo `database.md` 3.1, CHECK `role`/`otp_purpose`),
   entity `User` (email tự chuẩn hoá chữ thường), `Role`, `OtpPurpose`, `UserRepository.findByEmail`. Xoá
