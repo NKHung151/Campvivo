@@ -155,8 +155,8 @@ class SecurityIntegrationTest {
     void anyRoleCanReachUserScopedEndpointsPastSecurity() throws Exception {
         User employee = saveUser("e2@campvivo.vn", Role.EMPLOYEE);
 
-        // /api/users/me chưa có controller (N3-05): qua được security nên là 404, không phải 401/403
-        mvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, bearer(employee)))
+        // /api/notifications chưa có controller (N4-03): qua được security nên là 404, không phải 401/403
+        mvc.perform(get("/api/notifications").header(HttpHeaders.AUTHORIZATION, bearer(employee)))
                 .andExpect(status().isNotFound());
     }
 
