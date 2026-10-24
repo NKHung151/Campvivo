@@ -3,7 +3,14 @@
 ## Yêu cầu
 - JDK 17+, Maven
 - Node.js 18+
-- Docker (chạy PostgreSQL local, xem `docker.md`)
+- PostgreSQL 15+: dùng Docker (`docker compose up -d`, xem `docker.md`) **hoặc** PostgreSQL cài trực
+  tiếp trên máy. Cài trực tiếp thì tạo sẵn user + database (cùng thông số với `docker-compose.yml`):
+  ```sql
+  CREATE ROLE campvivo LOGIN PASSWORD 'changeme';
+  CREATE DATABASE campvivo OWNER campvivo ENCODING 'UTF8' TEMPLATE template0;
+  ```
+  Không chạy cả hai cùng lúc — cùng chiếm cổng 5432.
+- Docker Desktop vẫn cần để chạy test backend (Testcontainers).
 - (Khi test VNPay) ngrok hoặc công cụ tương đương để VNPay gọi được IPN về máy local
 
 ## Thiết lập lần đầu / sau khi pull code mới (để đăng nhập được)
@@ -30,6 +37,12 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 Flyway tự chạy migration khi khởi động. Mặc định `application.yml` đặt `ddl-auto=validate`, nhưng `application-dev.yml.example`
 đang tạm đặt `none` (xem bước 3 ở trên). Health check: `GET /actuator/health`; Swagger: `http://localhost:8080/swagger-ui.html`.
+
+Profile dev nạp thêm dữ liệu mẫu catalog (`db/seed` — danh mục, sản phẩm, combo; xem `database.md` mục 7) nhờ dòng
+`spring.flyway.locations: classpath:db/migration,classpath:db/seed` trong `application-dev.yml`.
+
+**Windows, đường dẫn có ký tự tiếng Việt (vd. `D:\ĐA`):** `mvn spring-boot:run` báo `ClassNotFoundException` — xem
+`troubleshooting.md` (chạy qua junction ASCII hoặc `java -jar`).
 
 **Email khi dev:** dùng SMTP thật (Gmail App Password) hoặc Mailpit/MailHog (`localhost:1025`, xem
 thư ở `localhost:8025`) để nhận OTP.

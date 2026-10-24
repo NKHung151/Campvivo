@@ -38,6 +38,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 - **Phương án khác:** bảng `user_addresses` — bị loại vì không có trong báo cáo.
 
 ### 2026-10-17 — D-03: Combo là mặt hàng riêng, có tồn kho riêng
+- **Bổ sung bởi D-21 (2026-10-24):** tồn kho combo tăng/giảm bằng đóng gói/tháo, trừ/trả kho phân loại thành phần.
 - **Quyết định:** `product_combos` có `stock_quantity`, `reserved_quantity` riêng. Combo được
   xem như bộ đóng gói sẵn, nhập kho theo bộ; tồn kho combo KHÔNG liên quan tồn kho sản phẩm
   con. `combo_items` chỉ dùng để hiển thị "combo gồm những gì", sửa thoải mái không ảnh hưởng
@@ -177,6 +178,92 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   chỉ nạp thư mục seed ở profile `dev` và bắt buộc đặt profile khi triển khai (`deployment.md`), kẻo tài khoản mẫu với mật
   khẩu công khai được tạo trên production.
 
+### 2026-10-23 — D-20: Phân loại hàng một chiều, cùng giá, chưa dùng SKU; thông số dạng danh sách
+- **Phần phân loại đã bị thay thế bởi D-24 (2026-10-24): bỏ biến thể.** Phần `specs` và
+  `short_description` vẫn giữ.
+- **Bối cảnh:** Dữ liệu mock (lấy làm dữ liệu thật) có ~140/400 sản phẩm nhiều màu/size, tồn kho
+  riêng từng loại; trang chi tiết storefront có chọn phân loại và bảng thông số. Thay thế quyết định
+  2025 "Không dùng biến thể".
+- **Quyết định:**
+  - Bảng `product_variants`; **mọi sản phẩm có ≥ 1 biến thể**. Sản phẩm đơn có 1 biến thể ẩn tên
+    "Mặc định" (`products.variant_label` = NULL). Sản phẩm nhiều loại: `variant_label` (vd. "Màu sắc")
+    + 1–50 biến thể, tên không trùng (không phân biệt hoa thường).
+  - **Một chiều** (chỉ Màu *hoặc* Size, không tổ hợp Màu × Size).
+  - **Giá ở sản phẩm**, mọi biến thể cùng giá. Không có SKU (chưa cần mã kho/barcode).
+  - Tồn kho/giữ chỗ (BR-1, BR-2) ở **cấp biến thể**; tồn kho sản phẩm = tổng. `cart_items` và
+    `order_items` có `variant_id`. Biến thể còn tồn/giữ chỗ không xoá được — chỉ tắt.
+  - `products.specs` JSONB = danh sách `{name, value}` có thứ tự, cấu trúc giống nhau cho mọi loại
+    hàng; admin tự nhập từng dòng, không có schema riêng từng danh mục.
+  - Thêm `short_description`. (Ban đầu có thêm `warranty` — đã gỡ ngày 2026-10-24 vì không có trong thiết
+    kế DB gốc và chưa được duyệt.)
+- **Lý do:** Đủ để bán đúng dữ liệu đang có mà không phải làm ma trận biến thể/giá riêng/SKU.
+- **Ảnh hưởng:** Người 1 (giỏ hàng, đơn hàng) khoá và trừ kho theo `ProductVariant`; báo cáo cần bổ
+  sung bảng ProductVariant vào ERD.
+
+### 2026-10-24 — D-21: Khung thông số khai báo theo danh mục
+- **Đã bỏ (D-25, 2026-10-24).**
+- **Bối cảnh:** D-20 để "khung theo danh mục" là gợi ý tự rút từ thông số của sản phẩm đã có. Admin không
+  biết trước khung gồm gì, dữ liệu mock lẫn tên trùng nghĩa, danh mục mới thì khung rỗng.
+- **Quyết định:** `categories.spec_template` (JSONB, mảng tên thông số, ≤ 30) do admin khai báo ở trang
+  Danh mục. Danh mục không khai báo thì **thừa hưởng** khung của danh mục cha gần nhất
+  (`GET /api/admin/categories/{id}/spec-template`). Form sản phẩm điền sẵn các dòng theo khung khi chọn danh
+  mục; vẫn thêm được dòng ngoài khung. Cấu trúc `products.specs` không đổi. Gợi ý tự rút từ dữ liệu
+  (`/spec-names`) chỉ còn dùng làm gợi ý khi gõ và nút "Lấy gợi ý từ sản phẩm" khi soạn khung.
+- **Lý do:** giống "thuộc tính theo ngành hàng" của Shopee/Shopify nhưng gọn: chỉ tên thông số, không có
+  kiểu dữ liệu, không bắt buộc.
+- **Ảnh hưởng:** migration `V3__category_spec_template.sql`; báo cáo bổ sung thuộc tính specTemplate cho
+  Category.
+
+### 2026-10-24 — D-22: Đóng gói combo trừ kho sản phẩm thành phần
+- **Bối cảnh:** D-03 cho combo tồn kho riêng nhưng không trừ kho sản phẩm con → có thể bán vượt hàng thật
+  khi combo được ghép từ hàng lẻ.
+- **Quyết định:** giữ D-03 (combo là mặt hàng riêng, tồn kho theo bộ; khách mua combo chỉ giữ chỗ/trừ kho
+  combo — giỏ hàng, đơn hàng không đổi). Thêm thao tác admin:
+  - **Đóng gói N bộ:** kiểm tra đủ hàng khả dụng, trừ `N × số lượng` ở từng sản phẩm thành phần và cộng N vào
+    kho combo, trong một transaction (khoá combo rồi các sản phẩm theo id tăng dần). Thiếu → `OUT_OF_STOCK`.
+  - **Tháo N bộ** (≤ số bộ chưa bị giữ chỗ): trả hàng về từng sản phẩm, trừ kho combo.
+  - Combo còn bộ đã đóng gói thì không đổi được thành phần (tháo hết trước).
+  - Chưa ghi `inventory_logs` (làm cùng module Tồn kho).
+- **Ảnh hưởng:** không đổi cấu trúc bảng (`combo_items` giữ nguyên như báo cáo). Bản đầu gắn mỗi dòng với
+  một phân loại (`combo_items.variant_id`, migration V4) — đã gỡ cùng D-24.
+
+### 2026-10-24 — D-23: Combo chỉ gắn danh mục cấp 1
+- **Bối cảnh:** combo có trang riêng (`/combos`), danh mục chỉ để lọc/nhóm; chọn tới cấp 3 như sản phẩm là thừa.
+- **Quyết định:** giữ `product_combos.category_id` (không đổi DB) nhưng chỉ nhận danh mục gốc (`parent_id IS NULL`);
+  danh mục con → 400 `fieldErrors.categoryId`. Form và bộ lọc combo chỉ liệt kê danh mục cấp 1.
+
+### 2026-10-24 — D-24: Bỏ biến thể, quay về mỗi mặt hàng là một sản phẩm
+- **Bối cảnh:** thiết kế gốc (quyết định 2025 "Không dùng biến thể", báo cáo Phase1) không có biến thể. D-20
+  thêm phân loại một chiều để bán đúng dữ liệu mock, nhưng kéo theo đổi giỏ hàng, đơn hàng (của thành viên
+  khác), combo theo phân loại, và còn phát sinh thêm (ảnh theo phân loại, tồn kho theo phân loại…).
+- **Quyết định:** bỏ hẳn biến thể, áp dụng lại quyết định 2025:
+  - Không có bảng `product_variants`, cột `products.variant_label`, `combo_items.variant_id`.
+  - `products.stock_quantity`, `reserved_quantity` như thiết kế gốc; BR-1, BR-2 tính trên sản phẩm.
+  - Màu/size cần bán và quản lý tồn riêng → tạo sản phẩm riêng (vd. "Áo mưa Coleman – Tím – S/M").
+  - Giữ `specs`, `short_description` (D-20).
+  - Giỏ hàng, đơn hàng trả về đúng mã gốc (theo `product_id`).
+- **Dữ liệu:** seed V2 lấy tồn kho mỗi sản phẩm = tổng tồn các phân loại cũ. DB local được chuyển bằng SQL
+  (không xoá dữ liệu), migration V1/V2/V5 sửa tại chỗ, V4 xoá.
+- **Ảnh hưởng:** báo cáo không cần bổ sung bảng ProductVariant.
+
+### 2026-10-24 — D-25: Bỏ khung thông số theo danh mục
+- **Bối cảnh:** D-21 cho mỗi danh mục một khung tên thông số (kèm gợi ý rút từ sản phẩm đang có) để form sản
+  phẩm điền sẵn. Thực tế thông số mỗi sản phẩm mỗi khác, admin phải duy trì khung ở trang Danh mục mà ít dùng.
+- **Quyết định:** bỏ khung và gợi ý. Form sản phẩm chỉ có các dòng "Tên – Giá trị" để tự nhập (thêm/xoá/đổi thứ
+  tự). Xoá cột `categories.spec_template` (migration V3 xoá; DB local bỏ cột, giữ dữ liệu khác) và hai API
+  `GET /admin/categories/{id}/spec-template`, `/spec-names`.
+- **Ảnh hưởng:** bảng `categories` về đúng thiết kế gốc; báo cáo không cần thuộc tính specTemplate.
+
+### 2026-10-24 — D-26: Ảnh combo = ảnh tự tải lên + ảnh sản phẩm thành phần
+- **Bối cảnh:** combo là bộ các sản phẩm đã có ảnh; bắt admin tải ảnh riêng cho mọi combo thì thừa, nhưng vẫn cần ảnh
+  riêng khi muốn (ảnh chụp cả bộ). `images.image_url` là duy nhất toàn bảng nên không chép trùng URL ảnh sản phẩm
+  sang combo được.
+- **Quyết định:** combo vẫn có ảnh tự tải lên (`images.combo_id`, không bắt buộc, ≤ 10, có ảnh thì đúng 1 ảnh chính).
+  Ảnh hiển thị = ảnh tự tải lên (ảnh chính trước) rồi ảnh chính của từng sản phẩm thành phần theo thứ tự dòng, bỏ trùng.
+  Ảnh đại diện = ảnh chính tự tải lên, chưa có thì ảnh của sản phẩm thành phần đầu tiên có ảnh. Ảnh sản phẩm không
+  lưu sang combo — đổi ảnh sản phẩm thì combo hiển thị theo.
+- **Dữ liệu:** không đổi cấu trúc bảng. Seed V5 không còn chèn ảnh riêng cho combo (dùng ảnh sản phẩm).
+
 ---
 
 ## Quyết định trước đó
@@ -194,6 +281,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   vận chuyển thật) — bị loại vì khối lượng nghiệp vụ gấp nhiều lần, rủi ro vỡ tiến độ cao.
 
 ### 2025 — Không dùng biến thể sản phẩm (variants)
+- **Bị D-20 (2026-10-23) thay thế, rồi được áp dụng lại bởi D-24 (2026-10-24).**
 - **Bối cảnh:** Tài liệu tham khảo (mô hình Campvivo mở rộng) có `product_variants`,
   `rental_variant_pricing` cho màu/size/chất liệu.
 - **Quyết định:** Không tạo bảng biến thể riêng. Mỗi sản phẩm (vd. "Lều 2 người") là 1 bản
