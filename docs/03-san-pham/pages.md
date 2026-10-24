@@ -25,7 +25,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 ## Auth — nhóm `src/app/(store)/(auth)/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
-| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ⬜ (hiện là popup OTP giả — phải thay) |
+| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ✅ (email + mật khẩu; sau đăng nhập về `?redirect=` nếu role được vào, không thì ADMIN → `/admin`, EMPLOYEE → `/admin/orders`, CUSTOMER → `/`; popup OTP giả đã bỏ). Chưa có liên kết tới `/register`, `/forgot-password` (trang chưa làm); `EMAIL_NOT_VERIFIED` mới chỉ hiện thông báo, chưa tự chuyển `/verify-email` |
 | `/register` | Đăng ký | `POST /auth/register` | ⬜ |
 | `/verify-email?email=` | Nhập OTP xác thực email, gửi lại mã (đếm ngược 60s) | `/auth/verify-email`, `/auth/resend-code` | ⬜ (tái sử dụng UI popup OTP) |
 | `/forgot-password` | Nhập email nhận mã | `POST /auth/forgot-password` | ⬜ |
@@ -67,8 +67,10 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/articles`, `/admin/articles/new`, `/admin/articles/[id]` | Bài viết: danh sách, soạn (rich text), xuất bản | Admin | `/admin/articles` |
 
 Khung admin đã có (`AdminShell`): sidebar theo quyền khai báo ở `src/lib/admin/nav.ts`; trang có trong
-menu nhưng chưa làm hiển thị "đang xây dựng"; khách hàng vào `/admin` thấy trang 403. Phiên đăng nhập
-admin hiện là bản giả lập (`useAdminSession`, đổi role ở header) đến khi có auth thật (F-14).
+menu nhưng chưa làm hiển thị "đang xây dựng"; khách hàng vào `/admin` thấy trang 403. Phiên đăng nhập là
+**thật**: `AuthProvider` (`components/features/auth/`) khôi phục phiên bằng `GET /users/me`; chưa đăng nhập →
+`/login?redirect=...`; lỗi mạng khi khôi phục phiên hiện nút "Thử lại" (không chuyển hướng, giữ token). Khi thử
+cần đăng nhập bằng 3 tài khoản mẫu (`local-development.md`); không còn ô chọn role "Dev".
 
 Layout admin: sidebar theo quyền (Employee chỉ thấy Đơn hàng, Trả hàng, Tồn kho, Hỗ trợ). Truy cập
 trang không đủ quyền → trang 403; chưa đăng nhập → `/login?redirect=...`. Backend luôn kiểm tra lại.

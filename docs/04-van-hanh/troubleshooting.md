@@ -11,6 +11,40 @@ từ đầu mỗi lần gặp.
 
 ---
 
+### Backend không kết nối được PostgreSQL: `invalid value for parameter "TimeZone": "Asia/Saigon"`
+- **Triệu chứng:** App dừng lúc khởi động, lỗi `FATAL: invalid value for parameter "TimeZone"` (thường từ Flyway).
+- **Nguyên nhân:** JVM trên Windows báo múi giờ cũ `Asia/Saigon`; PostgreSQL 16 từ chối tên này.
+- **Cách xử lý:** Đặt `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh` (biến môi trường), hoặc chạy
+  `mvn -DskipTests spring-boot:run "-Dspring-boot.run.jvmArguments=-Duser.timezone=Asia/Ho_Chi_Minh"`.
+
+### App báo `Schema-validation: missing table [...]` khi khởi động
+- **Triệu chứng:** `Failed to initialize JPA EntityManagerFactory ... missing table [cart_items]`.
+- **Nguyên nhân:** `application.yml` đặt `ddl-auto: validate`, nhưng entity của module khác (cart, order, catalog...) chưa
+  có migration tạo bảng (F-06 → F-09 chưa merge).
+- **Cách xử lý:** Tạm đặt `spring.jpa.hibernate.ddl-auto: none` trong `application-dev.yml` (file local, không commit);
+  đổi lại `validate` khi các bảng đã có.
+
+### Flyway: `Found more than one migration with version 1` (hoặc `Validate failed`)
+- **Triệu chứng:** App/test dừng với lỗi Flyway sau khi pull code có migration bị xoá hoặc đổi tên.
+- **Nguyên nhân:** `backend/target/classes` còn file migration cũ (Maven không tự xoá file đã bị xoá khỏi source); hoặc
+  lịch sử Flyway trong DB local không khớp migration mới.
+- **Cách xử lý:** `mvn clean` rồi chạy lại. Nếu DB local đã áp dụng migration cũ: reset DB
+  (`docker compose down -v` rồi `docker compose up -d`; mất dữ liệu local) và chèn lại tài khoản mẫu
+  (`local-development.md`).
+
+### Test Testcontainers báo `Could not find a valid Docker environment` dù Docker đang chạy
+- **Triệu chứng:** `docker ps` chạy bình thường nhưng test dùng PostgreSQL Testcontainers lỗi, log có `Status 400`.
+- **Nguyên nhân:** Testcontainers 1.19.8 (bản Spring Boot 3.3 quản lý) dùng API Docker cũ; Docker Desktop đời mới (29.x,
+  API ≥ 1.44) từ chối.
+- **Cách xử lý:** Dự án đã ghi đè `testcontainers.version=1.21.4` trong `pom.xml`. Nếu vẫn lỗi: cập nhật Docker Desktop /
+  kiểm tra `docker version`. CI (Docker cũ hơn) không gặp lỗi này nên không phát hiện được.
+
+### Mở Swagger / API bị hỏi username và password
+- **Triệu chứng:** `http://localhost:8080/swagger-ui.html` hiện form hoặc hộp thoại đăng nhập.
+- **Nguyên nhân:** Đang chạy bản build cũ thiếu cấu hình bảo mật hiện tại (mặc định Spring Security chặn tất cả; username
+  `user`, mật khẩu ngẫu nhiên in trong log khởi động).
+- **Cách xử lý:** Dừng app, `mvn clean spring-boot:run -DskipTests` lại; thử cửa sổ ẩn danh nếu trình duyệt giữ cache.
+
 ### IPN VNPay không về khi chạy local
 - **Triệu chứng:** Thanh toán xong trên sandbox nhưng đơn vẫn PENDING, rồi bị huỷ sau 15 phút.
 - **Nguyên nhân:** VNPay không gọi được `localhost`; IPN URL chưa khai báo hoặc ngrok đổi URL.

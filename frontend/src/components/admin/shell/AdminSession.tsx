@@ -1,20 +1,13 @@
 "use client";
 
-import { createContext, useContext } from "react";
-import { useAdminSession } from "@/hooks/useAdminSession";
+import { useAuth } from "@/components/features/auth/AuthProvider";
 
-type AdminSession = ReturnType<typeof useAdminSession>;
-
-const AdminSessionContext = createContext<AdminSession | null>(null);
-
-export function AdminSessionProvider({ children }: { children: React.ReactNode }) {
-  const session = useAdminSession();
-  return <AdminSessionContext.Provider value={session}>{children}</AdminSessionContext.Provider>;
-}
-
-/** Phiên admin hiện tại — chỉ dùng bên trong khu vực /admin. */
-export function useAdmin(): AdminSession {
-  const ctx = useContext(AdminSessionContext);
-  if (!ctx) throw new Error("useAdmin() phải nằm trong <AdminSessionProvider>");
-  return ctx;
+/**
+ * Phiên đăng nhập cho khu vực /admin — dựa trên phiên đăng nhập thật (AuthProvider, GET /users/me).
+ * Giữ API `{ ready, user }` để các trang admin không phải sửa; `status` cho phép phân biệt chưa đăng nhập
+ * với không kết nối được máy chủ.
+ */
+export function useAdmin() {
+  const { status, user, logout, retry } = useAuth();
+  return { ready: status !== "loading", status, user, logout, retry };
 }

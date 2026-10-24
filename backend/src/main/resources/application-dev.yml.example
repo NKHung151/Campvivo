@@ -6,8 +6,10 @@ spring:
     password: changeme
   jpa:
     hibernate:
-      # Dùng "none" nếu entity chưa khớp migration (đến khi F-05 xong); mặc định ở application.yml là validate
-      ddl-auto: validate
+      # TẠM "none": entity của module khác (cart, order, catalog...) chưa có migration tạo bảng (F-06 → F-09 chưa
+      # merge) nên "validate" (mặc định ở application.yml) sẽ báo "missing table [...]" và backend không chạy.
+      # Khi các bảng đã vào dev thì xoá dòng này hoặc đổi lại "validate". Xem docs/04-van-hanh/troubleshooting.md.
+      ddl-auto: none
     show-sql: true
   flyway:
     enabled: true

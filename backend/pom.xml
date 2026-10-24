@@ -13,6 +13,8 @@
   <name>campvivo-backend</name>
   <properties>
     <java.version>17</java.version>
+    <!-- Ghi đè bản Spring Boot 3.3 quản lý (1.19.8): bản cũ không nói chuyện được với Docker Desktop đời mới (API >= 1.44) -->
+    <testcontainers.version>1.21.4</testcontainers.version>
     <!-- Không do Spring Boot quản lý version: tự ghi. springdoc 2.6.x ứng với Spring Boot 3.3.x -->
     <jjwt.version>0.12.7</jjwt.version>
     <springdoc.version>2.6.0</springdoc.version>

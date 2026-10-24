@@ -123,6 +123,8 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   trên môi trường nào.
 - **Quyết định:** Được thay bằng migration đầy đủ 22 bảng (một lần duy nhất, qua plan riêng).
   Từ sau đó áp dụng nghiêm quy tắc "không sửa migration đã merge".
+- **Cập nhật 2026-10-23:** placeholder đã được thay bằng `V1__users.sql` (F-05). Các bảng còn lại thêm
+  bằng migration riêng theo từng người (F-06 → F-09), không gộp 22 bảng một lần.
 
 ### 2026-10-17 — D-15: Realtime bằng WebSocket (STOMP)
 - **Quyết định:** Thông báo realtime và chat hỗ trợ dùng chung Spring WebSocket + STOMP, xác
@@ -160,6 +162,20 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 - **Phương án khác:** Tailwind + tự viết component (tốn công); app admin riêng (trùng types/services,
   thêm deploy và CORS).
 - Thay thế dòng "CSS: Tailwind (admin, component mới)" cũ trong `tech-stack.md`.
+
+### 2026-10-23 — D-19: Chưa seed dev bằng `V6__seed_dev.sql`; tạm chèn tay tài khoản mẫu
+- **Bối cảnh:** Roadmap F-12 định seed bằng `V6__seed_dev.sql` (tài khoản, danh mục, sản phẩm, combo, voucher...). Hiện chỉ có
+  `V1__users.sql`; các bảng khác thuộc F-06 → F-09 của người khác chưa vào `dev`. Cần tài khoản ADMIN/EMPLOYEE/CUSTOMER
+  để thử đăng nhập và điều hướng theo role.
+- **Quyết định:** Chưa tạo `V6`. Mỗi người tự chèn 3 tài khoản bằng SQL idempotent (`local-development.md`). F-12 làm sau khi
+  F-06 → F-09 đã merge.
+- **Lý do:** Chèn seed có phiên bản lớn (V6) trước khi V2–V5 tồn tại thì Flyway dự kiến báo lỗi *"Detected resolved migration
+  not applied to database"* trên mọi DB đã chạy V6 (chưa tái hiện, suy ra từ hành vi mặc định `out-of-order=false`). Dữ liệu
+  danh mục/sản phẩm cũng thuộc người khác.
+- **Phương án khác (chưa thử):** migration lặp lại `R__seed_dev_*.sql` (Flyway luôn chạy sau mọi migration có phiên bản).
+- **Cảnh báo triển khai:** `application.yml` đang đặt `spring.profiles.active: dev` mặc định. Khi làm seed chính thức phải
+  chỉ nạp thư mục seed ở profile `dev` và bắt buộc đặt profile khi triển khai (`deployment.md`), kẻo tài khoản mẫu với mật
+  khẩu công khai được tạo trên production.
 
 ---
 

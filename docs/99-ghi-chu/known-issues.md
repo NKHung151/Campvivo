@@ -31,7 +31,7 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
 ### KI-04 — Code backend hiện có lệch với docs mới (2026-10-17)
 - **Mô tả:** Code khung viết theo docs cũ: `CartItem.priceAtAdd` (D-04 đã bỏ), `OrderStatus` thiếu
   `RETURNED`, entity/DTO chưa có combo, `BusinessException` chưa dùng enum `ErrorCode`; migration
-  V1/V2 chỉ là placeholder. Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
+  mới có `V1__users`, các bảng còn lại chưa tạo (F-06 → F-09). Package `rental/` vẫn còn (xoá), chưa có package `favorite/`, `article/`,
   `support/`. `.env.example` còn biến `MOMO_*` (để trống đến FR-27).
 - **Xử lý:** Viết lại theo `database.md`/`api.md` khi bắt đầu từng module (plan tạo migration đầy đủ
   trước). Docs là nguồn đúng.
@@ -42,7 +42,9 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
   cửa hàng tham khảo.
 - **Xử lý:** Khi nối API theo `pages.md` (cột "API"); xem `.agents/plans/active/frontend-shop-ui.md`.
 
-### KI-06 — Phiên đăng nhập admin đang là bản giả lập
+### KI-06 — Phiên đăng nhập admin đang là bản giả lập — **ĐÃ XỬ LÝ 2026-10-24**
+> Đã thay bằng phiên đăng nhập thật (`AuthProvider`, `POST /auth/login`, `GET /users/me`); bỏ `useAdminSession`,
+> ô "Dev" và biến `NEXT_PUBLIC_ADMIN_DEV_ROLE`. Mô tả dưới đây giữ lại làm lịch sử.
 - **Mô tả:** `frontend/src/hooks/useAdminSession.ts` trả user giả (role từ `NEXT_PUBLIC_ADMIN_DEV_ROLE`,
   đổi được bằng ô "Dev" trên header admin, lưu localStorage). Chưa gọi API, chưa có token.
 - **Ảnh hưởng:** ai cũng vào được `/admin` ở môi trường dev; nút Đăng xuất bị tắt.
