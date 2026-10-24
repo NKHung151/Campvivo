@@ -146,9 +146,9 @@ class SecurityIntegrationTest {
 
     @Test
     void publicCatalogNeedsNoToken() throws Exception {
-        // /api/categories chưa có controller (N2-01) và bảng catalog chưa tồn tại: chỉ kiểm tra luật security
+        // Danh mục công khai (N2-01): không cần token
         mvc.perform(get("/api/categories"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test

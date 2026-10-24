@@ -35,6 +35,7 @@ public enum ErrorCode {
     CIRCULAR_CATEGORY_DEPENDENCY(HttpStatus.BAD_REQUEST, "Không thể chọn danh mục này làm danh mục cha vì sẽ tạo vòng lặp."),
     CATEGORY_NOT_EMPTY(HttpStatus.CONFLICT, "Không thể xoá danh mục còn danh mục con hoặc sản phẩm."),
     INVALID_STOCK_ADJUSTMENT(HttpStatus.BAD_REQUEST, "Số lượng điều chỉnh không hợp lệ."),
+    IMAGE_UPLOAD_FAILED(HttpStatus.BAD_GATEWAY, "Không tải được ảnh lên. Vui lòng thử lại sau."),
 
     // --- cart / order / payment ---
     PRODUCT_INACTIVE(HttpStatus.BAD_REQUEST, "Sản phẩm này đã ngừng kinh doanh."),

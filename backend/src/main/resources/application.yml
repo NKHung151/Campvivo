@@ -3,6 +3,11 @@ spring:
     name: campvivo-backend
   profiles:
     active: dev
+  servlet:
+    multipart:
+      # Giới hạn nghiệp vụ 5MB kiểm tra ở ImageUploadService (thông báo lỗi rõ ràng); đây chỉ là trần kỹ thuật
+      max-file-size: 10MB
+      max-request-size: 11MB
   jpa:
     open-in-view: false
     hibernate:
@@ -44,6 +49,11 @@ app:
     pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
     return-url: ${VNPAY_RETURN_URL:}
     ipn-url: ${VNPAY_IPN_URL:}
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+    folder: campvivo
   cors:
     allowed-origins: http://localhost:3000
   frontend-url: http://localhost:3000

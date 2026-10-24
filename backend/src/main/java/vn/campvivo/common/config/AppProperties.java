@@ -28,6 +28,7 @@ public record AppProperties(
         @Valid @DefaultValue Shipping shipping,
         @Valid @DefaultValue Inventory inventory,
         @Valid @DefaultValue Vnpay vnpay,
+        @Valid @DefaultValue Cloudinary cloudinary,
         @Valid @DefaultValue Cors cors,
         @NotBlank @DefaultValue("http://localhost:3000") String frontendUrl
 ) {
@@ -74,6 +75,17 @@ public record AppProperties(
             @DefaultValue("") String returnUrl,
             @DefaultValue("") String ipnUrl
     ) {}
+
+    public record Cloudinary(
+            @DefaultValue("") String cloudName,
+            @DefaultValue("") String apiKey,
+            @DefaultValue("") String apiSecret,
+            @NotBlank @DefaultValue("campvivo") String folder
+    ) {
+        public boolean configured() {
+            return !cloudName.isBlank() && !apiKey.isBlank() && !apiSecret.isBlank();
+        }
+    }
 
     public record Cors(
             @NotNull @Size(min = 1) @DefaultValue("http://localhost:3000") List<String> allowedOrigins

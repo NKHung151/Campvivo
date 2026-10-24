@@ -1,12 +1,17 @@
 package vn.campvivo.catalog;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Entity mẫu cho module catalog — theo đúng cột trong docs/02-ky-thuat/database.md.
- * Entity KHÔNG trả thẳng ra API (xem ProductResponse DTO) — theo .agents/rules/backend.md.
+ * Sản phẩm — cột theo docs/02-ky-thuat/database.md mục 3.3. Entity KHÔNG trả thẳng ra API (qua DTO).
+ * Không có biến thể (D-24): mỗi màu/size cần bán riêng là một sản phẩm riêng. Tồn kho/giữ chỗ (BR-1, BR-2)
+ * chỉ đổi qua method nghiệp vụ, gọi trong transaction đã khoá dòng. Thời gian do service gán từ bean Clock.
  */
 @Entity
 @Table(name = "products")
@@ -26,10 +31,21 @@ public class Product {
     @Column(nullable = false, unique = true)
     private String slug;
 
+    @Column(name = "short_description")
+    private String shortDescription;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    private String brand;
+
+    /** Thông số theo thứ tự hiển thị (JSONB). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<ProductSpec> specs = new ArrayList<>();
+
+    /** NUMERIC(19,0) — VND, không có phần lẻ. */
+    @Column(nullable = false, precision = 19, scale = 0)
     private BigDecimal price;
 
     // BR-1 (docs/02-ky-thuat/database.md): availableQuantity = stockQuantity - reservedQuantity
@@ -42,25 +58,47 @@ public class Product {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    /** Ảnh theo thứ tự hiển thị. Thay danh sách qua AdminProductService (xoá trước, thêm sau). */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC, id ASC")
+    private List<ProductImage> images = new ArrayList<>();
 
     protected Product() {
         // JPA
     }
 
-    public Product(Category category, String name, String slug, BigDecimal price, int stockQuantity) {
+    public Product(Category category, String name, String slug, BigDecimal price, OffsetDateTime now) {
         this.category = category;
         this.name = name;
         this.slug = slug;
         this.price = price;
-        this.stockQuantity = stockQuantity;
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
-    /** BR-1: số lượng thực sự có thể bán/thêm vào giỏ. Không expose trực tiếp stock/reserved ra API. */
+    /** Cập nhật thông tin hiển thị từ form admin (không đụng tồn kho, ảnh). */
+    public void updateDetails(Category category, String name, String slug, String shortDescription,
+                              String description, String brand, BigDecimal price,
+                              List<ProductSpec> specs, boolean active, OffsetDateTime now) {
+        this.category = category;
+        this.name = name;
+        this.slug = slug;
+        this.shortDescription = shortDescription;
+        this.description = description;
+        this.brand = brand;
+        this.price = price;
+        this.specs = new ArrayList<>(specs);
+        this.active = active;
+        this.updatedAt = now;
+    }
+
+    /** BR-1: số lượng thực sự có thể bán/thêm vào giỏ. */
     public int getAvailableQuantity() {
         return stockQuantity - reservedQuantity;
     }
@@ -87,18 +125,43 @@ public class Product {
         this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
     }
 
-    // Getters (không thêm setter bừa bãi — đổi state qua các method nghiệp vụ ở trên)
+    /** Đóng gói combo (D-22): lấy hàng lẻ ra khỏi kho. Gọi khi đã khoá dòng; phải đủ hàng khả dụng. */
+    public void takeForCombo(int quantity, OffsetDateTime now) {
+        if (quantity <= 0 || getAvailableQuantity() < quantity) {
+            throw new IllegalStateException("Không đủ tồn kho khả dụng cho sản phẩm " + name);
+        }
+        this.stockQuantity -= quantity;
+        this.updatedAt = now;
+    }
+
+    /** Tháo combo (D-22): trả hàng lẻ về kho. Gọi khi đã khoá dòng. */
+    public void returnFromCombo(int quantity, OffsetDateTime now) {
+        this.stockQuantity += quantity;
+        this.updatedAt = now;
+    }
+
+    public void changeActive(boolean active, OffsetDateTime now) {
+        this.active = active;
+        this.updatedAt = now;
+    }
+
+    public void addImage(String url, boolean primary, int displayOrder, OffsetDateTime now) {
+        images.add(new ProductImage(this, url, primary, displayOrder, now));
+    }
+
     public Long getId() { return id; }
     public Category getCategory() { return category; }
     public String getName() { return name; }
     public String getSlug() { return slug; }
+    public String getShortDescription() { return shortDescription; }
     public String getDescription() { return description; }
+    public String getBrand() { return brand; }
+    public List<ProductSpec> getSpecs() { return specs; }
     public BigDecimal getPrice() { return price; }
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }
-
-    public void setDescription(String description) { this.description = description; }
-    public void setPrice(BigDecimal price) { this.price = price; }
-    public void setActive(boolean active) { this.active = active; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public List<ProductImage> getImages() { return images; }
 }
