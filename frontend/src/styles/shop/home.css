@@ -1024,13 +1024,7 @@
 .pg-home .ChuongTrinhGiamGiaTrangChu .social-sold {
   color: #888;
 }
-.pg-home .ChuongTrinhGiamGiaTrangChu .loyalty-price {
-  font-size: 12px;
-  padding: 4px 6px;
-  margin: 3px 0 5px;
-  border-left-width: 4px;
-  width: auto;
-}
+
 .pg-home .ChuongTrinhGiamGiaTrangChu .inv-bar {
   margin: 5px 0 0;
   display: flex;
@@ -1671,15 +1665,5 @@
 }
 .pg-home .PopularCategory .PopularLink nav a:hover {
   text-decoration: underline;
-}
-.pg-home .loyalty-price {
-  color: #333;
-  position: relative;
-  background: #f4f2ed;
-  border-left: 6px solid #2f7abb;
-  padding: 10px 0 10px 5px;
-  font-weight: bold;
-  font-size: 16px;
-  width: 100%;
 }
 

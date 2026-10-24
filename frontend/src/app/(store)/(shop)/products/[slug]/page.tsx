@@ -6,13 +6,13 @@ import { getProduct, routeSlug } from "@/services/catalogService";
 
 type Props = { params: { slug: string } };
 
-export function generateMetadata({ params }: Props): Metadata {
-  const p = getProduct(routeSlug(params.slug));
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const p = await getProduct(routeSlug(params.slug));
   return p ? { title: `${p.name} | Campvivo` } : {};
 }
 
-export default function ProductDetailPage({ params }: Props) {
-  const p = getProduct(routeSlug(params.slug));
+export default async function ProductDetailPage({ params }: Props) {
+  const p = await getProduct(routeSlug(params.slug));
   if (!p) notFound();
   return (
     <Shell page="shop">

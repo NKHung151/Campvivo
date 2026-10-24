@@ -3,20 +3,21 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/features/layout/Shell";
 import { BrandHeader } from "@/components/features/catalog/BrandHeader";
 import { ListingView } from "@/components/features/catalog/ListingView";
-import { cardsFor, getBrands, routeSlug } from "@/services/catalogService";
+import { getBrandPage, routeSlug } from "@/services/catalogService";
 
 type Props = { params: { slug: string } };
 
-const brandOf = (raw: string) => getBrands()[routeSlug(raw)] ?? null;
+const pageOf = (raw: string) => getBrandPage(routeSlug(raw));
 
-export function generateMetadata({ params }: Props): Metadata {
-  const b = brandOf(params.slug);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const b = (await pageOf(params.slug))?.brand;
   return b ? { title: `${b.name} | Campvivo` } : {};
 }
 
-export default function BrandPage({ params }: Props) {
-  const b = brandOf(params.slug);
-  if (!b) notFound();
+export default async function BrandPage({ params }: Props) {
+  const page = await pageOf(params.slug);
+  if (!page) notFound();
+  const b = page.brand;
   return (
     <Shell page="brand">
       {b.header && <BrandHeader img={b.header.img} video={b.header.video} cls={b.header.cls} />}
@@ -30,7 +31,7 @@ export default function BrandPage({ params }: Props) {
         subCats={b.subCats}
         filters={b.filters}
         guide={b.guide}
-        products={cardsFor(b.products)}
+        products={page.products}
         bottomHtml={b.bottomHtml}
         commentsKey={`brand:${b.slug}`}
         enableCompare={false}

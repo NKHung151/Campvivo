@@ -368,15 +368,6 @@
     overflow: hidden;
 }
 .pg-brand .article-expert-advice .art-title{margin:10px 0;font-size:1rem}
-.pg-brand .loyalty-price {
-    color: #333;
-    position: relative;
-    background: #f4f2ed;
-    border-left: 6px solid #2f7abb;
-    margin: 5px 15px;
-    padding: 10px 0;
-    font-weight: bold;
-}
 
 /* ── Brand Intro (giống category) ── */
 .pg-brand .cate-intro{font-size:.85rem;color:#000;line-height:1.6;margin:10px auto 20px;text-align:center;max-width:700px}

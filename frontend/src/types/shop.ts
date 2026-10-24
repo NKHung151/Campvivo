@@ -17,7 +17,6 @@ export interface ProductCard {
   img: string;
   price: number | null;
   oldPrice: number | null;
-  memberPrice: number | null;
   discount: string | null;
   discountClass: string | null;
   installment: boolean;
@@ -25,6 +24,8 @@ export interface ProductCard {
   sold: string | null;
   inv?: InventoryBar | null;
   swatches?: Swatch[];
+  /** Đường dẫn khác trang sản phẩm (thẻ combo → /combos/{slug}). */
+  href?: string;
 }
 
 export interface LinkItem {
@@ -112,7 +113,6 @@ export interface ProductDetail extends ProductCard {
   images: { big: string; thumb: string; alt: string }[];
   short: string;
   warranty: string | null;
-  discontinued: boolean;
   outOfStock: boolean;
   variantLabel: string | null;
   variants: VariantOption[];
@@ -204,7 +204,6 @@ export interface Order {
   items: CartItem[];
   subtotal: number;
   voucher: number;
-  member: number;
   shipping: string;
   total: number;
   payment: string;

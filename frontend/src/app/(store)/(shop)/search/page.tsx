@@ -9,11 +9,11 @@ export function generateMetadata({ searchParams }: Props): Metadata {
   return { title: searchParams.q ? `Tìm kiếm: ${searchParams.q} | Campvivo` : "Tìm kiếm | Campvivo" };
 }
 
-export default function SearchPage({ searchParams }: Props) {
+export default async function SearchPage({ searchParams }: Props) {
   const q = (searchParams.q ?? "").trim();
   return (
     <Shell page="search" query={q}>
-      <SearchView query={q} products={q ? searchProducts(q) : []} articles={q ? searchArticles(q) : []} />
+      <SearchView query={q} products={q ? await searchProducts(q) : []} articles={q ? searchArticles(q) : []} />
     </Shell>
   );
 }

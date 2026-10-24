@@ -50,13 +50,12 @@ export function HomeCard({ p }: { p: Card }) {
       <div className="core">
         <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
       </div>
-      {p.memberPrice ? <div className="loyalty-price">Giá Member {vnd(p.memberPrice)}</div> : null}
       <Price p={p} />
     </Link>
   );
 }
 
-/** Search results card (`.cvPromotion .groupItems .item`): like HomeCard, member price on its own line. */
+/** Search results card (`.cvPromotion .groupItems .item`): like HomeCard. */
 export function SearchCard({ p }: { p: Card }) {
   return (
     <Link className="item" title={p.name} href={productHref(p.slug)} prefetch={false}>
@@ -71,11 +70,6 @@ export function SearchCard({ p }: { p: Card }) {
       <div className="core">
         <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
       </div>
-      {p.memberPrice ? (
-        <div className="loyalty-price">
-          Giá Member <br /> {vnd(p.memberPrice)}
-        </div>
-      ) : null}
       <Price p={p} />
     </Link>
   );
@@ -95,7 +89,6 @@ export function FlashCard({ p, onBuy }: { p: Card; onBuy?: (p: Card) => void }) 
         </div>{" "}
         {p.brand && <span className="brand-name">{p.brand}</span>} <h3 className="title">{p.name}</h3>
         <div className="item-social">{p.sold && <span className="social-sold">{p.sold}</span>}</div>
-        {p.memberPrice ? <div className="loyalty-price">Giá Member {vnd(p.memberPrice)}</div> : null}
         <Price p={p} />
         {p.inv && (
           <div className={`inv-bar ${p.inv.cls}`} style={{ ["--bar" as string]: p.inv.bar ?? "100%" }}>
@@ -125,9 +118,10 @@ export function GridCard({
   onSwatch?: (img: string) => void;
   activeImg?: string;
 }) {
+  const href = p.href ?? productHref(p.slug);
   return (
     <div className="item" data-cmp-id={p.slug}>
-      <Link className="wImage" title={p.name} href={productHref(p.slug)} prefetch={false}>
+      <Link className="wImage" title={p.name} href={href} prefetch={false}>
         <span className="khungAnhCrop0">
           <img loading="lazy" alt={p.name} width={350} src={activeImg ?? p.img} />
         </span>
@@ -142,13 +136,12 @@ export function GridCard({
           ))}
         </div>
       )}
-      <Link className="info" title={p.name} href={productHref(p.slug)} prefetch={false}>
+      <Link className="info" title={p.name} href={href} prefetch={false}>
         {p.brand && <div className="brand">{p.brand}</div>}
         <h3 className="title">{p.name}</h3>
         <div className="core">
           <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
         </div>
-        {p.memberPrice ? <div className="loyalty-price">Giá Member {vnd(p.memberPrice)}</div> : null}
         <Price p={p} />
       </Link>
       {onCompare && (

@@ -3,20 +3,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/features/layout/Shell";
-import { getPromos, routeSlug } from "@/services/catalogService";
+import { getPromo, routeSlug } from "@/services/catalogService";
 import { productHref, vnd } from "@/lib/format";
 
 type Props = { params: { slug: string } };
 
-const promoOf = (raw: string) => getPromos()[routeSlug(raw)] ?? null;
+const promoOf = (raw: string) => getPromo(routeSlug(raw));
 
-export function generateMetadata({ params }: Props): Metadata {
-  const p = promoOf(params.slug);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const p = await promoOf(params.slug);
   return p ? { title: `${p.title} | Campvivo` } : {};
 }
 
-export default function PromotionPage({ params }: Props) {
-  const p = promoOf(params.slug);
+export default async function PromotionPage({ params }: Props) {
+  const p = await promoOf(params.slug);
   if (!p) notFound();
   return (
     <Shell page="shop">

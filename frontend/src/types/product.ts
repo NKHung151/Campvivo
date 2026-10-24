@@ -47,10 +47,7 @@ export interface ProductFull {
   oldPrice: number | null;
   savePct: string | null;
   saleEnds: string | null;
-  memberPrice: number | null;
   warranty: string | null;
-  discontinued: boolean;
-  preOrder: boolean;
   maxQty: number | null;
   variantLabel: string | null;
   variants: { name: string; inv: number }[];
@@ -80,6 +77,5 @@ export interface PdpStatic {
   voucherHtml: string;
   voucherImg: string;
   benefitsHtml: string;
-  memberDesHtml: string;
   policyHtml: string;
 }

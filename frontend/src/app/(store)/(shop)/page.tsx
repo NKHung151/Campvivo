@@ -2,10 +2,11 @@
 import { Shell } from "@/components/features/layout/Shell";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { BrandStrip, FlashSale, Hero, ProductGroups, SeoBlock, Campers } from "@/components/features/home/HomeSections";
-import { getHome, getSkuMap } from "@/services/catalogService";
+import { getHome, getHomeProducts, getSkuMap } from "@/services/catalogService";
 
-export default function HomePage() {
+export default async function HomePage() {
   const home = getHome();
+  const live = await getHomeProducts();
   return (
     <Shell page="home">
       <Hero hero={home.hero} />
@@ -15,8 +16,8 @@ export default function HomePage() {
       <div className="pageContent">
         <div id="page">
           <BrandStrip logos={home.brandLogos} />
-          <FlashSale data={home.flashSale} />
-          <ProductGroups groups={home.groups} />
+          {live.flashSale.items.length > 0 && <FlashSale data={live.flashSale} />}
+          <ProductGroups groups={live.groups} />
           <div className="TopCategory">
             {" "}
             <h2 className="heading">{home.topCategories.title}</h2>

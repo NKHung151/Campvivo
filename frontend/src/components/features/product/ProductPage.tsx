@@ -41,7 +41,6 @@ export function ProductPage({ p }: { p: ProductFull }) {
       img: r.img,
       price: r.price,
       oldPrice: r.oldPrice,
-      memberPrice: null,
       discount: r.discount,
       discountClass: r.discountClass,
       installment: false,
@@ -59,18 +58,16 @@ export function ProductPage({ p }: { p: ProductFull }) {
             <ProductInfo p={p} st={st} />
           </div>
           <div className="box-product-hotDeals" />
-          {!p.discontinued && (
-            <PdpDyn
-              journeys={journeys}
-              heroImg={p.catImg}
-              tips={tips}
-              specs={specs}
-              articles={p.articles}
-              social={p.social}
-              fbt={p.fbt}
-              reviews={p.reviews}
-            />
-          )}
+          <PdpDyn
+            journeys={journeys}
+            heroImg={p.catImg}
+            tips={tips}
+            specs={specs}
+            articles={p.articles}
+            social={p.social}
+            fbt={p.fbt}
+            reviews={p.reviews}
+          />
           <div className="flx">
             <div id="ProductDetailCol1">
               <div id="ProductDetailCol3">
@@ -119,11 +116,6 @@ export function ProductPage({ p }: { p: ProductFull }) {
       <div className="pageContent">
         <BrandStrip id="SubProductOtherItems" title="SẢN PHẨM CÙNG LOẠI" items={related} />
         <ViewedStrip current={p.slug} />
-        {p.discontinued && (
-          <p style={{ margin: "10px 0 30px" }}>
-            Sản phẩm này đã ngừng kinh doanh. <Link href={p.breadcrumbs.at(-1)?.href ?? "/products"}>Xem các sản phẩm cùng danh mục »</Link>
-          </p>
-        )}
       </div>
     </>
   );
