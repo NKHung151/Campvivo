@@ -112,6 +112,8 @@ xem BR-xx trong `database.md`.
 
 ### FR-05 Danh mục
 - **Chính:** cây danh mục không giới hạn cấp; `path` dạng `/1/5/12/`. Tạo/sửa với `parent_id`.
+  Trang admin: cây (tìm không dấu, số sản phẩm gồm danh mục con) + form tên, slug, danh mục cha
+  (chọn từng cấp).
 - **Ngoại lệ:** cha không tồn tại → `PARENT_CATEGORY_NOT_FOUND`; chọn cha là chính nó hoặc con
   cháu của nó → `CIRCULAR_CATEGORY_DEPENDENCY`; slug trùng → `SLUG_ALREADY_EXISTS`; xoá khi còn
   con/sản phẩm/combo → `CATEGORY_NOT_EMPTY` (BR-13). Đổi cha → cập nhật `path` của cả cây con
@@ -119,9 +121,12 @@ xem BR-xx trong `database.md`.
 
 ### FR-06 Sản phẩm
 - **Chính:** tạo/sửa tên, slug (tự sinh từ tên nếu trống), mô tả, thương hiệu, giá, danh mục, ảnh
-  (upload Cloudinary, 1 ảnh chính, có thứ tự). Tồn kho ban đầu nhập qua FR-08 (không sửa
+  (upload Cloudinary, 1 ảnh chính, có thứ tự), mô tả ngắn, thông số (danh sách
+  Tên–Giá trị admin tự nhập, có thứ tự). Không có biến thể (D-24): mỗi
+  màu/size cần bán riêng là một sản phẩm riêng. Tồn kho ban đầu nhập qua FR-08 (không sửa
   `stock_quantity` trực tiếp ở form sản phẩm). Không xoá cứng — ẩn bằng `is_active=false`.
-- **Ngoại lệ:** slug trùng → `SLUG_ALREADY_EXISTS`; giá ≤ 0 → `VALIDATION_ERROR`.
+- **Ngoại lệ:** slug trùng → `SLUG_ALREADY_EXISTS`; giá ≤ 0 → `VALIDATION_ERROR`; tên thông số trùng
+  → `VALIDATION_ERROR` (`fieldErrors.specs`).
 - Sản phẩm `is_active=false`: không hiện ở trang public, không thêm vào giỏ được
   (`PRODUCT_INACTIVE`), đơn cũ vẫn hiển thị nhờ snapshot.
 
@@ -185,8 +190,10 @@ xem BR-xx trong `database.md`.
 - **Ngoại lệ:** Admin tự khoá/tự hạ quyền chính mình → `CANNOT_MODIFY_SELF`.
 
 ### FR-15 Combo
-- **Chính:** combo có tên, slug, mô tả, danh mục, `combo_price`, ảnh, danh sách sản phẩm thành
-  phần (≥ 2 dòng) + số lượng — chỉ để hiển thị (D-03). Tồn kho combo quản lý qua FR-08.
+- **Chính:** combo có tên, slug, mô tả, danh mục (chỉ cấp 1 — D-23), `combo_price`, danh sách sản phẩm thành
+  phần (≥ 2 sản phẩm khác nhau) + số lượng trong một bộ. Ảnh combo = ảnh tự tải lên + ảnh chính của các sản phẩm thành phần (D-26). Tồn kho combo theo bộ (D-03):
+  admin **đóng gói** N bộ (trừ kho từng sản phẩm thành phần) hoặc **tháo** (trả kho) — D-22. Form hiện tổng giá lẻ
+  và mức tiết kiệm so với mua lẻ.
 - **Ngoại lệ:** sản phẩm thành phần không tồn tại → `NOT_FOUND`; ít hơn 2 thành phần →
   `VALIDATION_ERROR`.
 

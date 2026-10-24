@@ -2,9 +2,8 @@
  * The mock catalogue was collected from a third-party reference store for UI testing.
  * Its copy names that store (brand, hotline), so before rendering we:
  *  - drop the store's tags from titles ("[XxxOlogy] …", "… | XxxOlogy");
- *  - hide short texts (excerpts, intros, card descriptions) that still mention it;
- *  - swap long bodies (articles, product descriptions, policies) that mention it for a
- *    "đang cập nhật" placeholder instead of re-attributing someone else's writing.
+ *  - hide any text or HTML (excerpts, intros, articles, policies…) that still mentions it,
+ *    instead of re-attributing someone else's writing.
  * Content written by the team never matches, so this becomes a no-op once real data lands.
  */
 
@@ -14,10 +13,6 @@ const TAG_SUFFIX = /\s*[|–-]\s*we\s?trek[a-z]*\s*(?=$|<|")/gi;
 const PHRASE = /\s*(?:tại|của|cùng|ở|với|từ|bởi|về)?\s*we\s?trek[a-z.]*/gi;
 const HOTLINE = /0?28\s?73\s?05\s?1988|02873051988|0287\s?305\s?1988/g;
 
-export const PLACEHOLDER_HTML = '<p class="cv-placeholder">Nội dung đang được cập nhật.</p>';
-
-/** Long-form HTML that gets the placeholder; other HTML fragments are simply dropped. */
-const BODY_KEYS = new Set(["html", "descriptionHtml", "specsHtml", "policyHtml", "seoHtml"]);
 /** Short texts that are hidden rather than edited. */
 const HIDE_KEYS = new Set(["excerpt", "intro", "desc", "short", "text", "guide", "storesTitle"]);
 /** Never touched: identifiers, links, media. */
@@ -38,20 +33,19 @@ function cleanInlineTitle(s: string): string {
   return mentions(t) ? t.replace(PHRASE, "").replace(HOTLINE, "").replace(/\s{2,}/g, " ").trim() : t;
 }
 
-function cleanHtml(html: string, key: string): string {
+function cleanHtml(html: string): string {
   let h = html.replace(TAG_BRACKET, " ").replace(TAG_SUFFIX, "");
   h = h.replace(/(<h[1-6][^>]*>)([^<]*)(<\/h[1-6]>)/g, (_, a: string, t: string, b: string) => a + cleanInlineTitle(t) + b);
   h = h.replace(/\b(alt|title)="([^"]*)"/g, (_, attr: string, v: string) => `${attr}="${cleanInlineTitle(v)}"`);
   // card descriptions inside listing HTML
   h = h.replace(/<p class="desc">[\s\S]*?<\/p>/g, (p) => (mentions(p) ? "" : p));
-  if (!mentions(h)) return h;
-  return BODY_KEYS.has(key) ? PLACEHOLDER_HTML : "";
+  return mentions(h) ? "" : h;
 }
 
 function cleanString(s: string, key: string): string {
   if (SKIP_KEYS.has(key) || s.startsWith("/") || s.startsWith("http")) return s;
   if (!/we\s?trek|28\s?73|873051988/i.test(s)) return s;
-  if (isHtml(s)) return cleanHtml(s, key);
+  if (isHtml(s)) return cleanHtml(s);
   const t = cleanTitle(s);
   if (!mentions(t)) return t;
   if (HIDE_KEYS.has(key)) return "";

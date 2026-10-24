@@ -29,17 +29,17 @@ function useCountdown(iso: string | null) {
 }
 
 export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
-  const { addToCart, user, openLogin, wishlist, toggleWishlist, notify, markViewed } = useShop();
+  const { addToCart, wishlist, toggleWishlist, notify, markViewed } = useShop();
   const router = useRouter();
   const firstAvail = p.variants.findIndex((v) => v.inv > 0);
+  const showVariants = Boolean(p.variantLabel) && p.variants.length > 0;
   const [variant, setVariant] = useState<number>(p.variants.length === 1 ? 0 : -1);
   const [qty, setQty] = useState(1);
   const [warn, setWarn] = useState(false);
   const [popup, setPopup] = useState<"voucher" | "policy" | null>(null);
-  const [memberDes, setMemberDes] = useState(false);
-  const [notifyEmail, setNotifyEmail] = useState("");
   const left = useCountdown(p.saleEnds);
-  const allSoldOut = p.variants.length > 0 && firstAvail === -1;
+  // Sản phẩm từ DB không có phân loại (D-24): hết hàng khi tồn kho khả dụng = 0
+  const allSoldOut = p.variants.length > 0 ? firstAvail === -1 : p.maxQty === 0;
   const fav = wishlist.includes(p.slug);
   const max = p.variants[variant]?.inv || p.maxQty || 1000;
 
@@ -54,14 +54,18 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
       return false;
     }
     if (!p.price) return false;
+    if (p.variants[variant] && p.variants[variant].inv <= 0) {
+      notify(`${p.variantLabel ?? "Sản phẩm"} này đã hết hàng`);
+      return false;
+    }
     addToCart(
       {
         slug: p.slug,
         name: p.name,
         img: p.images[0]?.thumb ?? "",
         sku: p.sku,
-        variant: p.variants[variant]?.name ?? null,
-        options: p.variants.map((v) => v.name),
+        variant: showVariants ? (p.variants[variant]?.name ?? null) : null,
+        options: showVariants ? p.variants.map((v) => v.name) : [],
         variantLabel: p.variantLabel,
         stock: p.variants[variant]?.inv ?? p.maxQty,
         price: p.price,
@@ -150,11 +154,13 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               </>
             )}
           </div>
-          <div id="pro_sku" className="fr">
-            Mã hàng: <b>{p.sku}</b>
-          </div>
+          {p.sku && (
+            <div id="pro_sku" className="fr">
+              Mã hàng: <b>{p.sku}</b>
+            </div>
+          )}
         </div>
-        <div className="des">{p.short}</div>
+        {p.short && <div className="des">{p.short}</div>}
         {p.stockUrgency && <div className="stock-urgency stock-low">{p.stockUrgency}</div>}
         <div className="pro-price">
           {p.saleEnds && p.oldPrice ? (
@@ -193,26 +199,6 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               {p.oldPrice ? <del style={{ marginLeft: 8, color: "#999", fontSize: 14 }}>{vnd(p.oldPrice)}</del> : null}(Đã bao gồm VAT)
             </div>
           )}
-          {p.memberPrice ? (
-            <div className="loyalty-price">
-              <span className="lp-main">Giá Member {vnd(p.memberPrice)}</span>
-              <span className="member-tier">−5% từ đơn thứ 2</span>
-              <div className="ic-question" onClick={() => setMemberDes((v) => !v)} />
-              {!user && (
-                <a
-                  className="lp-login"
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    openLogin();
-                  }}
-                >
-                  Đăng nhập để nhận ưu đãi
-                </a>
-              )}
-              <ul className="member-des" style={memberDes ? { display: "block" } : undefined} dangerouslySetInnerHTML={{ __html: st.memberDesHtml }} />
-            </div>
-          ) : null}
         </div>
         <div className="pdp-benefits" dangerouslySetInnerHTML={{ __html: st.benefitsHtml }} />
         {p.warranty && (
@@ -222,7 +208,6 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
             <div className="cb h10" />
           </div>
         )}
-        {p.discontinued && <div className="eol_product_label">Sản phẩm ngừng kinh doanh</div>}
         <div className="cb" />
       </div>
       <div
@@ -243,124 +228,95 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
           style={{ display: "contents" }}
         />
       </div>
-      {!p.discontinued && (
-        <div className="wrap-product-option">
-          <form id="DatHang" className="bgtool" style={{ position: "relative", zIndex: 1 }} onSubmit={(e) => e.preventDefault()}>
-            {p.variants.length > 0 && (
-              <div className={`variants${warn ? " warning" : ""}`}>
-                <label>{p.variantLabel || "Phân loại"}:</label>
-                <div className="list">
-                  {p.variants.map((v, i) => (
-                    <button
-                      type="button"
-                      key={v.name + i}
-                      className={`${variant === i ? "active" : ""}${v.inv <= 0 ? " soldout" : ""}`}
-                      onClick={() => {
-                        setVariant(i);
-                        setWarn(false);
-                        setQty(1);
-                      }}
-                    >
-                      {v.name}
-                    </button>
-                  ))}
-                </div>
+      <div className="wrap-product-option">
+        <form id="DatHang" className="bgtool" style={{ position: "relative", zIndex: 1 }} onSubmit={(e) => e.preventDefault()}>
+          {showVariants && (
+            <div className={`variants${warn ? " warning" : ""}`}>
+              <label>{p.variantLabel || "Phân loại"}:</label>
+              <div className="list">
+                {p.variants.map((v, i) => (
+                  <button
+                    type="button"
+                    key={v.name + i}
+                    className={`${variant === i ? "active" : ""}${v.inv <= 0 ? " soldout" : ""}`}
+                    onClick={() => {
+                      setVariant(i);
+                      setWarn(false);
+                      setQty(1);
+                    }}
+                  >
+                    {v.name}
+                  </button>
+                ))}
               </div>
+            </div>
+          )}
+          <div className={`wrn${warn ? " show" : ""}`}>{warn ? `Vui lòng chọn ${(p.variantLabel || "phân loại").toLowerCase()}` : ""}</div>
+          <div>
+            <div className="propertyname">Số lượng:</div>
+            <div className="bgtextbox">
+              <div className="pdp-qty-stepper">
+                <button type="button" className="qty-btn qty-minus" aria-label="Giảm" onClick={() => setQty((q) => Math.max(1, q - 1))}>
+                  −
+                </button>
+                <input
+                  id="tbSoLuong"
+                  type="number"
+                  className="textbox qty-input"
+                  min={1}
+                  max={max}
+                  value={qty}
+                  onChange={(e) => setQty(Math.max(1, Math.min(max, +e.target.value || 1)))}
+                />
+                <button type="button" className="qty-btn qty-plus" aria-label="Tăng" onClick={() => setQty((q) => Math.min(max, q + 1))}>
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+          {p.viewsToday && (
+            <div className="count_today">
+              <b>{p.viewsToday}</b> người đã xem hôm nay
+            </div>
+          )}
+          <div className="groupButton">
+            {allSoldOut ? (
+              <button type="button" className="btBuy1" disabled>
+                Hết hàng
+              </button>
+            ) : (
+              <>
+                <button type="button" className="btBuy1 gg_add_to_cart" onClick={() => add(true)}>
+                  Mua ngay
+                </button>
+                <button type="button" className="btBuy2 gg_add_to_cart" onClick={() => add(false)}>
+                  Thêm vào giỏ
+                </button>
+              </>
             )}
-            <div className={`wrn${warn ? " show" : ""}`}>{warn ? `Vui lòng chọn ${(p.variantLabel || "phân loại").toLowerCase()}` : ""}</div>
-            <div>
-              <div className="propertyname">Số lượng:</div>
-              <div className="bgtextbox">
-                <div className="pdp-qty-stepper">
-                  <button type="button" className="qty-btn qty-minus" aria-label="Giảm" onClick={() => setQty((q) => Math.max(1, q - 1))}>
-                    −
-                  </button>
-                  <input
-                    id="tbSoLuong"
-                    type="number"
-                    className="textbox qty-input"
-                    min={1}
-                    max={max}
-                    value={qty}
-                    onChange={(e) => setQty(Math.max(1, Math.min(max, +e.target.value || 1)))}
-                  />
-                  <button type="button" className="qty-btn qty-plus" aria-label="Tăng" onClick={() => setQty((q) => Math.min(max, q + 1))}>
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-            {p.viewsToday && (
-              <div className="count_today">
-                <b>{p.viewsToday}</b> người đã xem hôm nay
-              </div>
-            )}
-            <div className="groupButton">
-              {allSoldOut || p.preOrder ? (
-                <>
-                  <button type="button" className="btBuy1 gg_pre_order" onClick={() => add(true)}>
-                    ĐẶT HÀNG
-                  </button>
-                  <div className="wdc-noti" style={{ marginTop: 10, padding: "12px 14px", border: "1px solid #dcdfe3", borderRadius: 8, background: "#fafbfc" }}>
-                    <div style={{ fontSize: 13, color: "#1c1e21", marginBottom: 8 }}>
-                      Sản phẩm đang hết hàng. Để lại email, Campvivo báo bạn ngay khi có hàng trở lại.
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <input
-                        type="email"
-                        placeholder="Email của bạn"
-                        value={notifyEmail}
-                        onChange={(e) => setNotifyEmail(e.target.value)}
-                        style={{ flex: "1 1 200px", minWidth: 180, padding: "8px 10px", border: "1px solid #ccd0d5", borderRadius: 6, fontSize: 13 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!/\S+@\S+/.test(notifyEmail)) return;
-                          notify("Campvivo sẽ báo bạn khi có hàng (bản demo).");
-                          setNotifyEmail("");
-                        }}
-                        style={{ padding: "8px 14px", border: 0, borderRadius: 6, background: "#2f6a3f", color: "#fff", fontSize: 13, cursor: "pointer" }}
-                      >
-                        Báo khi có hàng
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button type="button" className="btBuy1 gg_add_to_cart" onClick={() => add(true)}>
-                    Mua ngay
-                  </button>
-                  <button type="button" className="btBuy2 gg_add_to_cart" onClick={() => add(false)}>
-                    Thêm vào giỏ
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="cb h15" />
-            <a
-              className="addtofav"
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleWishlist(p.slug);
-                notify(fav ? "Đã bỏ khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích");
-              }}
-            >
-              {fav ? "Đã thêm vào Danh sách yêu thích" : "Thêm vào Danh sách yêu thích"}
-            </a>
-            <div className="box-check-store">
-              <Link href="/pages/he-thong-cua-hang" className="check-store">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <path d="M3 9l1-5h16l1 5M4 9v11h16V9M9 20v-6h6v6" />
-                </svg>
-                Xem cửa hàng có hàng
-              </Link>
-            </div>
-          </form>
-        </div>
-      )}
+          </div>
+          <div className="cb h15" />
+          <a
+            className="addtofav"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              toggleWishlist(p.slug);
+              notify(fav ? "Đã bỏ khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích");
+            }}
+          >
+            {fav ? "Đã thêm vào Danh sách yêu thích" : "Thêm vào Danh sách yêu thích"}
+          </a>
+          <div className="box-check-store">
+            <Link href="/pages/he-thong-cua-hang" className="check-store">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M3 9l1-5h16l1 5M4 9v11h16V9M9 20v-6h6v6" />
+              </svg>
+              Xem cửa hàng có hàng
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

@@ -3,26 +3,27 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/features/layout/Shell";
 import { ListingView } from "@/components/features/catalog/ListingView";
 import { LandingView } from "@/components/features/catalog/LandingView";
-import { cardsFor, getCategories, routeSlug } from "@/services/catalogService";
+import { getCategoryPage, routeSlug } from "@/services/catalogService";
 
 type Props = { params: { slug: string } };
 
-const categoryOf = (raw: string) => getCategories()[routeSlug(raw)] ?? null;
+const pageOf = (raw: string) => getCategoryPage(routeSlug(raw));
 
-export function generateMetadata({ params }: Props): Metadata {
-  const c = categoryOf(params.slug);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const c = (await pageOf(params.slug))?.category;
   return c ? { title: `${c.name} | Campvivo` } : {};
 }
 
-export default function CategoryPage({ params }: Props) {
-  const c = categoryOf(params.slug);
-  if (!c) notFound();
+export default async function CategoryPage({ params }: Props) {
+  const page = await pageOf(params.slug);
+  if (!page) notFound();
+  const c = page.category;
   if (c.kind === "landing") {
     return (
       <Shell page="shop">
         <LandingView
           tiles={c.tiles}
-          carousels={c.carousels.map((k) => ({ ...k, items: cardsFor(k.items) }))}
+          carousels={page.carousels}
           commentsKey={`cat:${c.slug}`}
         />
       </Shell>
@@ -44,7 +45,7 @@ export default function CategoryPage({ params }: Props) {
         subCats={c.subCats}
         filters={c.filters}
         guide={c.guide}
-        products={cardsFor(c.products)}
+        products={page.products}
         bottomHtml={c.bottomHtml}
         commentsKey={`cat:${c.slug}`}
       />

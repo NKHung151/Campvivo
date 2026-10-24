@@ -20,7 +20,7 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 - Ký hiệu trong bảng cột: **U** = unique, **N** = nullable (không ghi = NOT NULL),
   **(+)** = cột bổ sung so với báo cáo.
 - Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
-  migration đầu tiên; các bảng còn lại được thêm dần bằng migration mới theo
+  migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).
 
@@ -30,7 +30,7 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 |---|---|---|---|---|
 | 1 | User | `users` | auth, user | email_verified, OTP (5 cột), token_version, is_active |
 | 2 | Category | `categories` | catalog | — |
-| 3 | Product | `products` | catalog | brand |
+| 3 | Product | `products` | catalog | brand, short_description, specs |
 | 4 | Image | `images` | catalog | — |
 | 5 | ProductCombo | `product_combos` | combo | slug, description, stock_quantity, reserved_quantity |
 | 6 | ComboItem | `combo_items` | combo | — |
@@ -90,15 +90,18 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 | category_id | BIGINT | FK → categories(id) |
 | name | VARCHAR(255) | |
 | slug | VARCHAR(280) | U |
+| short_description | VARCHAR(500) | (+) N — 1–2 câu dưới tên sản phẩm |
 | description | TEXT | N (HTML đã sanitize) |
 | brand | VARCHAR(100) | (+) N (D-16) |
 | price | NUMERIC(19,0) | `CHECK (price > 0)` |
+| specs | JSONB | (+) mặc định `'[]'`, mảng `[{name, value}]` có thứ tự (≤ 30 dòng) |
 | stock_quantity | INT | mặc định 0 |
 | reserved_quantity | INT | mặc định 0 (báo cáo ghi `reserveQuantity` — dùng tên này) |
 | is_active | BOOLEAN | mặc định true |
 | created_at, updated_at | timestamptz | |
 
-`CHECK (stock_quantity >= 0 AND reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)`
+`CHECK (stock_quantity >= 0 AND reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)`.
+Không có biến thể (D-24): mỗi màu/size cần bán và quản lý tồn riêng là một sản phẩm riêng.
 
 ### 3.4 `images`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -118,7 +121,7 @@ unique một phần: `(product_id) WHERE is_primary AND product_id IS NOT NULL`,
 | Cột | Kiểu | Ràng buộc / ghi chú |
 |---|---|---|
 | id | BIGINT | PK |
-| category_id | BIGINT | FK → categories(id) |
+| category_id | BIGINT | FK → categories(id) — chỉ danh mục cấp 1 (D-23, kiểm tra ở service) |
 | name | VARCHAR(255) | |
 | slug | VARCHAR(280) | (+) U |
 | description | TEXT | (+) N |
@@ -130,13 +133,13 @@ unique một phần: `(product_id) WHERE is_primary AND product_id IS NOT NULL`,
 
 `CHECK` tồn kho giống `products`.
 
-### 3.6 `combo_items` — chỉ để hiển thị thành phần combo
+### 3.6 `combo_items` — thành phần của một bộ combo (hiển thị + đóng gói, D-22)
 | Cột | Kiểu | Ràng buộc / ghi chú |
 |---|---|---|
 | id | BIGINT | PK |
 | combo_id | BIGINT | FK → product_combos(id) `ON DELETE CASCADE` |
 | product_id | BIGINT | FK → products(id) |
-| quantity | INT | `CHECK (quantity > 0)` |
+| quantity | INT | `CHECK (quantity > 0)` — số cái trong một bộ |
 
 Unique `(combo_id, product_id)`.
 
@@ -572,7 +575,16 @@ sau khi khoá, rồi khoá products/combos/voucher theo thứ tự trên nếu c
 **Test bắt buộc** (Testcontainers, PostgreSQL thật — rule testing.md): N request đặt song song cùng
 1 sản phẩm còn ít hàng; tương tự với combo; voucher còn 1 lượt; IPN gọi lặp.
 
-## 7. Dữ liệu seed (migration riêng `V<n>__seed_dev.sql`, chỉ profile dev)
-- 1 Admin, 1 Employee, 1 Customer (email đã xác thực; mật khẩu ghi trong `local-development.md`).
-- Cây danh mục mẫu 2 cấp, ~20 sản phẩm, 3 combo, 2 voucher, 1 chiến dịch đang chạy, vài bài viết.
-- Không dùng nội dung/ảnh của cửa hàng tham khảo.
+## 7. Dữ liệu seed (thư mục `db/seed`, chỉ profile dev)
+- Migration cấu trúc nằm ở `backend/src/main/resources/db/migration`; dữ liệu mẫu nằm riêng ở
+  `db/seed` và chỉ chạy khi `spring.flyway.locations` có `classpath:db/seed`
+  (`application-dev.yml.example`). Test và production KHÔNG chạy seed. Số phiên bản giữa hai thư mục
+  dùng chung một dãy (không trùng số).
+- Hiện có `db/seed/V3__seed_catalog.sql` (và `V4__seed_combos.sql`: 5 combo mẫu): 271 danh mục (3 cấp), 400 sản phẩm, 701 ảnh trên Cloudinary,
+  50 thương hiệu, tồn kho ngẫu nhiên (40 sản phẩm = 0 để thử "Hết hàng"). Nguồn: dữ liệu mock frontend
+  (cửa hàng tham khảo — tên "WeTrek"/hotline đã đổi). Nhóm cần cân nhắc bản quyền trước khi dùng cho
+  demo/bảo vệ.
+- Sinh lại: `pg_dump --data-only --column-inserts --rows-per-insert=50 -t categories -t products -t images`,
+  chỉ giữ các lệnh INSERT + `setval` (bỏ phần `SET`/`set_config` đầu file).
+- Còn thiếu (thêm khi có module): 1 Admin, 1 Employee, 1 Customer (mật khẩu ghi trong
+  `local-development.md`), combo, voucher, chiến dịch, bài viết.

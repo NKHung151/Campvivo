@@ -45,6 +45,20 @@ từ đầu mỗi lần gặp.
   `user`, mật khẩu ngẫu nhiên in trong log khởi động).
 - **Cách xử lý:** Dừng app, `mvn clean spring-boot:run -DskipTests` lại; thử cửa sổ ẩn danh nếu trình duyệt giữ cache.
 
+### `mvn spring-boot:run` báo "Could not find or load main class vn.campvivo.CampvivoApplication" (Windows)
+- **Triệu chứng:** `mvn package`/`mvn test` chạy được, riêng `mvn spring-boot:run` báo `ClassNotFoundException`.
+- **Nguyên nhân:** Đường dẫn dự án có ký tự ngoài bảng mã ANSI của Windows (vd. `D:\ĐA\...`). Trên Windows,
+  spring-boot-maven-plugin ghi classpath ra một argfile dạng UTF-8, còn trình khởi chạy `java` đọc argfile theo
+  bảng mã hệ thống (cp1252) → "Đ" bị đọc sai, classpath trỏ tới thư mục không tồn tại. Bản plugin mới hơn vẫn vậy.
+- **Cách xử lý (chọn một):**
+  - Tạo junction tên ASCII trỏ vào thư mục cũ (không cần đổi tên, không cần đóng IDE), rồi chạy Maven từ đó
+    bằng PowerShell/cmd (Git Bash tự đổi junction về đường dẫn thật nên vẫn lỗi):
+    `New-Item -ItemType Junction -Path D:\DA -Target D:\ĐA` → `cd D:\DA\campvivo\backend; mvn spring-boot:run`.
+  - Hoặc đổi tên thư mục chỉ dùng ký tự ASCII (vd. `D:\DA\campvivo`).
+  - Hoặc build rồi chạy jar: `mvn -DskipTests package` → `java -jar target/campvivo-backend-0.1.0-SNAPSHOT.jar`.
+  - Hoặc bật "Beta: Use Unicode UTF-8 for worldwide language support" trong Region settings (toàn máy, cần khởi động lại).
+
+
 ### IPN VNPay không về khi chạy local
 - **Triệu chứng:** Thanh toán xong trên sandbox nhưng đơn vẫn PENDING, rồi bị huỷ sau 15 phút.
 - **Nguyên nhân:** VNPay không gọi được `localhost`; IPN URL chưa khai báo hoặc ngrok đổi URL.

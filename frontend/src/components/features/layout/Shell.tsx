@@ -7,7 +7,7 @@ import { PromoBar } from "@/components/features/layout/PromoBar";
  * Page frame shared by every shop route. `page` selects which
  * page stylesheet applies (each is scoped to `.pg-<page>`).
  */
-export function Shell({
+export async function Shell({
   page,
   query,
   children,
@@ -19,7 +19,7 @@ export function Shell({
   const home = getHome();
   return (
     <div className={`pg-${page}`}>
-      <Header menu={getMenu()} initialQuery={query} />
+      <Header menu={await getMenu()} initialQuery={query} />
       <PromoBar slides={home.promoBar} />
       {children}
       <Footer />

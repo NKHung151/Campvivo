@@ -24,7 +24,7 @@ export function AccountPage() {
 
   useEffect(() => {
     if (tab !== "wishlist" || !wishlist.length) return;
-    fetch(`/api/mock/cards?slugs=${wishlist.join(",")}`)
+    fetch(`/api/catalog/cards?slugs=${wishlist.join(",")}`)
       .then((r) => r.json())
       .then(setWish)
       .catch(() => {});

@@ -206,12 +206,12 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid #f0f0f0",
+            borderBottom: "1px solid #eceef1",
+            height: 56,
+            lineHeight: "56px",
           }}
         >
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {current?.label ?? "Quản trị"}
-          </Typography.Title>
+          <Typography.Text type="secondary">{current?.label ?? "Quản trị"}</Typography.Text>
           <Space size={16}>
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: "pointer" }}>
@@ -222,7 +222,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
             </Dropdown>
           </Space>
         </Header>
-        <Content style={{ margin: 24 }}>{children}</Content>
+        <Content className="cv-admin-content">{children}</Content>
       </Layout>
     </Layout>
   );

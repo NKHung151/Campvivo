@@ -76,7 +76,7 @@ export function CompareBar({ compare }: { compare: ReturnType<typeof useCompare>
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    fetch(`/api/mock/compare?slugs=${compare.items.map((i) => i.slug).join(",")}`)
+    fetch(`/api/catalog/compare?slugs=${compare.items.map((i) => i.slug).join(",")}`)
       .then((r) => r.json())
       .then((d: CompareRow[]) => alive && setRows(d))
       .catch(() => alive && setRows([]));

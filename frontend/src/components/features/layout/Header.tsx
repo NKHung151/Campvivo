@@ -105,7 +105,6 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                   <ul className="cv-pop-list">
                     <li>Thanh toán nhanh hơn</li>
                     <li>Theo dõi đơn hàng dễ dàng</li>
-                    <li>Giảm 5% từ đơn thứ 2</li>
                   </ul>
                   {(["Tạo tài khoản", "Đăng nhập"] as const).map((t, i) => (
                     <a
@@ -142,12 +141,12 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                   <div className="leftmenu">
                     {m.groups.map((g) => (
                       <div className="cate" key={g.href + g.name}>
-                        <div className="catePic">
-                          {g.img && (
-                            // eslint-disable-next-line @next/next/no-img-element
+                        {g.img && (
+                          <div className="catePic">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img loading="lazy" alt={g.name} width={70} src={g.img} />
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <div className="cateName">
                           <SmartLink className="subcate" title={g.name} href={g.href}>
                             {g.name}

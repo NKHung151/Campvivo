@@ -11,8 +11,8 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/products/[slug]` | Chi tiết sản phẩm: ảnh, giá (gốc + sau chiến dịch), tồn kho khả dụng, thêm giỏ, yêu thích, đánh giá, gợi ý mua kèm | `/products/{slug}`, `/products/{id}/reviews`, `/products/{id}/recommendations` | ✅ |
 | `/categories/[slug]` | Sản phẩm theo danh mục (gồm danh mục con), bộ lọc, sắp xếp | `GET /products?category=` | ✅ |
 | `/categories/san-pham-moi` | Hàng mới về — slug đặc biệt, không phải danh mục DB | `GET /products?sortBy=newest` | ✅ |
-| `/combos` | Danh sách combo | `GET /combos` | ⬜ |
-| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | ⬜ |
+| `/combos?category=` | Danh sách combo, lọc theo danh mục cấp 1; giá gạch = tổng giá lẻ. Mục "Combo" trên menu chính | `GET /combos` | ✅ |
+| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả; chưa có thêm giỏ — thuộc phần giỏ hàng — yêu thích, đánh giá, gợi ý) |
 | `/brands`, `/brands/[slug]` | Thương hiệu (từ `products.brand`, slug = slugify(brand)) | `GET /brands`, `GET /products?brand=` | ✅ |
 | `/search?q=&type=` | Kết quả tìm kiếm: tab Sản phẩm / Combo / Bài viết | `GET /search` | ✅ (thiếu tab Combo) |
 | `/promotions/[slug]` | Trang chiến dịch giảm giá | `GET /campaigns/{slug}` | ✅ |
