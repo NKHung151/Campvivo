@@ -17,6 +17,15 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
+- Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích
+  lý do và khi nào đổi lại), vì `validate` làm backend báo `missing table [...]` đến khi F-06 → F-09 merge và ai copy `.example`
+  theo hướng dẫn cũ đều gặp lỗi. `local-development.md` thêm mục "Thiết lập lần đầu / sau khi pull code mới" (pull `dev`, reset DB
+  `docker compose down -v`, tạo `application-dev.yml`, chạy backend kèm múi giờ, chèn 3 tài khoản mẫu, chạy frontend cổng 3000).
+- Còn dang dở / TODO tiếp theo:
+  - Khi F-06 → F-09 đã vào `dev`: đổi `.example` về `validate` (hoặc xoá dòng) và cập nhật lại mục trên.
+  - Làm F-12 (seed) thì bỏ bước chèn tay tài khoản mẫu.
+
 ### 2026-10-24 — Người 3 — frontend (đăng nhập thật + điều hướng theo role)
 - Đã làm: nhánh `feature/frontend-auth-login-redirect`. `AuthProvider`/`useAuth` (khôi phục phiên bằng `GET /users/me`,
   trạng thái `loading|authenticated|unauthenticated|error`, đồng bộ giữa các tab, nối `setUnauthorizedHandler`), `authService`,

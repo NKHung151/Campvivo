@@ -6,6 +6,21 @@
 - Docker (chạy PostgreSQL local, xem `docker.md`)
 - (Khi test VNPay) ngrok hoặc công cụ tương đương để VNPay gọi được IPN về máy local
 
+## Thiết lập lần đầu / sau khi pull code mới (để đăng nhập được)
+Làm theo thứ tự. Lệnh dạng PowerShell (Windows); trên macOS/Linux dùng `cp` thay `Copy-Item`.
+
+1. **Lấy code mới:** `git switch dev` rồi `git pull origin dev` (đang làm dở nhánh riêng thì commit trước).
+2. **Bật PostgreSQL:** `docker compose up -d`. Nếu trước đây đã chạy backend với migration cũ, **reset DB một lần**:
+   `docker compose down -v` rồi `docker compose up -d` (xoá dữ liệu DB local; lịch sử Flyway cũ không khớp).
+3. **Tạo cấu hình dev:** `Copy-Item backend/src/main/resources/application-dev.yml.example backend/src/main/resources/application-dev.yml`
+   (file không được commit). Bản `.example` đã có `app.jwt.secret` (≥ 32 ký tự) và `ddl-auto: none`; nếu đổi sang
+   `validate` backend sẽ báo `missing table [...]` cho đến khi F-06 → F-09 merge (xem `troubleshooting.md`).
+4. **Chạy backend** (chờ dòng `Started CampvivoApplication`): `cd backend` rồi `mvn clean spring-boot:run -DskipTests`.
+   Nếu báo lỗi `TimeZone "Asia/Saigon"` (Windows): đặt `$env:JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Ho_Chi_Minh"` trước khi chạy.
+5. **Chèn 3 tài khoản mẫu** vào DB (mục "Tài khoản mẫu" bên dưới); làm lại sau mỗi lần reset DB.
+6. **Chạy frontend:** `cd frontend`, `npm install`, `npm run dev`, mở `http://localhost:3000/login`. Frontend phải chạy
+   đúng cổng 3000 (backend chỉ cho phép origin này, `app.cors.allowed-origins`).
+
 ## Backend
 ```bash
 cd backend
@@ -13,7 +28,8 @@ cp src/main/resources/application-dev.yml.example src/main/resources/application
 # điền DB url/user/pass, JWT_SECRET, SMTP, VNPAY_*; không commit file đã điền secret thật
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
-Flyway tự chạy migration khi khởi động (`ddl-auto=validate`). Health check: `GET /actuator/health`.
+Flyway tự chạy migration khi khởi động. Mặc định `application.yml` đặt `ddl-auto=validate`, nhưng `application-dev.yml.example`
+đang tạm đặt `none` (xem bước 3 ở trên). Health check: `GET /actuator/health`; Swagger: `http://localhost:8080/swagger-ui.html`.
 
 **Email khi dev:** dùng SMTP thật (Gmail App Password) hoặc Mailpit/MailHog (`localhost:1025`, xem
 thư ở `localhost:8025`) để nhận OTP.
@@ -35,7 +51,7 @@ npm run dev
 Mặc định chạy ở `http://localhost:3000`, gọi API tại `NEXT_PUBLIC_API_URL`
 (`http://localhost:8080/api`), WebSocket tại `NEXT_PUBLIC_WS_URL` (`http://localhost:8080/ws`).
 
-## Tài khoản mẫu (seed profile dev — `database.md` mục 7, khi đã có)
+## Tài khoản mẫu (seed profile dev — `database.md` mục 7, khi đã có; hiện chèn tay, xem bên dưới)
 | Role | Email | Mật khẩu |
 |---|---|---|
 | ADMIN | admin@campvivo.local | Admin@123 |
