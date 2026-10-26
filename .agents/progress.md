@@ -17,6 +17,28 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-26 — Người 3 — backend (N3-02: đăng ký, xác thực email, gửi lại mã)
+- Đã làm: nhánh `feature/auth-n3-02-register` (XẾP CHỒNG lên `feature/auth-n3-01-otp`: PR 1 phải merge trước). `POST /auth/register` (201 `{email}`;
+  email chưa xác thực đăng ký lại → ghi đè mật khẩu/họ tên + mã mới; gửi lại < 60 giây → `OTP_RESEND_TOO_SOON`, rollback không ghi đè;
+  gửi mail lỗi → `EMAIL_SEND_FAILED`, không tạo user; email đã xác thực → `EMAIL_ALREADY_EXISTS`; mật khẩu > 72 byte → `VALIDATION_ERROR`),
+  `POST /auth/verify-email` (trả `{accessToken, user}`; email lạ và mã sai cùng `INVALID_OTP`, có băm giả chống dò qua độ trễ; tài khoản
+  khoá → `ACCOUNT_DISABLED`), `POST /auth/resend-code` (200 im lặng với email lạ / tài khoản khoá / đã xác thực). `RegistrationService`,
+  DTO, `UserRepository.markEmailVerified`, giao diện `CartService` + `StubCartService` (module cart, TẠM — bảng `carts` chưa có). Test:
+  `RegistrationIntegrationTest` (25, PostgreSQL thật + GreenMail + đồng hồ chỉnh tay, gồm đăng ký song song cùng email). Kiểm tra "đột biến":
+  cố ý cho đăng ký đè tài khoản đã xác thực và bỏ kiểm tra tài khoản khoá → đúng 2 test đỏ. Chạy thật đầu-cuối trên ứng dụng + Mailpit:
+  đăng ký → đọc mã trong thư → xác thực → `/users/me`. Docs: `api.md` (hành vi đã hiện thực), `local-development.md` (cách thử bằng PowerShell).
+- Còn dang dở / TODO tiếp theo:
+  - Người 1: hiện thực `CartService` thật (tạo dòng `carts`) rồi XOÁ `StubCartService` (có TODO trong code).
+  - RỦI RO đã biết, theo đúng FR-01: đăng ký lại email CHƯA xác thực ghi đè mật khẩu — kẻ biết email người khác có thể ghi đè mật khẩu của tài
+    khoản đang chờ xác thực; nếu người thật sau đó xác thực bằng mã trong hộp thư của họ thì tài khoản mang mật khẩu của kẻ kia.
+    Cân nhắc (cần nhóm quyết định): không ghi đè mật khẩu khi đăng ký lại, hoặc yêu cầu mật khẩu mới chỉ có hiệu lực sau khi xác thực.
+  - Chưa có giới hạn theo IP (chỉ chống gửi lại 60 giây theo từng email) → có thể bị lợi dụng spam thư tới email người khác; nên cân nhắc rate limit
+    trước khi triển khai thật. Độ trễ phản hồi của `register`/`resend-code` khác nhau giữa email có và không có (gửi mail) → vẫn có thể dò email qua thời gian.
+  - Đăng ký song song cùng email: yêu cầu thứ hai nhận `EMAIL_ALREADY_EXISTS` dù người dùng chỉ bấm hai lần.
+  - Frontend (PR 3): trang `/register`, `/verify-email` (đếm ngược 60 giây), liên kết "Tạo tài khoản"; gọi 3 endpoint với `{ skipAuth: true }`.
+  - N3-04 (quên mật khẩu) dùng lại `OtpService`/`MailService`/`resend-code` (đã hỗ trợ purpose RESET_PASSWORD).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
+
 ### 2026-10-26 — Người 3 — backend (N3-01: OTP + gửi email)
 - Đã làm: nhánh `feature/auth-n3-01-otp`. `OtpService` (BR-11: mã 6 số `SecureRandom`, chỉ lưu BCrypt, hạn `app.otp.ttl`, tối đa
   `app.otp.max-attempts` lần thử, gửi lại cách ≥ `app.otp.resend-interval`; `issue(User, purpose)` ghi OTP vào entity, `verify(userId,
