@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${subject}">Campvivo</title>
+</head>
+<body style="margin:0; padding:24px; background:#f4f6f4; font-family:Arial, Helvetica, sans-serif; color:#222;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="480" cellspacing="0" cellpadding="0"
+               style="max-width:480px; background:#ffffff; border:1px solid #e3e8e3; border-radius:8px;">
+          <tr>
+            <td style="padding:24px 28px 8px; font-size:22px; font-weight:bold; color:#2f6a3f;"
+                th:text="${appName}">Campvivo</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 28px; font-size:15px; line-height:1.6;">
+              <p style="margin:0 0 12px;">Xin chào <strong th:text="${fullName}">bạn</strong>,</p>
+              <p style="margin:0 0 16px;" th:text="${intro}">Đây là mã xác thực của bạn:</p>
+              <p style="margin:0 0 16px; padding:14px 0; text-align:center; font-size:34px; font-weight:bold;
+                        letter-spacing:10px; background:#f1f6f2; border-radius:6px;"
+                 th:text="${code}">123456</p>
+              <p style="margin:0 0 12px;">
+                Mã có hiệu lực trong <strong><span th:text="${ttlMinutes}">10</span> phút</strong> và chỉ dùng được một lần.
+                Không chia sẻ mã này với bất kỳ ai, kể cả nhân viên cửa hàng.
+              </p>
+              <p style="margin:0 0 8px; color:#666; font-size:13px;">
+                Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
