@@ -124,6 +124,18 @@ interface ItemSummary {                                // sản phẩm hoặc co
 
 Mật khẩu: 8–64 ký tự, có ít nhất 1 chữ và 1 số. `fullName` 2–100 ký tự.
 
+Hành vi đã hiện thực (N3-02, khớp `features.md` FR-01 và BR-11):
+- `register`: email **chưa xác thực** đăng ký lại → ghi đè mật khẩu + họ tên và gửi mã mới (không báo lỗi); nếu mã trước gửi
+  cách chưa đủ 60 giây → `OTP_RESEND_TOO_SOON` và KHÔNG ghi đè. Gửi email lỗi → `EMAIL_SEND_FAILED`, không tạo tài khoản.
+  Email đã xác thực → `EMAIL_ALREADY_EXISTS`. Mật khẩu quá 72 byte UTF-8 (giới hạn BCrypt; ký tự có dấu chiếm 2–3 byte)
+  → `VALIDATION_ERROR` ở trường `password`. Họ tên được `trim` trước khi kiểm độ dài.
+- `verify-email`: email không tồn tại và mã sai đều trả `INVALID_OTP` (chống dò email); tài khoản bị khoá → `ACCOUNT_DISABLED`.
+  Mã dùng một lần; sai quá 5 lần → `OTP_TOO_MANY_ATTEMPTS` (phải gửi lại mã).
+- `resend-code`: trả 200 và KHÔNG gửi gì khi email không tồn tại, tài khoản bị khoá, hoặc xin `VERIFY_EMAIL` cho email đã xác
+  thực. Với email hợp lệ vẫn có thể `OTP_RESEND_TOO_SOON` (mã trước gửi < 60 giây) và `EMAIL_SEND_FAILED`.
+- Ba endpoint này công khai nhưng backend vẫn từ chối request mang token sai/hết hạn (401); frontend phải gọi với
+  `skipAuth` (xem `authentication.md` mục 3).
+
 ### 4.2 user — FR-04, FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|

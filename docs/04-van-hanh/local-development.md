@@ -50,6 +50,20 @@ không gửi ra ngoài). Muốn dùng SMTP thật (Gmail App Password) thì đ�
 `SMTP_PASSWORD`, `SMTP_AUTH=true`, `SMTP_STARTTLS=true` (xem `tech-stack.md`). Mã OTP không bao giờ được ghi vào log.
 Nếu chưa bật Mailpit, các chức năng gửi OTP sẽ trả `EMAIL_SEND_FAILED`.
 
+**Thử đăng ký bằng PowerShell** (backend chạy ở 8080, Mailpit đang bật):
+```powershell
+$u = "http://localhost:8080/api"; $j = "application/json"
+# 1. Đăng ký (đổi email tuỳ ý) → 201
+Invoke-RestMethod -Method Post "$u/auth/register" -ContentType $j -Body '{"email":"ban@example.com","password":"Passw0rd1","fullName":"Tên Của Bạn"}'
+# 2. Mở http://localhost:8025, mở thư "Mã xác thực email Campvivo", lấy mã 6 số
+# 3. Xác thực email bằng mã đó → nhận token (đăng nhập luôn)
+Invoke-RestMethod -Method Post "$u/auth/verify-email" -ContentType $j -Body '{"email":"ban@example.com","code":"123456"}'
+# Gửi lại mã (chờ ít nhất 60 giây kể từ thư trước)
+Invoke-RestMethod -Method Post "$u/auth/resend-code" -ContentType $j -Body '{"email":"ban@example.com","purpose":"VERIFY_EMAIL"}'
+```
+Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`. Xoá tài khoản thử:
+`docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
+
 **VNPay sandbox:**
 1. Đăng ký tài khoản merchant sandbox tại VNPay, lấy `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`.
 2. `ngrok http 8080` → lấy URL public, đặt `app.vnpay.ipn-url = https://<ngrok>/api/payments/vnpay/ipn`
