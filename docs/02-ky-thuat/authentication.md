@@ -47,8 +47,11 @@ Frontend: Employee vào `/admin` chỉ thấy menu Đơn hàng, Trả hàng, T�
      `tv ≠ users.token_version` → 401.
   4. Đặt `Authentication` với authority `ROLE_<role>` lấy **từ DB** (không tin role trong token).
 - `token_version` tăng khi: đăng xuất, đổi mật khẩu, đặt lại mật khẩu, Admin khoá tài khoản hoặc đổi role.
-- Frontend lưu token trong `localStorage` (đơn giản cho đồ án); gắn qua `apiClient`; nhận 401 → xoá
-  token, chuyển về đăng nhập.
+- Frontend lưu token trong `localStorage` (đơn giản cho đồ án); gắn qua `apiClient`; nhận 401 `UNAUTHORIZED` → xoá
+  token, chuyển về đăng nhập. 401 `INVALID_CREDENTIALS` (đăng nhập sai) KHÔNG phải hết phiên.
+- Vì backend từ chối token sai/hết hạn **cả ở endpoint công khai**, request tới endpoint xác thực công khai
+  (`login`, `register`, `verify-email`, `resend-code`, `forgot-password`, `reset-password`) phải KHÔNG gắn
+  token (`skipAuth: true` trong `apiClient`), nếu không một token cũ còn trong `localStorage` sẽ chặn đăng nhập.
 - Mật khẩu băm BCrypt (strength 10). Email chuẩn hoá chữ thường trước khi lưu/tra cứu.
 
 ## 4. Luồng OTP (BR-11)

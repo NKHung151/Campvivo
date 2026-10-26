@@ -7,6 +7,7 @@ export function vnd(n: number | null | undefined, suffix = " đ"): string {
 /** Route builders — keep in sync with docs/03-san-pham/pages.md. */
 export const productHref = (slug: string) => `/products/${slug}`;
 export const categoryHref = (slug: string) => `/categories/${slug}`;
+export const comboHref = (slug: string) => `/combos/${slug}`;
 export const brandHref = (slug: string) => `/brands/${slug}`;
 export const articleHref = (slug: string) => `/blog/${slug}`;
 export const journalHref = (slug: string) => `/journal/${slug}`;

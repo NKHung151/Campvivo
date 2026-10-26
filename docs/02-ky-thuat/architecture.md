@@ -93,16 +93,45 @@ public interface PaymentGateway {
 - `OrderTimeoutJob` (BR-3) — `@Scheduled(fixedDelay = 60000)`.
 - Bật `@EnableScheduling`, `@EnableAsync` trong `common/config`.
 
-## Frontend — phân theo feature
+## Frontend — hai root layout, phân theo feature (D-18)
 ```
-src/app/              Next.js App Router: (shop)/ (auth)/ account/ admin/
-src/components/ui/        component dùng chung (Button, Modal, Toast, Input, Pagination...)
-src/components/features/<module>/  component nghiệp vụ (cart, order, product, account...)
-src/services/          gọi API theo module (+ apiClient.ts); websocket client (notification, support)
-src/types/              kiểu dữ liệu khớp docs/02-ky-thuat/api.md
-src/hooks/              hook dùng chung (useAuth, useCart, useNotifications...)
-src/mocks/              dữ liệu mock (giai đoạn chưa có API — xoá dần khi nối API)
+src/app/
+  (store)/                 ROOT LAYOUT storefront: <html> + CSS styles/shop/*
+    layout.tsx
+    (shop)/                trang cửa hàng (/, /products, /cart...) — mỗi nhóm bọc ShopFrame
+    (auth)/                /login, /register, /verify-email, /forgot-password, /reset-password
+    account/               /account/*
+    [...notFound]/         URL không khớp → 404 storefront
+    not-found.tsx
+  (admin)/                 ROOT LAYOUT admin: <html> + AntdRegistry + AdminProviders (antd, vi_VN)
+    layout.tsx
+    admin/
+      layout.tsx           AdminShell: sidebar theo role, header, chặn khách hàng
+      page.tsx             /admin dashboard
+      [...slug]/           trang có trong menu nhưng chưa làm → "đang xây dựng"
+      <module>/...         categories, products, combos, inventory, vouchers, campaigns, articles,
+                           orders, returns, users, support
+  api/                     route handler (mock — xoá khi nối API)
+src/components/ui/                 component storefront dùng chung (Button, Modal, Toast, PriceTag...)
+src/components/features/<module>/  component storefront theo module (catalog, product, cart, account...)
+src/components/admin/              component admin (antd)
+  shell/                           AdminShell, AdminSession, AdminProviders, RequireRole
+  common/                          dùng chung giữa các trang admin (DataTablePage, ImageUpload...)
+  <module>/                        component admin theo module (catalog, combo, inventory...)
+src/services/                      gọi API theo module — DÙNG CHUNG storefront + admin
+  admin/                           service cho /api/admin/**
+src/types/api/                     kiểu khớp docs/02-ky-thuat/api.md (common.ts, catalog.ts, ...)
+src/hooks/                         hook dùng chung (useAdminSession, useAuth, useCart...)
+src/lib/                           tiện ích (lib/admin/nav.ts: menu + quyền admin; errorMessages...)
+src/styles/shop/                   CSS storefront (chỉ nạp ở (store)/layout)
+src/styles/admin/                  CSS bổ sung cho admin (chỉ nạp ở (admin)/layout)
+src/mocks/                         dữ liệu mock — xoá dần khi nối API
 ```
+- Không import chéo giao diện: `components/features/*` không dùng antd, `components/admin/*` không
+  dùng CSS storefront. `services/`, `types/`, `hooks/`, `lib/` dùng chung.
+- Link giữa storefront và admin dùng `<a href>` (không `next/link`) vì đổi root layout luôn tải lại trang.
+- Menu và quyền từng trang admin khai báo một chỗ: `src/lib/admin/nav.ts` (khớp `pages.md`). Trang chỉ
+  dành ADMIN bọc `<RequireRole roles={ADMIN_ONLY}>`; backend vẫn luôn kiểm tra quyền.
 - SSR cho trang public (sản phẩm, combo, bài viết, danh mục) — gọi API server-side.
 - CSR cho giỏ hàng, thanh toán, tài khoản, admin.
 - Trạng thái đăng nhập/giỏ hàng: React context (`ShopProvider` hiện tại sẽ chuyển sang gọi API).

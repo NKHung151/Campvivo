@@ -6,10 +6,22 @@ spring:
     password: changeme
   jpa:
     hibernate:
-      ddl-auto: validate
+      # TẠM "none": entity của module khác (cart, order, catalog...) chưa có migration tạo bảng (F-06 → F-09 chưa
+      # merge) nên "validate" (mặc định ở application.yml) sẽ báo "missing table [...]" và backend không chạy.
+      # Khi các bảng đã vào dev thì xoá dòng này hoặc đổi lại "validate". Xem docs/04-van-hanh/troubleshooting.md.
+      ddl-auto: none
     show-sql: true
   flyway:
     enabled: true
-jwt:
-  secret: change_this_in_real_env
-  expiration-ms: 86400000
+    # Dev: chạy thêm dữ liệu mẫu (db/seed: danh mục, sản phẩm, ảnh) sau khi tạo bảng. Bỏ db/seed nếu muốn DB trống.
+    locations: classpath:db/migration,classpath:db/seed
+app:
+  jwt:
+    # >= 32 ký tự (HS256). Thiếu hoặc ngắn hơn thì app không khởi động.
+    secret: dev_only_secret_change_me_at_least_32_chars
+    ttl: 24h
+  cloudinary:
+    # Lấy ở Cloudinary Console → Settings → API Keys. KHÔNG commit giá trị thật.
+    cloud-name: your_cloud_name
+    api-key: your_api_key
+    api-secret: your_api_secret

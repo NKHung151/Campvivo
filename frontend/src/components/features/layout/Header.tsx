@@ -6,10 +6,15 @@ import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/shop";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { useAuth } from "@/components/features/auth/AuthProvider";
+import { landingFor } from "@/lib/auth/redirect";
 import { CartIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
   const { cart, user, ready, openLogin } = useShop();
+  const auth = useAuth();
+  // Nhân viên / quản trị viên không dùng khu vực tài khoản khách hàng: liên kết dẫn tới trang quản trị.
+  const isStaff = auth.user?.role === "ADMIN" || auth.user?.role === "EMPLOYEE";
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [popOpen, setPopOpen] = useState(false);
@@ -68,7 +73,12 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
             </Link>
             <div className="box-member-header">
               <div className="cv-signin-wrap">
-                {user ? (
+                {user && isStaff ? (
+                  // <a>: /admin thuộc root layout khác → tải lại trang để nạp đúng CSS
+                  <a className="action" href={landingFor(auth.user!.role)}>
+                    <UserIcon /> {user.name}
+                  </a>
+                ) : user ? (
                   <Link className="action" href="/account">
                     <UserIcon /> {user.name}
                   </Link>
@@ -95,7 +105,6 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                   <ul className="cv-pop-list">
                     <li>Thanh toán nhanh hơn</li>
                     <li>Theo dõi đơn hàng dễ dàng</li>
-                    <li>Giảm 5% từ đơn thứ 2</li>
                   </ul>
                   {(["Tạo tài khoản", "Đăng nhập"] as const).map((t, i) => (
                     <a
@@ -132,12 +141,12 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                   <div className="leftmenu">
                     {m.groups.map((g) => (
                       <div className="cate" key={g.href + g.name}>
-                        <div className="catePic">
-                          {g.img && (
-                            // eslint-disable-next-line @next/next/no-img-element
+                        {g.img && (
+                          <div className="catePic">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img loading="lazy" alt={g.name} width={70} src={g.img} />
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <div className="cateName">
                           <SmartLink className="subcate" title={g.name} href={g.href}>
                             {g.name}

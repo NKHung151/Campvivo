@@ -32,7 +32,6 @@ export function OrderCard({ order }: { order: Order }) {
       <div className="ft">
         Tạm tính {vnd(order.subtotal)}
         {order.voucher ? ` · Voucher -${vnd(order.voucher)}` : ""}
-        {order.member ? ` · Member -${vnd(order.member)}` : ""}
         {" "}· Tổng tiền <b>{vnd(order.total)}</b>
       </div>
     </div>

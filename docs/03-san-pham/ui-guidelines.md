@@ -50,6 +50,19 @@
   mã HTTP. Có nút "Thử lại" khi lỗi mạng.
 - Hết hàng: nút "Thêm vào giỏ" disable, nhãn "Hết hàng". Sắp hết (`available ≤ 5`): "Chỉ còn N sản phẩm".
 
+## Khu vực admin (Ant Design — D-18)
+- Dùng component antd, không viết lại: `Table` (phân trang/sort/lọc), `Form` + rule validate, `Upload`,
+  `TreeSelect` (chọn danh mục cha), `DatePicker.RangePicker`, `Modal`, `Drawer`, `Tag`, `Result`.
+- Thông báo dùng `App.useApp()` (`message`, `modal`, `notification`) — đã bọc `<App>` trong
+  `AdminProviders`. Lỗi API hiển thị theo `errorCode` (`lib/errorMessages.ts`).
+- Theme đặt một chỗ trong `components/admin/shell/AdminProviders.tsx` (màu chủ đạo `#2f6a3f`, locale
+  `vi_VN`); không đặt màu cứng trong từng trang.
+- Mỗi trang danh sách: thanh lọc phía trên, bảng, phân trang; trạng thái lọc/phân trang nằm trên URL
+  query để F5 và chia sẻ link vẫn giữ.
+- Trạng thái: loading dùng `loading` của Table/Button hoặc `Spin`; rỗng dùng `Empty`; lỗi dùng `Result`
+  hoặc `Alert`. Nút gửi form có `loading` để chống bấm hai lần.
+- Ưu tiên desktop (≥ 1280px); sidebar tự thu gọn ở màn hình nhỏ (`breakpoint="lg"`).
+
 ## Responsive
 Mobile-first, breakpoint tối thiểu: ~375px (mobile), ~768px (tablet), ~1280px (desktop).
 Storefront hiện mới có bản desktop — bổ sung mobile là việc còn nợ (xem `.agents/progress.md`).

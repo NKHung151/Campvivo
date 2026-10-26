@@ -43,6 +43,7 @@ Danh sách có phân trang:
 | 403 | FORBIDDEN | Đúng token nhưng sai role |
 | 404 | NOT_FOUND | Không tồn tại, hoặc thuộc user khác (không tiết lộ) |
 | 409 | SLUG_ALREADY_EXISTS | Trùng slug |
+| 500 | INTERNAL_ERROR | Lỗi hệ thống không lường trước (không trả chi tiết, chỉ ghi log phía server) |
 | **auth/user** | | |
 | 409 | EMAIL_ALREADY_EXISTS | Đăng ký email đã xác thực |
 | 401 | INVALID_CREDENTIALS | Sai email/mật khẩu |
@@ -60,6 +61,7 @@ Danh sách có phân trang:
 | 400 | CIRCULAR_CATEGORY_DEPENDENCY | |
 | 409 | CATEGORY_NOT_EMPTY | Xoá danh mục còn con/hàng |
 | 400 | INVALID_STOCK_ADJUSTMENT | change = 0 hoặc làm stock < reserved |
+| 502 | IMAGE_UPLOAD_FAILED | Lỗi khi đẩy ảnh lên Cloudinary (hoặc chưa cấu hình Cloudinary) |
 | **cart/order/payment** | | |
 | 400 | PRODUCT_INACTIVE | Mặt hàng ngừng kinh doanh |
 | 409 | OUT_OF_STOCK | Vượt `available`; `details.items = [{type, id, name, availableQuantity}]` |
@@ -135,12 +137,12 @@ Mật khẩu: 8–64 ký tự, có ít nhất 1 chữ và 1 số. `fullName` 2�
 | Method | Path | Quyền | Query / Response |
 |---|---|---|---|
 | GET | `/categories` | Public | → cây `[{id, name, slug, children: [...]}]` |
-| GET | `/products` | Public | `category` (slug, gồm danh mục con), `brand`, `minPrice`, `maxPrice` (theo giá sau chiến dịch), `sortBy=price_asc\|price_desc\|newest` (mặc định newest), `page`, `limit` → `[ItemSummary]` |
+| GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
 | GET | `/products/{slug}` | Public | → `ProductDetail` |
 | GET | `/products/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` (FR-25) |
 | GET | `/products/{id}/reviews` | Public | `?page&limit` → `{averageRating, reviewCount, items: [Review]}` |
 | GET | `/brands` | Public | → `[{name, productCount}]` (distinct `products.brand`) |
-| GET | `/combos` | Public | như `/products` (không có `brand`) → `[ItemSummary]` |
+| GET | `/combos` | Public | `category` (slug danh mục cấp 1), `q`, `sortBy=newest\|price_asc\|price_desc`, `page`, `limit` (1..100) → `[ComboSummary]` (chỉ combo đang bán) |
 | GET | `/combos/{slug}` | Public | → `ComboDetail` |
 | GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
 | GET | `/combos/{id}/reviews` | Public | như sản phẩm |
@@ -151,14 +153,20 @@ Mật khẩu: 8–64 ký tự, có ít nhất 1 chữ và 1 số. `fullName` 2�
 
 ```ts
 interface ProductDetail extends ItemSummary {
-  description: string | null; brand: string | null;
+  shortDescription: string | null; description: string | null; brand: string | null;
+  specs: { name: string; value: string }[];                           // thông số theo thứ tự hiển thị
   category: { id: number; name: string; slug: string; path: {name: string; slug: string}[] };
   images: { url: string; isPrimary: boolean }[];
   campaign: { name: string; slug: string; endDate: string } | null;   // chiến dịch đang áp
   isFavorite?: boolean;                                                // khi có token
 }
+interface ComboSummary extends ItemSummary { itemsTotal: Money; itemCount: number;
+  category: { id: number; name: string; slug: string }; }              // danh mục cấp 1 (D-23)
 interface ComboDetail extends ItemSummary {
-  description: string | null; category: {...}; images: {...}[];
+  description: string | null; category: {...};
+  images: {...}[];      // ảnh tự tải lên (ảnh chính trước) rồi ảnh chính của các sản phẩm thành phần, bỏ trùng (D-26);
+                        // ảnh đầu = primaryImageUrl
+  itemsTotal: Money;                                                   // tổng giá lẻ hiện tại các món
   items: { product: ItemSummary; quantity: number }[];                 // chỉ hiển thị
   isFavorite?: boolean;
 }
@@ -287,17 +295,22 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/users` | Admin | `?q` (email/họ tên), `role`, `isActive`, `page`, `limit` |
 | GET | `/admin/users/{id}` | Admin | + số đơn, tổng chi tiêu (đơn COMPLETED) |
 | PATCH | `/admin/users/{id}` | Admin | `{fullName?, phone?, role?, isActive?}`; đổi role/khoá → tăng token_version; `CANNOT_MODIFY_SELF` |
-| GET | `/admin/categories` | Admin | cây đầy đủ + số sản phẩm/combo |
-| POST | `/admin/categories` | Admin | `{name, slug?, parentId?}` |
-| PUT | `/admin/categories/{id}` | Admin | `{name, slug, parentId?}` (BR-13) |
-| DELETE | `/admin/categories/{id}` | Admin | `CATEGORY_NOT_EMPTY` |
-| GET | `/admin/products` | Admin | `?q&categoryId&isActive&page&limit` (gồm `stockQuantity`, `reservedQuantity`) |
+| GET | `/admin/categories` | Admin | cây `AdminCategoryNode[]` (+ `productCount`, `comboCount` gắn trực tiếp, `parentId`) |
+| POST | `/admin/categories` | Admin | `CategoryRequest` → 201 `AdminCategoryNode`. Slug trống → sinh từ tên (thêm `-2`… nếu trùng); tự nhập mà trùng → `SLUG_ALREADY_EXISTS`; cha không tồn tại → `PARENT_CATEGORY_NOT_FOUND` |
+| PUT | `/admin/categories/{id}` | Admin | `CategoryRequest` (slug trống = giữ slug cũ). Đổi cha: chọn chính nó/danh mục con → `CIRCULAR_CATEGORY_DEPENDENCY`; path cả cây con đổi theo (BR-13) |
+| DELETE | `/admin/categories/{id}` | Admin | Còn danh mục con, sản phẩm hoặc combo → `CATEGORY_NOT_EMPTY` |
+| GET | `/admin/products` | Admin | `?q&categoryId&brand&isActive&stock&sort&page&limit` → `[AdminProductSummary]`. `q`: tên, thương hiệu, slug; gõ không dấu được, mỗi từ khớp trọn từ trong slug hoặc thương hiệu ("leu 2 nguoi"; "ao" không khớp "AONIJIE"); từ khoá ≥ 4 ký tự còn khớp chuỗi con (mã hàng). Có `q` thì xếp theo mức liên quan trước (tên bắt đầu đúng từ khoá có dấu → tên chứa nguyên từ → slug bắt đầu bằng từ khoá), rồi mới theo `sort`. `categoryId` gồm danh mục con. `brand` khớp đúng tên (không phân biệt hoa thường). `stock`: `IN_STOCK` \| `LOW_STOCK` (khả dụng 1..`app.inventory.low-stock-threshold`) \| `OUT_OF_STOCK`. `sort`: `UPDATED_DESC` (mặc định) \| `CREATED_DESC` \| `NAME_ASC` \| `PRICE_ASC` \| `PRICE_DESC` \| `STOCK_ASC`. Giá trị sai → 400 |
 | GET | `/admin/products/{id}` | Admin | |
-| POST | `/admin/products` | Admin | `{name, slug?, description?, brand?, price, categoryId, isActive, images: [{url, isPrimary, displayOrder}]}` |
-| PUT | `/admin/products/{id}` | Admin | như POST (thay toàn bộ danh sách ảnh) |
-| POST | `/admin/uploads/images` | Admin | multipart `file` (jpg/png/webp ≤ 5MB) → `{url}` (Cloudinary) |
-| GET/POST | `/admin/combos` | Admin | POST `{name, slug?, description?, categoryId, comboPrice, isActive, images, items: [{productId, quantity}]}` |
-| GET/PUT | `/admin/combos/{id}` | Admin | |
+| POST | `/admin/products` | Admin | `ProductRequest` (mục 4.11). Sản phẩm mới có tồn kho 0 (nhập kho ở FR-08) |
+| PUT | `/admin/products/{id}` | Admin | như POST (thay toàn bộ ảnh và thông số; không đổi tồn kho) |
+| PATCH | `/admin/products/{id}/status` | Admin | `{isActive}` → `AdminProductSummary`. Ẩn/hiện nhanh — "xoá" sản phẩm = ẩn (BR-14) |
+| POST | `/admin/uploads/images` | Admin | multipart `file` (jpg/png/webp ≤ 5MB, kiểm tra theo nội dung file) + `?folder=products\|combos\|articles\|campaigns` → `{url}` (Cloudinary) |
+| GET | `/admin/combos` | Admin | `?q&categoryId&isActive&sort&page&limit` → `[AdminComboSummary]`. `q`: tên, slug (gõ không dấu được). `categoryId` gồm danh mục con. `sort`: `UPDATED_DESC` (mặc định) \| `CREATED_DESC` \| `NAME_ASC` \| `PRICE_ASC` \| `PRICE_DESC` \| `STOCK_ASC` |
+| POST | `/admin/combos` | Admin | `ComboRequest` → 201 `AdminComboDetail`; tồn kho bắt đầu 0 (đóng gói ở `/pack`). `categoryId` phải là danh mục cấp 1 (D-23), không thì 400 `fieldErrors.categoryId`. < 2 sản phẩm hoặc trùng sản phẩm → 400 `fieldErrors.items`; sản phẩm không tồn tại → `NOT_FOUND`; slug tự nhập trùng → `SLUG_ALREADY_EXISTS` |
+| GET/PUT | `/admin/combos/{id}` | Admin | PUT như POST (thay toàn bộ thành phần và ảnh; slug trống = giữ slug cũ) |
+| PATCH | `/admin/combos/{id}/status` | Admin | `{isActive}` → `AdminComboSummary`. "Xoá" combo = ẩn (BR-14) |
+| POST | `/admin/combos/{id}/pack` | Admin | `{sets: 1..999}` → `AdminComboDetail`. Trừ `sets × quantity` ở kho sản phẩm của từng dòng, cộng `sets` vào kho combo (D-22). Thiếu → 409 `OUT_OF_STOCK` (`details.shortages`) |
+| POST | `/admin/combos/{id}/unpack` | Admin | `{sets}` → `AdminComboDetail`. Trả hàng về kho sản phẩm; `sets` > số bộ khả dụng → `INVALID_STOCK_ADJUSTMENT` |
 | GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO&q&lowStock=true&page&limit` → `[{type, id, name, stockQuantity, reservedQuantity, availableQuantity, isLowStock}]` |
 | POST | `/admin/inventory/adjustments` | Staff | `{productId? \| comboId?, changeQuantity, reason: IMPORT\|EXPORT\|ADJUST, note?}` → log mới |
 | GET | `/admin/inventory/logs` | Staff | `?productId&comboId&from&to&page&limit` |
@@ -316,6 +329,44 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
+
+### 4.11 Kiểu dữ liệu admin catalog
+Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:
+```ts
+interface AdminCategoryNode { id: number; name: string; slug: string; parentId: number | null;
+  productCount: number; comboCount: number; children: AdminCategoryNode[]; }
+interface CategoryRequest { name: string; slug?: string; parentId?: number | null; }   // name ≤ 150, slug ≤ 180
+interface AdminProductSummary { id: number; name: string; slug: string; brand: string | null;
+  categoryId: number; categoryName: string; categoryPath: string[]; price: Money;
+  stockQuantity: number; reservedQuantity: number;
+  availableQuantity: number;                         // stock − reserved (BR-1)
+  isActive: boolean; primaryImageUrl: string | null; updatedAt: string; }
+interface ProductSpec { name: string; value: string; }
+interface AdminProductImage { url: string; isPrimary: boolean; displayOrder: number; }
+interface AdminProductDetail extends AdminProductSummary { shortDescription: string | null;
+  description: string | null; specs: ProductSpec[]; images: AdminProductImage[]; createdAt: string; }
+interface ProductRequest { name: string; slug?: string; shortDescription?: string | null;   // ≤ 500
+  description?: string | null; brand?: string | null;
+  price: Money; categoryId: number; isActive: boolean;
+  specs: ProductSpec[];                     // ≤ 30 dòng; tên trùng (không phân biệt hoa thường) bị gộp
+  images: AdminProductImage[]; }   // thay toàn bộ ảnh, đúng 1 ảnh isPrimary
+interface AdminComboSummary { id: number; name: string; slug: string; categoryId: number; categoryName: string;
+  categoryPath: string[]; comboPrice: Money; itemsTotal: Money;   // itemsTotal = tổng giá lẻ hiện tại (giá × số lượng)
+  itemCount: number; stockQuantity: number; reservedQuantity: number; availableQuantity: number;   // tồn kho theo bộ (D-03)
+  isActive: boolean; primaryImageUrl: string | null; updatedAt: string; }
+interface AdminComboDetail extends Omit<AdminComboSummary, "categoryPath" | "itemCount"> { description: string | null;
+  maxPackable: number;   // số bộ đóng gói được ngay = min(khả dụng sản phẩm ÷ quantity)
+  items: { productId: number; productName: string; productSlug: string; productImageUrl: string | null;
+           productPrice: Money; productActive: boolean; productAvailableQuantity: number; quantity: number }[];
+  images: AdminProductImage[];   // ảnh tự tải lên (có thể rỗng)
+  createdAt: string; }   // primaryImageUrl = ảnh chính tự tải lên, chưa có thì ảnh sản phẩm thành phần đầu tiên (D-26)
+interface ComboRequest { name: string; slug?: string; description?: string | null; categoryId: number;
+  comboPrice: Money; isActive: boolean;
+  images: AdminProductImage[];   // ảnh tự tải lên ≤ 10, có ảnh thì đúng 1 ảnh chính; không dùng URL của mặt hàng khác
+  items: { productId: number; quantity: number }[]; }
+  // 2..20 sản phẩm khác nhau, quantity 1..99.
+  // Combo còn bộ đã đóng gói thì không đổi được thành phần (400 fieldErrors.items)
+```
 
 ## 5. Ánh xạ sang frontend
 - Mỗi nhóm endpoint ↔ `frontend/src/services/<module>Service.ts` (auth, user, catalog, cart, order,

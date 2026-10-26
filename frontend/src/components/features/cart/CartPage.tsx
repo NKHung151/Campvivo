@@ -57,9 +57,8 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
 
   const selected = cart.filter((c) => !unchecked.includes(c.key));
   const subtotal = selected.reduce((n, c) => n + c.price * c.qty, 0);
-  const memberDiscount = user && orders.length > 0 ? Math.round(subtotal * 0.05) : 0;
   const voucherDiscount = voucher && subtotal >= (VOUCHERS[voucher.code]?.min ?? 0) ? voucher.amount : 0;
-  const total = Math.max(0, subtotal - memberDiscount - voucherDiscount);
+  const total = Math.max(0, subtotal - voucherDiscount);
   const shipping = subtotal >= 1_000_000 ? "Miễn phí (tối đa 30.000 đ)" : "Tính theo ĐVVC";
   const count = selected.reduce((n, c) => n + c.qty, 0);
   const districts = useMemo(() => DISTRICTS[form.province] ?? null, [form.province]);
@@ -114,7 +113,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
       items: selected,
       subtotal,
       voucher: voucherDiscount,
-      member: memberDiscount,
       shipping,
       total,
       payment: PAYMENTS.find((p) => p.id === payment)!.label,
@@ -347,7 +345,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
                   <div className="tablePriceColumn tablePriceLeft">
                     <span>Tạm tính</span>
                     <span>Voucher</span>
-                    <span>Ưu đãi Member</span>
                     <a
                       id="phivanchuyen"
                       className="hv_underline"
@@ -368,7 +365,6 @@ export function CartPage({ csvcHtml, pvcHtml, provinces }: { csvcHtml: string; p
                   <div className="tablePriceColumn tablePriceRight">
                     <span id="SubTotal">{vnd(subtotal)}</span>
                     <span id="VoucherDiscount">{voucherDiscount ? `-${vnd(voucherDiscount)}` : 0}</span>
-                    <span id="MemberDiscount">{memberDiscount ? `-${vnd(memberDiscount)}` : 0}</span>
                     <span id="Ship">{shipping}</span>
                     <span id="cartTotalMoney">{vnd(total)}</span>
                   </div>

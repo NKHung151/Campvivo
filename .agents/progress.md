@@ -17,6 +17,135 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
+- Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích
+  lý do và khi nào đổi lại), vì `validate` làm backend báo `missing table [...]` đến khi F-06 → F-09 merge và ai copy `.example`
+  theo hướng dẫn cũ đều gặp lỗi. `local-development.md` thêm mục "Thiết lập lần đầu / sau khi pull code mới" (pull `dev`, reset DB
+  `docker compose down -v`, tạo `application-dev.yml`, chạy backend kèm múi giờ, chèn 3 tài khoản mẫu, chạy frontend cổng 3000).
+- Còn dang dở / TODO tiếp theo:
+  - Khi F-06 → F-09 đã vào `dev`: đổi `.example` về `validate` (hoặc xoá dòng) và cập nhật lại mục trên.
+  - Làm F-12 (seed) thì bỏ bước chèn tay tài khoản mẫu.
+
+### 2026-10-24 — Người 3 — frontend (đăng nhập thật + điều hướng theo role)
+- Đã làm: nhánh `feature/frontend-auth-login-redirect`. `AuthProvider`/`useAuth` (khôi phục phiên bằng `GET /users/me`,
+  trạng thái `loading|authenticated|unauthenticated|error`, đồng bộ giữa các tab, nối `setUnauthorizedHandler`), `authService`,
+  trang `/login` (`LoginForm`, `components/ui/Button`, `Input` — hai component dùng chung đầu tiên), `lib/auth/redirect.ts`
+  (`safeRedirectPath` chặn open redirect, `canAccessPath`, `landingFor`, `resolveLanding`, `loginHref`). Điều hướng: có `?redirect`
+  hợp lệ và role được vào → đó; không thì ADMIN `/admin`, EMPLOYEE `/admin/orders`, CUSTOMER `/`. Admin: thay `useAdminSession`
+  giả lập bằng phiên thật (xoá ô "Dev", bật Đăng xuất, chưa đăng nhập → `/login?redirect=`, lỗi mạng → "Thử lại").
+  Storefront: bỏ `LoginPopup` OTP giả và login giả trong `ShopProvider` (`user` lấy từ phiên thật, `openLogin` → `/login`).
+  Sửa `apiClient`: thêm `skipAuth` (endpoint xác thực công khai không gắn token — token cũ còn sót chặn đăng nhập).
+  Docs: `pages.md`, `authentication.md`, `known-issues.md` (KI-06 đã xử lý), `lessons-learned.md`; bỏ `NEXT_PUBLIC_ADMIN_DEV_ROLE`.
+- Kiểm chứng: lint, tsc, build xanh; script tạm ngoài repo: 12 nhóm kiểm tra hàm điều hướng (18 dạng URL độc hại bị chặn),
+  13 ca luồng thật với backend (3 tài khoản mẫu: đăng nhập, `/users/me`, đăng xuất, sai mật khẩu, validate, `?redirect`),
+  2 ca hồi quy token cũ; server Next thật phục vụ `/login`, `/admin`, `/`, `/account`, `/cart` (200); CSS storefront không lẫn vào admin.
+- Còn dang dở / TODO tiếp theo:
+  - CHƯA kiểm tra trên trình duyệt thật (bố cục `/login`, mobile 375px, thao tác click) — người dùng kiểm theo checklist.
+  - `EMAIL_NOT_VERIFIED` chỉ hiện thông báo; tự gửi lại mã + chuyển `/verify-email` làm ở N3-02. Chưa có liên kết "Tạo tài khoản",
+    "Quên mật khẩu?" (trang chưa có). Nút "Tạo tài khoản" ở popover Header hiện cũng dẫn tới `/login`.
+  - `/api/admin/**` ở backend vẫn cho EMPLOYEE vào mọi đường dẫn admin; frontend đã chặn menu theo role nhưng backend phải chặn thật.
+  - Endpoint xác thực công khai mới (register, verify-email, resend-code, forgot/reset-password) phải gọi với `{ skipAuth: true }`.
+  - Giỏ hàng/đơn/yêu thích của storefront vẫn là mock (Người 1); `user` giả cũ trong localStorage bị bỏ qua.
+  - Chuyển giữa storefront và admin tải lại toàn trang nên phiên được khôi phục lại bằng `GET /users/me` mỗi lần.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (nối frontend auth, tuần 7)
+
+### 2026-10-23 — Người 3 — backend (N3-03: đăng nhập/đăng xuất + GET /users/me)
+- Đã làm: nhánh `feature/auth-n3-03-login`. `POST /auth/login` (sai email và sai mật khẩu trả CÙNG `INVALID_CREDENTIALS`,
+  BCrypt giả cho email không tồn tại để chống dò email qua độ trễ; chỉ khi mật khẩu đúng mới báo `EMAIL_NOT_VERIFIED` /
+  `ACCOUNT_DISABLED`), `POST /auth/logout` (tăng `token_version` bằng UPDATE nguyên tử), `GET /users/me`
+  (`UserService`, `UserController`), bean `PasswordEncoder` BCrypt strength 10. Test `AuthLoginIntegrationTest`
+  (14, PostgreSQL thật); sửa `SecurityIntegrationTest` (đường dẫn thử đổi sang `/api/notifications` vì `/users/me` đã có controller).
+  Kiểm tay trên app thật với 3 tài khoản mẫu: đúng role, đúng quyền, logout làm token cũ 401.
+  Docs: `local-development.md` (chèn tay tài khoản mẫu), D-19, `troubleshooting.md`, `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Làm N3-03 TRƯỚC N3-01/N3-02 (roadmap ghi phụ thuộc N3-02 nhưng không phụ thuộc kỹ thuật; test tạo user bằng repository).
+    Ưu tiên của buổi: điều hướng theo role cho trang admin/staff. N3-01 (OTP + mail), N3-02, N3-04 làm sau.
+  - N3-05 mới có phần `GET /users/me`; chưa có `PUT /users/me` và `PUT /users/me/password` → KHÔNG tick N3-05.
+  - Chưa có giới hạn số lần đăng nhập sai (docs không yêu cầu); cân nhắc rate limit trước khi triển khai thật.
+  - Tài khoản mẫu chèn tay (D-19) — F-12 chính thức làm sau khi F-06 → F-09 merge.
+  - `UserController` import `CurrentUserId` của module `auth` (annotation dùng chung); có thể chuyển sang `common` nếu cần.
+  - Tiếp theo: PR frontend (AuthProvider, `/login`, `landingFor(role, redirect)`, bảo vệ layout admin; thay `useAdminSession` — KI-06).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-03)
+
+### 2026-10-23 — Người 3 — frontend (F-14: nền gọi API)
+- Đã làm: nhánh `feature/frontend-f-14-api-client`. `services/apiClient.ts` (axios, tự gắn token, bóc `{success,data}`,
+  `getPage` cho danh sách phân trang, lỗi → `ApiError`, 401 `UNAUTHORIZED` → xoá token + `setUnauthorizedHandler`;
+  401 `INVALID_CREDENTIALS` KHÔNG bị coi là hết phiên), `services/serverApi.ts` (`serverGet`/`serverGetPage` cho SSR,
+  chỉ endpoint công khai), `services/apiError.ts`, `services/apiConfig.ts`, `lib/authToken.ts` (key `campvivo_token`),
+  `lib/errorMessages.ts` (39 mã backend khớp `ErrorCode.java` + `NETWORK_ERROR`/`UNKNOWN_ERROR`, `getErrorMessage`),
+  bổ sung kiểu `OrderStatus`, `PaymentMethod`, `PaymentStatus`, `ReturnStatus`, `NotificationType`, `UserProfile`,
+  `ApiSuccessBody` vào `types/api/common.ts`. Xoá `lib/api-client.ts` (bản khung chưa ai dùng, thay bằng bản mới).
+- Kiểm chứng: lint, tsc, build xanh. Frontend chưa có test runner nên kiểm bằng script tạm ngoài repo (tsx): 16 ca
+  với máy chủ giả + 5 ca với backend thật (401/404/mất kết nối/serverGet) đều đạt.
+- Còn dang dở / TODO tiếp theo:
+  - Handler 401 mặc định chỉ xoá token; chuyển về `/login?redirect=...` do `AuthProvider` đăng ký qua
+    `setUnauthorizedHandler` (task nối phiên thật, thay `useAdminSession` giả lập — KI-06).
+  - Bảng `errorMessages.ts` chép tay từ `ErrorCode.java`: thêm mã mới ở backend thì thêm ở đây.
+  - Chưa có API đăng nhập (N3-03) và `GET /users/me` (N3-05); `catalogService` vẫn đọc mock (N2-04).
+  - Tiếp theo: N3-01 (OTP + mail), N3-02, N3-03, N3-05 (`GET /users/me`), rồi task điều hướng theo role + trang `/login`.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-14)
+
+### 2026-10-23 — Người 3 — backend (F-10: security khung)
+- Đã làm: nhánh `feature/auth-f-10-security`. `JwtService` (HS256, claim sub/role/tv, dùng `Clock`),
+  `JwtAuthenticationFilter` (kiểm `token_version`, `is_active`, role lấy từ DB; principal = userId `Long`),
+  `SecurityConfig` (phân quyền theo path như `authentication.md` mục 5, stateless, `@EnableMethodSecurity`),
+  `JsonSecurityErrorHandler` (401/403 trả `ApiErrorResponse`), CORS theo `app.cors.allowed-origins`,
+  `@CurrentUserId`. Xoá `TemporarySecurityConfig`. Test: `JwtServiceTest` (7), `SecurityIntegrationTest` (13, DB thật).
+- Còn dang dở / TODO tiếp theo:
+  - Controller của module khác dùng `@CurrentUserId Long userId` (hoặc `@AuthenticationPrincipal Long`, đang dùng ở
+    `OrderController`); endpoint chỉ dành Admin phải thêm `@PreAuthorize("hasRole('ADMIN')")`. Endpoint mới phải thêm vào
+    ma trận phân quyền N3-10.
+  - Swagger (`/swagger-ui.html`, `/v3/api-docs`) đang mở công khai để cả nhóm thử API — đóng/giới hạn khi triển khai.
+  - Đường dẫn mới ngoài danh sách trong `SecurityConfig` mặc định cần đăng nhập (401 với khách); endpoint công khai mới
+    (GET) phải thêm vào `SecurityConfig`.
+  - STOMP `/ws/**` đang permitAll ở tầng HTTP; xác thực JWT khi CONNECT làm ở N3-08.
+  - Tiếp theo: F-14 (apiClient FE), F-12 (seed), F-11 (cả nhóm), rồi N3-01 (OTP).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-10)
+
+### 2026-10-23 — Người 3 — backend (F-05: bảng users)
+- Đã làm: nhánh `feature/user-f-05`. `V1__users.sql` (16 cột theo `database.md` 3.1, CHECK `role`/`otp_purpose`),
+  entity `User` (email tự chuẩn hoá chữ thường), `Role`, `OtpPurpose`, `UserRepository.findByEmail`. Xoá
+  `V1__init_tier1.sql`, `V2__tier2.sql` (placeholder, D-14). `UserRepositoryTest` (5 test, PostgreSQL thật,
+  `ddl-auto=validate`). Nâng Testcontainers 1.19.8 → 1.21.4 (bản cũ không kết nối được Docker Desktop 29, API ≥ 1.44).
+  Docs: `database.md` mục 1, D-14, KI-04.
+- Còn dang dở / TODO tiếp theo:
+  - Ai pull nhánh này: chạy `mvn clean` một lần (target/ còn migration cũ gây "more than one migration with version 1")
+    và reset DB local (`docker compose down -v` rồi `up -d`) vì lịch sử Flyway đổi.
+  - `ddl-auto=validate` vẫn lỗi cho đến khi F-06 (N2) và F-08 (N1) tạo các bảng còn lại; tạm `ddl-auto: none` ở file dev.
+  - Tiếp theo: F-10 (security, xoá `TemporarySecurityConfig`), F-14 (apiClient FE), F-12 (seed), F-11 (cả nhóm).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-05)
+
+### 2026-10-22 — Người 3 — backend (nền móng: F-01, F-02, F-03)
+- Đã làm: nhánh `feature/common-foundation`.
+  - F-01: thêm dependency jjwt, websocket, thymeleaf, OWASP sanitizer, cloudinary, springdoc 2.6.0
+    (khớp Spring Boot 3.3), greenmail (test). `TemporarySecurityConfig` mở Swagger — XOÁ ở F-10.
+  - F-02: `ErrorCode` (39 mã, khớp `api.md` mục 2, có test đối chiếu docs), `BusinessException(ErrorCode, details)`,
+    `GlobalExceptionHandler` (validate → `fieldErrors`, 401/403, 500 không lộ chi tiết), `PageResponse`, `Money`,
+    `SlugUtil`, `HtmlSanitizer`, bean `Clock` (Asia/Ho_Chi_Minh), `RequestIdFilter` (X-Request-Id → MDC/log).
+    Thêm mã `INTERNAL_ERROR` (500) vào `api.md`.
+  - F-03: `AppProperties` (`app.*`, secret JWT bắt buộc ≥ 32 ký tự), `application.yml`
+    (`ddl-auto=validate`, `open-in-view=false`), `.env.example` thêm `NEXT_PUBLIC_WS_URL`.
+- Còn dang dở / TODO tiếp theo:
+  - `ddl-auto=validate` khiến app không khởi động đến khi F-05 xong (entity lệch migration placeholder, KI-04);
+    tạm dùng `ddl-auto: none` trong `application-dev.yml` local.
+  - Máy Windows có JVM timezone `Asia/Saigon` → PostgreSQL từ chối; chạy với `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh`.
+  - `OrderServiceIT` hiện không chạy trong `mvn test` (tên `*IT`, chưa có failsafe) — nhờ N4 (F-04) xử lý.
+  - `BusinessException(String, String, HttpStatus)` là `@Deprecated`; `ProductService`, `OutOfStockException`
+    cần chuyển sang `ErrorCode` (N2, N1). DTO phải ghi message validate bằng tiếng Việt.
+  - Test tích hợp sau này phải cấp `app.jwt.secret` (CI chưa có `JWT_SECRET`).
+  - Tiếp theo: F-05 (bảng users), F-10 (security), F-14 (apiClient FE), F-12 (seed).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-01 → F-03)
+
+### 2026-10-17 — Nguyen Khai Hung — frontend (khung admin)
+- Đã làm: tách root layout `app/(store)` (storefront, CSS `styles/shop` chuyển lên layout này) và `app/(admin)`
+  (Ant Design 5, locale vi_VN); `AdminShell` với sidebar theo role (`lib/admin/nav.ts`), `RequireRole`, trang
+  "đang xây dựng" cho mục chưa làm, 404 riêng cho admin và storefront (catch-all); `types/api/common.ts`,
+  `types/api/catalog.ts`. Docs: D-18, architecture, tech-stack, ui-guidelines, pages, api (mục 4.11), KI-06.
+- Kiểm tra: lint, tsc, build xanh; chạy thử storefront + admin (ADMIN/EMPLOYEE/CUSTOMER) và chụp màn hình.
+- TODO: phiên admin đang giả lập (KI-06) — nối auth thật khi có F-14/N3-03; tiếp theo là BE catalog
+  (migration V2__catalog, API danh mục/sản phẩm) và trang /admin/categories, /admin/products.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N2-17, N2-01, N2-02, N2-18 → N2-21)
+
 ### 2026-10-17 — Nguyen Khai Hung — docs (đồng bộ theo báo cáo Phase1_v4)
 - Đã làm: viết lại bộ docs theo báo cáo Phase1_v4 (5 phân hệ, 6 tác nhân, 22 bảng):
   - `decisions.md` D-00…D-17 (bỏ cho thuê, không sổ địa chỉ, combo tồn kho riêng, giỏ không chốt giá,

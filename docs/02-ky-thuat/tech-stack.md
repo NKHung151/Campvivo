@@ -13,7 +13,9 @@
 | Lưu trữ ảnh | Cloudinary | Upload qua backend (`/admin/uploads/images`) |
 | Sanitize HTML | OWASP Java HTML Sanitizer | Mô tả sản phẩm, nội dung bài viết |
 | Biểu đồ | Recharts | Dashboard |
-| CSS | Tailwind CSS (admin, component mới) + CSS hiện có `styles/shop/` (storefront) | |
+| Giao diện admin | Ant Design 5 (`antd` 5.29.3, `@ant-design/icons` 5.6.1, `@ant-design/nextjs-registry` 1.3.0) | Chỉ nạp trong root layout `(admin)` (D-18) |
+| Soạn thảo nội dung (admin) | TipTap 3.31.3 (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-image`, `@tiptap/extensions`, `@tiptap/pm`, `@tiptap/core`) | Mô tả sản phẩm (sau này: nội dung bài viết). Xuất HTML; ảnh chèn vào tải lên Cloudinary; backend vẫn làm sạch bằng `HtmlSanitizer` |
+| CSS storefront | CSS thuần `styles/shop/*` (chỉ nạp trong root layout `(store)`) | Không SCSS; Tailwind có trong package.json nhưng chưa dùng |
 | CI | GitHub Actions | Build + lint khi tạo PR vào `dev`/`main` |
 | Test backend | JUnit 5 + Spring Boot Test + Testcontainers (PostgreSQL thật) | Bắt buộc cho transaction/locking |
 | Test frontend | ESLint + `next build`; e2e (Playwright) cho luồng mua hàng nếu kịp | |

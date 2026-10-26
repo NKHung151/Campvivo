@@ -15,7 +15,7 @@ export function ViewedStrip({ current }: { current: string }) {
   useEffect(() => {
     if (!ready || !key) return;
     let alive = true;
-    fetch(`/api/mock/cards?slugs=${key}`)
+    fetch(`/api/catalog/cards?slugs=${key}`)
       .then((r) => r.json())
       .then((d: ProductCard[]) => alive && setCards(d))
       .catch(() => {});
