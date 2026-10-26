@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -36,4 +37,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("update User u set u.otpCodeHash = null, u.otpPurpose = null, u.otpExpiresAt = null, u.otpAttempts = 0, "
             + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.otpCodeHash is not null")
     int clearOtp(@Param("id") Long id);
+
+    /** Đánh dấu email đã xác thực (một câu UPDATE nguyên tử). */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update User u set u.emailVerified = true, u.updatedAt = CURRENT_TIMESTAMP where u.id = :id")
+    int markEmailVerified(@Param("id") Long id);
 }
