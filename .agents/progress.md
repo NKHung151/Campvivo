@@ -17,6 +17,26 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-26 — Người 3 — backend (N3-01: OTP + gửi email)
+- Đã làm: nhánh `feature/auth-n3-01-otp`. `OtpService` (BR-11: mã 6 số `SecureRandom`, chỉ lưu BCrypt, hạn `app.otp.ttl`, tối đa
+  `app.otp.max-attempts` lần thử, gửi lại cách ≥ `app.otp.resend-interval`; `issue(User, purpose)` ghi OTP vào entity, `verify(userId,
+  purpose, code)` chạy giao dịch RIÊNG REQUIRES_NEW: lượt đoán không bị mất khi người gọi rollback, tăng lượt bằng UPDATE nguyên tử nên
+  đoán song song không vượt giới hạn, OTP dùng một lần), `MailService` (gửi đồng bộ, mẫu Thymeleaf `templates/mail/otp.html`, tiêu đề theo
+  mục đích, escape HTML, lỗi → `EMAIL_SEND_FAILED`, không log mã), cấu hình `spring.mail.*` (mặc định Mailpit `localhost:1025`, timeout
+  5/10 giây), `management.health.mail.enabled=false`, `app.mail.from/from-name`, thêm **Mailpit** vào `docker-compose.yml` (đọc thư ở
+  http://localhost:8025). Test: `OtpServiceTest` (14, PostgreSQL thật: gồm đoán song song, rollback người gọi, hết hạn đúng biên),
+  `MailServiceTest` (5, GreenMail). Kiểm tra "đột biến": cố ý làm yếu giới hạn lượt đoán và giao dịch riêng → đúng 4 test đỏ.
+  Đã gửi thử thư thật tới Mailpit và xem lại nội dung. Docs: `tech-stack.md`, `docker.md`, `local-development.md`,
+  `troubleshooting.md`, `.env.example` (SMTP_* để comment: biến rỗng ghi đè mặc định).
+- Còn dang dở / TODO tiếp theo:
+  - N3-02 (PR kế tiếp): `register`, `verify-email`, `resend-code`. Người gọi `issue()` phải lưu user trong giao dịch của mình và gửi mail
+    SAU `issue()` (lỗi mail → rollback, không tạo user/OTP). `verify()` đừng gọi khi giao dịch của người gọi đang giữ thay đổi chưa commit
+    trên chính dòng user đó. Tạo giỏ hàng rỗng khi đăng ký: bảng `carts` chưa có → dùng stub `CartService.createForUser` (F-11), ghi TODO.
+  - `otp_last_sent_at` được GIỮ khi OTP dùng xong (vẫn giới hạn tần suất gửi lại); BR-11 chỉ nói "xoá các cột OTP".
+  - Mặc định SMTP `localhost:1025` ở môi trường thật sẽ gây `EMAIL_SEND_FAILED` nếu quên đặt `SMTP_*`.
+  - Test OTP dùng `MutableTestClock` lồng riêng trong test; khi F-04 (Người 4) có `MutableClock` chung thì gom lại.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-01)
+
 ### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
 - Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích
   lý do và khi nào đổi lại), vì `validate` làm backend báo `missing table [...]` đến khi F-06 → F-09 merge và ai copy `.example`

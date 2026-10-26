@@ -186,7 +186,7 @@ bằng Swagger/Postman trước khi sửa FE.
 
 | ID | Tuần | Task | Phụ thuộc | Kiểm tra |
 |---|---|---|---|---|
-| - [ ] N3-01 | 4 | `OtpService` (BR-11: sinh `SecureRandom`, hash BCrypt, TTL, đếm sai, chống gửi lại sớm) + `MailService` gửi đồng bộ, template Thymeleaf `otp.html` | F-10 | Unit test với `MutableClock`: hết hạn, sai 5 lần, gửi lại < 60s; GreenMail nhận được thư chứa mã |
+| - [x] N3-01 | 4 | `OtpService` (BR-11: sinh `SecureRandom`, hash BCrypt, TTL, đếm sai, chống gửi lại sớm) + `MailService` gửi đồng bộ, template Thymeleaf `otp.html` | F-10 | Unit test với `MutableClock`: hết hạn, sai 5 lần, gửi lại < 60s; GreenMail nhận được thư chứa mã |
 | - [ ] N3-02 | 4 | `POST /auth/register` (email chưa xác thực → ghi đè + gửi lại mã), `POST /auth/verify-email` (trả token), `POST /auth/resend-code`; gọi `CartService.createForUser` | N3-01 | IT: đăng ký → user `email_verified=false` + có giỏ; verify đúng mã → token dùng được; email đã xác thực → `EMAIL_ALREADY_EXISTS`; lỗi gửi mail → `EMAIL_SEND_FAILED`, không tạo user |
 | - [x] N3-03 | 4 | `POST /auth/login` (`INVALID_CREDENTIALS`, `EMAIL_NOT_VERIFIED`, `ACCOUNT_DISABLED`), `POST /auth/logout` (tăng `token_version`) | N3-02 | IT: logout xong token cũ gọi `/users/me` → 401; sai mật khẩu và email không tồn tại trả cùng 1 lỗi |
 | - [ ] N3-04 | 4 | `POST /auth/forgot-password` (luôn 200), `POST /auth/reset-password` (đổi hash, tăng `token_version`, set `email_verified`) | N3-01 | IT: email không tồn tại → 200, không gửi thư; reset xong token cũ → 401, mật khẩu mới đăng nhập được |
