@@ -12,7 +12,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/categories/[slug]` | Sản phẩm theo danh mục (gồm danh mục con), bộ lọc, sắp xếp | `GET /products?category=` | ✅ |
 | `/categories/san-pham-moi` | Hàng mới về — slug đặc biệt, không phải danh mục DB | `GET /products?sortBy=newest` | ✅ |
 | `/combos?category=` | Danh sách combo, lọc theo danh mục cấp 1; giá gạch = tổng giá lẻ. Mục "Combo" trên menu chính | `GET /combos` | ✅ |
-| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả; chưa có thêm giỏ — thuộc phần giỏ hàng — yêu thích, đánh giá, gợi ý) |
+| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả, chọn số lượng + Mua ngay/Thêm vào giỏ; chưa có yêu thích, đánh giá, gợi ý) |
 | `/brands`, `/brands/[slug]` | Thương hiệu (từ `products.brand`, slug = slugify(brand)) | `GET /brands`, `GET /products?brand=` | ✅ |
 | `/search?q=&type=` | Kết quả tìm kiếm: tab Sản phẩm / Combo / Bài viết | `GET /search` | ✅ (thiếu tab Combo) |
 | `/promotions/[slug]` | Trang chiến dịch giảm giá | `GET /campaigns/{slug}` | ✅ |
@@ -34,12 +34,13 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 ## Customer (role CUSTOMER) — `src/app/(store)/(shop)/cart`, `src/app/(store)/account/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
-| `/cart` | Giỏ hàng + thanh toán trên **một trang** (quyết định có chủ đích): danh sách dòng (giá hiện hành, cảnh báo hết hàng/ngừng bán), form người nhận (tự điền từ hồ sơ, tick "lưu làm mặc định"), voucher, phương thức VNPay/COD, tóm tắt tiền | `/cart`, `/orders/preview`, `/vouchers/validate`, `POST /orders` | ✅ (mock) |
+| `/cart` | Giỏ hàng + thanh toán trên **một trang** (quyết định có chủ đích): danh sách dòng (giá hiện hành, cảnh báo hết hàng/ngừng bán), form người nhận (Tỉnh/Quận/Phường GHN, tick "lưu vào hồ sơ"), voucher, phương thức VNPay/COD, tóm tắt tiền do server tính (phí ship GHN) | `/cart`, `/orders/preview`, `/shipping/*`, `POST /orders` | ✅ (API thật; chưa đăng nhập → mời đăng nhập; voucher báo `INVALID_VOUCHER` đến khi có module promotion) |
 | `/checkout` | Chuyển hướng về `/cart` | — | ✅ |
-| `/checkout/success?orderId=` | Kết quả đặt hàng. COD: thành công. VNPay: trang return của VNPay trỏ về đây, gọi API return để hiển thị đúng trạng thái (thành công / thất bại / đang chờ) | `GET /payments/vnpay/return`, `GET /orders/{id}` | ✅ (mock) |
+| `/checkout/success?orderId=` | Kết quả đặt hàng theo trạng thái đơn thật: COD chờ xác nhận / VNPay thành công / thất bại / đang chờ (hỏi lại 5 lần × 2s); mã vận đơn GHN nếu có | `GET /orders/{id}` | ✅ |
+| `/payment/vnpay-return` | Return URL của VNPay (`VNP_RETURN_URL`, D-28): gửi query `vnp_*` cho backend ghi nhận rồi chuyển `/checkout/success?orderId=` | `GET /vnpay/return` | ✅ |
 | `/account` | Hồ sơ: họ tên, SĐT, địa chỉ mặc định; đổi mật khẩu | `/users/me`, `/users/me/password` | ✅ (hiện là trang tab — tách thành route con) |
-| `/account/orders` | Lịch sử đơn, lọc theo trạng thái | `GET /orders` | ✅ (tab) |
-| `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn), Viết đánh giá từng dòng | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `POST /reviews` | ⬜ |
+| `/account/orders` | Lịch sử đơn, lọc theo trạng thái | `GET /orders` | ✅ (tab "Đơn hàng của tôi" trong `/account`, API thật, "Xem thêm") |
+| `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, mã vận đơn GHN, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn), Viết đánh giá từng dòng | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `POST /reviews` | 🟡 (đã có chi tiết + huỷ; trả hàng, đánh giá chờ module tương ứng) |
 | `/account/reviews` | Đánh giá của tôi: sửa, xoá | `/users/me/reviews`, `PUT/DELETE /reviews/{id}` | ⬜ |
 | `/account/favorites` | Yêu thích: tab Sản phẩm / Combo / Bài viết | `/users/me/favorites`, `DELETE /favorites/{id}` | ✅ (tab) |
 | `/account/notifications` | Thông báo: lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | `/notifications` | ⬜ |
@@ -53,8 +54,8 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | Route | Trang | Quyền | API |
 |---|---|---|---|
 | `/admin` | Dashboard: doanh thu, số đơn theo trạng thái, biểu đồ theo ngày/tháng/năm, top mặt hàng. Employee vào `/admin` được chuyển tới `/admin/orders` | Admin | `/admin/analytics/*` |
-| `/admin/orders` | Danh sách đơn, lọc trạng thái/phương thức/ngày, tìm mã đơn/email/SĐT | Staff | `GET /admin/orders` |
-| `/admin/orders/[id]` | Chi tiết đơn + lịch sử; nút chuyển trạng thái hợp lệ (kèm ghi chú) | Staff | `/admin/orders/{id}`, `PATCH .../status` |
+| `/admin/orders` | Danh sách đơn, lọc trạng thái/phương thức/ngày, tìm mã đơn/email/họ tên/SĐT ✅ | Staff | `GET /admin/orders` |
+| `/admin/orders/[id]` | Chi tiết đơn + lịch sử; chỉ hiện nút chuyển trạng thái server cho phép (kèm ghi chú, huỷ bắt buộc lý do); vận đơn GHN: tạo lại khi lỗi, xem hành trình ✅ | Staff | `/admin/orders/{id}`, `PATCH .../status`, `.../shipment` |
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
 | `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |

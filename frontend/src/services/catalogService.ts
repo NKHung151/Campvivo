@@ -83,7 +83,8 @@ const getMockPromos = cache(
     ) ?? {}
 );
 export const getCartData = cache(() =>
-  readJson<{ csvcHtml: string; pvcHtml: string; provinces: { v: string; n: string }[] }>(
+  // Danh sách tỉnh trong cart.json không còn dùng: địa chỉ lấy từ GHN (/api/shipping/*)
+  readJson<{ csvcHtml: string; pvcHtml: string }>(
     "cart.json"
   )!
 );
@@ -190,6 +191,7 @@ function toProductFull(
   const images = [...d.images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
   const sale = d.originalPrice > d.price;
   return {
+    id: d.id,
     slug: d.slug,
     name: d.name,
     brand: d.brand ?? "",

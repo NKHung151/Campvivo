@@ -17,6 +17,67 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-26 — Người 1 (Claude Code) — order admin + đơn của khách (Phần 3/3)
+- Đã làm: backend `GET /api/orders` (lọc, phân trang), `POST /api/orders/{id}/cancel` (`OrderService.cancelByCustomer`);
+  `order/admin/` (`AdminOrderController`, `AdminOrderService`, `AdminOrderResponses`): `GET /api/admin/orders` (trạng thái, phương thức,
+  ngày theo giờ VN, tìm mã đơn/SĐT/email/họ tên qua `UserService.findIdsByKeyword`), `GET /{id}` (+ `allowedStatuses`,
+  `canCreateShipment`), `PATCH /{id}/status` (chỉ COD được xác nhận/huỷ tay, huỷ bắt buộc note, SHIPPING tự ghi mã vận đơn),
+  `POST|GET /{id}/shipment` (tạo lại vận đơn GHN / xem hành trình). `@BatchSize` cho items/history. `UserService.profiles`.
+  Frontend: `npm install` (antd/tiptap còn thiếu), `/admin/orders` (`OrderListView`), `/admin/orders/[id]` (`OrderDetailView`:
+  nút theo `allowedStatuses`, modal ghi chú, vận đơn + hành trình GHN, lịch sử), `lib/orderStatus.ts` (nhãn dùng chung),
+  tab "Đơn hàng của tôi" dùng API (`MyOrders`), `/account/orders/[id]` (`MyOrderDetail`, huỷ đơn); bỏ đơn mock (`OrderCard`,
+  `Order`/`CartItem` trong `types/shop.ts`, `orders` trong ShopProvider). Docs: api.md 4.5/4.10, pages.md, user-flows mục 7.
+- Kiểm chứng: compile + unit test xanh; `AdminOrderIntegrationTest` (5 ca) biên dịch được, CHƯA chạy (Docker tắt). Chạy thật trên DB tạm
+  (đã xoá): 24/24 bước (list/huỷ của khách, lọc/tìm admin, máy trạng thái, COD → vận đơn GHN tự tạo, xem hành trình, hoàn tất → COD
+  đã thu) + nhánh lỗi GHN (lỗi lưu lại → tạo lại 502 khi còn sai → sửa xong tạo lại OK). Sửa lỗi LazyInitialization ở tạo lại vận đơn.
+  Vận đơn GHN thử nghiệm đã huỷ. Frontend: tsc + lint sạch; các trang mới trả 200 trên dev server.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy `./scripts/agent-test.sh` khi bật Docker; thử trên trình duyệt (admin + employee + khách).
+  - Trả hàng (FR-19), đánh giá, thông báo/email theo sự kiện đơn — module khác / Tier 2.
+  - Chưa có webhook trạng thái GHN (nhân viên vẫn chuyển SHIPPING/COMPLETED tay, "Xem hành trình" đọc trực tiếp GHN).
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
+
+### 2026-10-26 — Người 1 (Claude Code) — cart, order, payment, inventory (Phần 2/3: đơn hàng + VNPay)
+- Đã làm: `V5__order_schema.sql` (7 bảng mua hàng + cột GHN trên `orders`; `voucher_id` chưa FK). Viết lại `cart`/`order` (xoá code
+  khung lệch docs + `OrderServiceIT` rỗng). `InventoryService` (khoá theo thứ tự, reserve/commit/release, refresh sau khoá),
+  `CartService`/`CartController`, `OrderService` (preview + create đúng database.md mục 6; hỏi GHN trước khi khoá),
+  `OrderStateService` (nơi duy nhất đổi trạng thái), `OrderQueryService`, `OrderTimeoutJob` (BR-3), `OrderShipmentService` +
+  `OrderShipmentListener` (vận đơn GHN @Async sau commit khi CONFIRMED). `payment`: `Payment`, `PaymentGateway`, `VnpayService`
+  (2.1.0, HMAC-SHA512, ×100), `PaymentResultService.handlePaymentResult` (Return URL + IPN), `VnpayController`
+  (`/api/vnpay/return|ipn`). `promotion`: `PricingService` (giá = giá gốc), `VoucherService` (mọi mã INVALID_VOUCHER) làm điểm cắm.
+  Cấu hình deploy: `VNP_*`, `APP_CORS_ALLOWED_ORIGINS`, `APP_FRONTEND_URL`, `PORT`, `forward-headers-strategy`.
+  Frontend: `ShopProvider` dùng giỏ API, `cartService`/`orderService`, `CartPage` tách `CartLines`/`DeliveryInfoModal`/`useOrderPreview`,
+  đặt hàng thật (PRICE_CHANGED hỏi xác nhận), `/checkout/success` đọc đơn thật, route `/payment/vnpay-return`, nút mua ở trang combo.
+  Docs: D-28, api.md, database.md, architecture, pages, user-flows, features FR-11, known-issues KI-07..09, deployment, `.env.example`.
+- Kiểm chứng: unit test xanh (`VnpayServiceTest`, `OrderStatusTest`, GHN/shipping/config/error code); `OrderPaymentFlowIntegrationTest`
+  (9 ca) biên dịch được nhưng CHƯA chạy (Docker tắt). Chạy thật trên DB tạm `campvivo_verify` (đã xoá): `ddl-auto=validate` OK; 26/26
+  bước end-to-end (giỏ, preview, PRICE_CHANGED, COD, VNPay URL được sandbox chấp nhận, Return/IPN thành công/lặp/sai chữ ký/sai tiền/
+  thất bại, vận đơn GHN tự tạo); 10 khách đặt song song hàng còn 3 → đúng 3 đơn, không deadlock; job hết hạn huỷ đơn + trả giữ chỗ.
+  Vận đơn GHN thử nghiệm đã huỷ. Frontend: lint + tsc sạch (trừ admin thiếu antd), các trang trả 200.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy `./scripts/agent-test.sh` khi bật Docker. Thử trên trình duyệt (đăng nhập khách → giỏ → đặt COD/VNPay với thẻ test).
+  - DB `campvivo` của người dùng sẽ chạy V5 khi khởi động lại backend.
+  - Phần 3: `GET /orders` + huỷ đơn (khách, tab đơn hàng /account đang còn mock), admin/employee `/admin/orders` (lọc, chi tiết,
+    đổi trạng thái, xác nhận COD → tạo vận đơn, tạo lại vận đơn khi lỗi).
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
+
+### 2026-10-26 — Người 1 (Claude Code) — shipping (Phần 1/3: GHN)
+- Đã làm: nhánh `feature/order-payment-service`. Module backend `shipping`: `GhnService` (tỉnh/quận/phường có cache, gói dịch vụ,
+  tính phí, tạo vận đơn, chi tiết vận đơn), `ShippingService` (cân = số món × `app.ghn.default-weight`, miễn phí từ
+  `app.shipping.free-threshold`), `ShippingController` `/api/shipping/*` (công khai). `app.ghn.*` ← `GHN_*`; backend nạp `.env`
+  gốc qua `spring.config.import`, tự bỏ nháy ở giá trị chuỗi. Mã lỗi `SHIPPING_GATEWAY_ERROR` (502). Bỏ `app.shipping.fee`.
+  Frontend: `services/shippingService.ts`, `types/api/shipping.ts`, `AddressSelects` (3 dropdown GHN), `useShippingFee` (tự tính lại
+  khi đổi địa chỉ/số món/giá trị đơn); `/cart` dùng 2 thứ này, xoá `geo.ts`. Docs: D-27, `api.md` 4.12, tech-stack, `.env.example`,
+  local-development. Plan: `.agents/plans/active/order-payment-shipping.md`.
+- Kiểm chứng: `GhnServiceTest` (HTTP server giả), `ShippingServiceTest`, `AppPropertiesTest`, `ErrorCodeTest` xanh; lint frontend sạch,
+  tsc sạch ở file đã sửa (lỗi còn lại do `node_modules` thiếu antd/tiptap — cần `npm install`). Smoke test với GHN staging thật:
+  tỉnh/quận/phường, gói dịch vụ, phí ship, miễn phí, địa chỉ sai → 502. Đã tạo + huỷ 1 vận đơn thử trên staging (`L8EAQ4`).
+- Còn dang dở / TODO tiếp theo:
+  - `ShippingControllerTest` CHƯA chạy được (Docker Desktop tắt — Testcontainers).
+  - Chưa thử trên trình duyệt (người dùng test theo checklist).
+  - Phần 2: F-08 migration + giỏ/đơn hàng API + VNPay (`handlePaymentResult` cho Return URL + IPN) + tạo vận đơn GHN. Phần 3: quản lý đơn.
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
+
 ### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
 - Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích
   lý do và khi nào đổi lại), vì `validate` làm backend báo `missing table [...]` đến khi F-06 → F-09 merge và ai copy `.example`

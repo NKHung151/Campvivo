@@ -1,6 +1,10 @@
 spring:
   application:
     name: campvivo-backend
+  config:
+    # Nạp biến từ file .env ở gốc repo (chạy backend từ thư mục backend/) hoặc .env cạnh nơi chạy.
+    # Biến môi trường thật của hệ điều hành vẫn được ưu tiên hơn giá trị trong file.
+    import: "optional:file:../.env[.properties],optional:file:.env[.properties]"
   profiles:
     active: dev
   servlet:
@@ -17,7 +21,9 @@ logging:
     # Thêm mã request (RequestIdFilter) vào mỗi dòng log
     level: "%5p [%X{requestId:-}]"
 server:
-  port: 8080
+  port: ${PORT:8080}
+  # Sau reverse proxy (nginx, Render, Railway...): lấy IP/scheme thật từ X-Forwarded-* (vnp_IpAddr, log)
+  forward-headers-strategy: framework
 management:
   endpoints:
     web:
@@ -36,24 +42,47 @@ app:
     resend-interval: 60s
   order:
     payment-timeout: 15m
+    timeout-job-delay: 60s
   return:
     window-days: 7
   shipping:
-    fee: 30000
     free-threshold: 1000000
   inventory:
     low-stock-threshold: 5
   vnpay:
-    tmn-code: ${VNPAY_TMN_CODE:}
-    hash-secret: ${VNPAY_HASH_SECRET:}
-    pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
-    return-url: ${VNPAY_RETURN_URL:}
-    ipn-url: ${VNPAY_IPN_URL:}
+    tmn-code: ${VNP_TMN_CODE:}
+    hash-secret: ${VNP_HASH_SECRET:}
+    pay-url: ${VNP_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    # Trang kết quả ở frontend, vd. http://localhost:3000/payment/vnpay-return (production: https://<domain>/payment/vnpay-return)
+    return-url: ${VNP_RETURN_URL:}
+    # Chỉ để tham khảo — IPN URL thật khai báo ở cổng merchant VNPay: https://<backend>/api/vnpay/ipn
+    ipn-url: ${VNP_IPN_URL:}
+    locale: vn
+    order-type: other
+  ghn:
+    token: ${GHN_TOKEN:}
+    shop-id: ${GHN_SHOP_ID:}
+    base-url: ${GHN_BASE_URL:https://dev-online-gateway.ghn.vn}
+    from-district-id: ${GHN_FROM_DISTRICT_ID:0}
+    from-ward-code: ${GHN_FROM_WARD_CODE:}
+    service-type-id: ${GHN_SERVICE_TYPE_ID:2}
+    default-weight: ${GHN_DEFAULT_WEIGHT:500}
+    # Kích thước kiện (cm) dùng chung: GHN tính cân quy đổi = D×R×C/5000 (g), để nhỏ để phí theo cân nặng thật
+    parcel-length: 20
+    parcel-width: 15
+    parcel-height: 10
+    # Ghi chú giao hàng bắt buộc của GHN: CHOTHUHANG | CHOXEMHANGKHONGTHU | KHONGCHOXEMHANG
+    required-note: CHOXEMHANGKHONGTHU
+    master-data-cache-ttl: 12h
+    timeout: 10s
+    # Tự tạo vận đơn GHN khi đơn chuyển CONFIRMED (VNPay đã thanh toán / nhân viên xác nhận COD)
+    auto-create-shipment: ${GHN_AUTO_CREATE_SHIPMENT:true}
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
     folder: campvivo
   cors:
-    allowed-origins: http://localhost:3000
-  frontend-url: http://localhost:3000
+    # Deploy: đặt APP_CORS_ALLOWED_ORIGINS=https://<domain frontend> (nhiều origin cách nhau dấu phẩy)
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}

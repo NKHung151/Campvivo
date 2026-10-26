@@ -33,6 +33,8 @@ export interface FbtItem {
 }
 
 export interface ProductFull {
+  /** id sản phẩm (API) — dùng cho giỏ hàng. */
+  id: number;
   slug: string;
   name: string;
   brand: string;

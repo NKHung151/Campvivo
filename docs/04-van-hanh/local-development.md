@@ -32,7 +32,7 @@ Làm theo thứ tự. Lệnh dạng PowerShell (Windows); trên macOS/Linux dùn
 ```bash
 cd backend
 cp src/main/resources/application-dev.yml.example src/main/resources/application-dev.yml
-# điền DB url/user/pass, JWT_SECRET, SMTP, VNPAY_*; không commit file đã điền secret thật
+# điền DB url/user/pass, JWT_SECRET; VNP_*, GHN_*, SMTP... đặt ở .env gốc (backend tự nạp); không commit secret thật
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 Flyway tự chạy migration khi khởi động. Mặc định `application.yml` đặt `ddl-auto=validate`, nhưng `application-dev.yml.example`
@@ -47,12 +47,23 @@ Profile dev nạp thêm dữ liệu mẫu catalog (`db/seed` — danh mục, s�
 **Email khi dev:** dùng SMTP thật (Gmail App Password) hoặc Mailpit/MailHog (`localhost:1025`, xem
 thư ở `localhost:8025`) để nhận OTP.
 
-**VNPay sandbox:**
-1. Đăng ký tài khoản merchant sandbox tại VNPay, lấy `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`.
-2. `ngrok http 8080` → lấy URL public, đặt `app.vnpay.ipn-url = https://<ngrok>/api/payments/vnpay/ipn`
-   và khai báo IPN URL này trong trang quản trị sandbox của VNPay.
-3. `app.vnpay.return-url = http://localhost:3000/checkout/success`.
-4. Dùng thẻ test do VNPay cung cấp trong tài liệu sandbox.
+**Biến môi trường từ `.env`:** backend tự nạp file `.env` ở gốc repo khi chạy từ thư mục `backend/`
+(`spring.config.import`), nên `GHN_*`, `VNP_*`... không cần khai lại trong `application-dev.yml`.
+
+**GHN staging (D-27):** điền `GHN_TOKEN`, `GHN_SHOP_ID`, `GHN_FROM_DISTRICT_ID`, `GHN_FROM_WARD_CODE` trong `.env` (mẫu
+`.env.example`). Kiểm tra nhanh: `GET http://localhost:8080/api/shipping/provinces` trả danh sách tỉnh; trang `/cart` → "Thông
+tin giao hàng" có 3 dropdown Tỉnh/Quận/Phường và dòng "Phí vận chuyển" tự tính lại. Lỗi `SHIPPING_GATEWAY_ERROR` → xem log
+backend (dòng `GHN ... trả HTTP ...`), thường do thiếu biến hoặc mã phường/quận kho sai.
+
+**VNPay sandbox (D-28):**
+1. Đăng ký merchant sandbox, điền `VNP_TMN_CODE`, `VNP_HASH_SECRET`, `VNP_URL`, `VNP_RETURN_URL=http://localhost:3000/payment/vnpay-return`
+   trong `.env`.
+2. Ở localhost không cần IPN: trang `/payment/vnpay-return` gửi kết quả cho `GET /api/vnpay/return`, backend kiểm chữ ký và
+   ghi nhận bằng cùng hàm với IPN. Muốn thử IPN thật: `ngrok http 8080` rồi khai báo `https://<ngrok>/api/vnpay/ipn` ở cổng
+   quản trị sandbox VNPay.
+3. Thẻ test (tài liệu sandbox VNPay): ngân hàng NCB, số thẻ `9704198526191432198`, tên `NGUYEN VAN A`, ngày phát hành `07/15`,
+   OTP `123456`.
+4. Thanh toán xong, đơn chuyển CONFIRMED và vận đơn GHN staging được tạo tự động (xem mã vận đơn ở trang kết quả).
 
 ## Frontend
 ```bash

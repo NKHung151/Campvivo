@@ -10,7 +10,7 @@
                           ┌────────────────────────┼────────────────────┐
                           ▼                        ▼                    ▼
                   VNPay (sandbox)           SMTP (email)        Cloudinary (ảnh)
-                  redirect + IPN
+                  redirect + IPN            GHN (vận chuyển: địa chỉ, phí ship, vận đơn)
 ```
 
 ## Backend — phân module theo package (không theo layer)
@@ -27,7 +27,8 @@ Entity/DTO của mình. Ánh xạ module ↔ bảng: `database.md` mục 2.
 | `inventory` | Xem/điều chỉnh tồn kho, nhật ký; API nội bộ reserve/release/commit/restock | `inventory_logs` (cập nhật cột tồn kho của products/product_combos) |
 | `cart` | Giỏ hàng | `carts`, `cart_items` |
 | `order` | Tạo đơn, máy trạng thái, huỷ, trả hàng, job timeout | `orders`, `order_items`, `order_status_history`, `return_requests` |
-| `payment` | `PaymentGateway`, VNPay, IPN/return | `payments` |
+| `payment` | `PaymentGateway`, `VnpayService`, `PaymentResultService.handlePaymentResult` (Return URL + IPN) | `payments` |
+| `shipping` | `GhnService` (client GHN), `ShippingService` (quy tắc phí ship) — D-27 | — |
 | `promotion` | Voucher, chiến dịch, `PricingService` (tính giá BR-4/5/6) | `vouchers`, `discount_campaigns`, `discount_campaign_products` |
 | `review` | Đánh giá | `reviews` |
 | `favorite` | Yêu thích | `favorites` |
@@ -79,9 +80,13 @@ public interface PaymentGateway {
     IpnResult verifyIpn(Map<String, String> params);         // kiểm chữ ký, trích orderCode, amount, success, transactionId
 }
 ```
-- Hiện có `VnpayGateway`. `PaymentGatewayResolver` chọn theo `PaymentMethod`. COD không cần gateway.
-- Thêm MoMo = thêm `MomoGateway` + giá trị enum + endpoint IPN `/payments/momo/ipn`; không sửa `OrderService`.
-- Xử lý kết quả IPN dùng chung `PaymentService.handleIpnResult(...)` (BR-12).
+- Hiện có `VnpayService implements PaymentGateway`; `PaymentService` chọn cổng theo `PaymentMethod`. COD không cần gateway.
+- Thêm MoMo = thêm bean `PaymentGateway` mới + giá trị enum + endpoint callback (vd. `/api/momo/ipn`) gọi
+  `PaymentResultService.handlePaymentResult(MOMO, params)`; không sửa `OrderService`.
+- Kết quả thanh toán (Return URL và IPN) dùng chung `PaymentResultService.handlePaymentResult` (BR-12, D-28).
+- Trạng thái đơn chỉ đổi qua `OrderStateService` (khoá đơn, máy trạng thái, tồn kho qua `InventoryService`, lịch sử, sự kiện).
+- Vận đơn GHN: `OrderShipmentListener` nghe `OrderStatusChangedEvent` (→ CONFIRMED, `@Async` + AFTER_COMMIT) gọi
+  `OrderShipmentService.createShipment`.
 
 ## Realtime (D-15)
 - Spring WebSocket + STOMP, endpoint `/ws`, simple broker `/queue`, user destination `/user`.
@@ -90,8 +95,8 @@ public interface PaymentGateway {
   nhân viên → gửi tới khách.
 
 ## Job định kỳ
-- `OrderTimeoutJob` (BR-3) — `@Scheduled(fixedDelay = 60000)`.
-- Bật `@EnableScheduling`, `@EnableAsync` trong `common/config`.
+- `OrderTimeoutJob` (BR-3) — đăng ký bằng `SchedulingConfigurer`, chu kỳ `app.order.timeout-job-delay` (60s).
+- Bật `@EnableScheduling`, `@EnableAsync` trong `common/config/AsyncSchedulingConfig`.
 
 ## Frontend — hai root layout, phân theo feature (D-18)
 ```

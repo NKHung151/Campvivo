@@ -20,7 +20,8 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 - Ký hiệu trong bảng cột: **U** = unique, **N** = nullable (không ghi = NOT NULL),
   **(+)** = cột bổ sung so với báo cáo.
 - Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
-  migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6); các bảng còn lại được thêm dần bằng migration mới theo
+  migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6), `V5__order_schema.sql` (F-08) tạo 7 bảng
+mua hàng (mục 3.7–3.13; V3/V4 là seed); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).
 
@@ -178,14 +179,20 @@ Unique `(combo_id, product_id)`.
 | final_amount | NUMERIC(19,0) | `= subtotal − discount_amount + shipping_fee` |
 | recipient_name | VARCHAR(100) | (+) snapshot |
 | recipient_phone | VARCHAR(20) | (+) snapshot |
-| shipping_address | VARCHAR(500) | snapshot |
+| shipping_address | VARCHAR(500) | snapshot — địa chỉ đầy đủ (số nhà, phường, quận, tỉnh) |
+| shipping_district_id | INT | (+) mã quận GHN (D-27) |
+| shipping_ward_code | VARCHAR(20) | (+) mã phường GHN |
+| shipping_order_code | VARCHAR(50) | (+) U, N — mã vận đơn GHN; NULL = chưa tạo (D-28) |
+| shipping_order_error | VARCHAR(500) | (+) N — lỗi lần tạo vận đơn gần nhất (để tạo lại) |
 | payment_method | VARCHAR(30) | (+) `VNPAY` \| `COD` (MoMo thêm sau) |
 | status | VARCHAR(30) | `PENDING` \| `CONFIRMED` \| `SHIPPING` \| `COMPLETED` \| `CANCELLED` \| `PAYMENT_FAILED` \| `RETURNED` |
 | note | VARCHAR(500) | N — ghi chú của khách |
 | completed_at | timestamptz | (+) N — thời điểm chuyển COMPLETED; dùng cho thời hạn trả hàng và thống kê doanh thu |
 | created_at, updated_at | timestamptz | |
 
-`CHECK (subtotal >= 0 AND discount_amount >= 0 AND discount_amount <= subtotal AND shipping_fee >= 0)`.
+`CHECK (subtotal >= 0 AND discount_amount >= 0 AND discount_amount <= subtotal AND shipping_fee >= 0 AND
+final_amount = subtotal − discount_amount + shipping_fee)`. `voucher_id` chưa có FK cho tới khi migration promotion (F-07) tạo
+bảng `vouchers` (migration đó thêm FK).
 
 ### 3.10 `order_items`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -395,7 +402,7 @@ Mọi tham số có tên `app.*` là cấu hình trong `application.yml` (không
 | Điều chỉnh thủ công (FR-08) | ± change (ghi `inventory_logs`) | — |
 Các bước sau CONFIRMED (SHIPPING, COMPLETED) không đổi tồn kho.
 
-**BR-3 — Huỷ đơn quá hạn.** Job `@Scheduled(fixedDelay = 60s)` tìm đơn `payment_method = VNPAY`,
+**BR-3 — Huỷ đơn quá hạn.** Job (`OrderTimeoutJob`, mỗi `app.order.timeout-job-delay` = 60s) tìm đơn `payment_method = VNPAY`,
 `status = PENDING`, `created_at < now() − app.order.payment-timeout` (mặc định 15 phút); mỗi đơn xử
 lý trong transaction riêng, khoá lại đơn và kiểm tra vẫn còn PENDING rồi mới huỷ (như huỷ thường,
 `changed_by = NULL`, note "Hết hạn thanh toán"). URL VNPay đặt `vnp_ExpireDate` = thời điểm tạo +
@@ -408,8 +415,8 @@ cùng khoảng thời gian. Đơn COD không có timeout.
   - Combo: `original_price = unit_price = combo_price` (không áp chiến dịch).
   - `line_total = unit_price × quantity`; `subtotal = Σ line_total`.
 - `discount_amount` theo BR-5 (0 nếu không có voucher).
-- `shipping_fee = 0` nếu `subtotal − discount_amount ≥ app.shipping.free-threshold`, ngược lại
-  `app.shipping.fee` (D-17).
+- `shipping_fee = 0` nếu `subtotal − discount_amount ≥ app.shipping.free-threshold`, ngược lại phí GHN theo địa chỉ
+  (D-27; hỏi GHN trước khi khoá tồn kho, không giữ khoá trong lúc gọi dịch vụ ngoài).
 - `final_amount = subtotal − discount_amount + shipping_fee`.
 - Nếu `final_amount ≠ expectedTotal` (client gửi) → `409 PRICE_CHANGED` kèm bảng giá mới, không tạo đơn.
 - `order_items` không bao giờ đổi sau khi tạo.
@@ -471,8 +478,9 @@ không ghi log (truy được qua `order_status_history`). Điều chỉnh khôn
   `INVALID_OTP`; đúng → xoá các cột OTP.
 - Chưa `email_verified` → không đăng nhập được (`EMAIL_NOT_VERIFIED`).
 
-**BR-12 — IPN VNPay.**
-- Endpoint public; xác minh `vnp_SecureHash` (HMAC-SHA512 bằng `VNPAY_HASH_SECRET`) trước mọi thứ.
+**BR-12 — Kết quả thanh toán VNPay (IPN + Return URL, D-28).**
+- Hàm dùng chung `handlePaymentResult` cho `GET /api/vnpay/ipn` và `GET /api/vnpay/return`; endpoint public; xác minh
+  `vnp_SecureHash` (HMAC-SHA512 bằng `VNP_HASH_SECRET`) trước mọi thứ.
 - Tìm đơn theo `vnp_TxnRef = order_code`; `vnp_Amount / 100` phải bằng `final_amount`.
 - Khoá dòng `orders` (`FOR UPDATE`). Nếu `payments.status ≠ PENDING` → đã xử lý, trả lại mã
   "đã xác nhận" cho VNPay, không làm gì (idempotent). `transaction_id` unique là lớp bảo vệ thứ hai.
@@ -481,8 +489,10 @@ không ghi log (truy được qua `order_status_history`). Điều chỉnh khôn
   `PAYMENT_FAILED` (giải phóng giữ chỗ, trả lượt voucher).
 - Thanh toán thành công nhưng đơn không còn PENDING (đã bị huỷ do timeout) → payment `SUCCESS`, đơn
   giữ nguyên, ghi log WARN để hoàn tiền thủ công (xem `known-issues.md`).
-- Trả về đúng định dạng VNPay yêu cầu (`RspCode`, `Message`).
-- Return URL (`/payments/vnpay/return`) chỉ đọc trạng thái để hiển thị, KHÔNG đổi trạng thái đơn.
+- IPN trả đúng định dạng VNPay (`RspCode`, `Message`): 00 đã ghi nhận, 01 không có đơn, 02 đã xác nhận trước đó,
+  04 sai số tiền, 97 sai chữ ký, 99 lỗi khác.
+- Return URL dùng cùng hàm (đổi trạng thái được — D-28, vì localhost không nhận IPN); gọi lặp/đồng thời với IPN an toàn nhờ
+  khoá đơn + kiểm `payments.status`. Sau khi CONFIRMED, vận đơn GHN được tạo bất đồng bộ sau commit.
 
 **BR-13 — Danh mục.**
 - `path = parent.path + id + '/'` (gốc: `'/' + id + '/'`), gán sau khi insert có id.

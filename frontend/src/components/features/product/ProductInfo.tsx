@@ -48,30 +48,22 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.slug]);
 
-  const add = (go: boolean) => {
+  const [adding, setAdding] = useState(false);
+  const add = async (go: boolean) => {
     if (p.variants.length > 1 && variant < 0) {
       setWarn(true);
       return false;
     }
-    if (!p.price) return false;
+    if (!p.price || adding) return false;
     if (p.variants[variant] && p.variants[variant].inv <= 0) {
       notify(`${p.variantLabel ?? "Sản phẩm"} này đã hết hàng`);
       return false;
     }
-    addToCart(
-      {
-        slug: p.slug,
-        name: p.name,
-        img: p.images[0]?.thumb ?? "",
-        sku: p.sku,
-        variant: showVariants ? (p.variants[variant]?.name ?? null) : null,
-        options: showVariants ? p.variants.map((v) => v.name) : [],
-        variantLabel: p.variantLabel,
-        stock: p.variants[variant]?.inv ?? p.maxQty,
-        price: p.price,
-      },
-      qty,
-    );
+    // Giỏ hàng ở server (FR-09): lỗi hết hàng/ngừng bán/chưa đăng nhập đã được ShopProvider báo
+    setAdding(true);
+    const ok = await addToCart({ productId: p.id }, qty);
+    setAdding(false);
+    if (!ok) return false;
     if (go) router.push("/cart");
     else notify("Đã thêm sản phẩm vào giỏ hàng");
     return true;
@@ -286,10 +278,10 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               </button>
             ) : (
               <>
-                <button type="button" className="btBuy1 gg_add_to_cart" onClick={() => add(true)}>
+                <button type="button" className="btBuy1 gg_add_to_cart" disabled={adding} onClick={() => void add(true)}>
                   Mua ngay
                 </button>
-                <button type="button" className="btBuy2 gg_add_to_cart" onClick={() => add(false)}>
+                <button type="button" className="btBuy2 gg_add_to_cart" disabled={adding} onClick={() => void add(false)}>
                   Thêm vào giỏ
                 </button>
               </>

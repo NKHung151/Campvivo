@@ -49,8 +49,10 @@ public class SecurityConfig {
                         // Auth: đăng xuất cần đăng nhập, còn lại công khai
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
-                        // VNPay IPN/return: công khai nhưng service vẫn bắt buộc kiểm chữ ký (BR-12)
-                        .requestMatchers("/api/payments/vnpay/**").permitAll()
+                        // VNPay Return URL / IPN: công khai nhưng luôn kiểm chữ ký trong handlePaymentResult (BR-12, D-28)
+                        .requestMatchers("/api/vnpay/**").permitAll()
+                        // Địa chỉ GHN + tính thử phí ship ở trang thanh toán (D-27); token GHN chỉ nằm ở server
+                        .requestMatchers("/api/shipping/**").permitAll()
                         // Nội dung công khai (chỉ GET)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories", "/api/brands", "/api/search",
