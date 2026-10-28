@@ -44,8 +44,11 @@ Profile dev nạp thêm dữ liệu mẫu catalog (`db/seed` — danh mục, s�
 **Windows, đường dẫn có ký tự tiếng Việt (vd. `D:\ĐA`):** `mvn spring-boot:run` báo `ClassNotFoundException` — xem
 `troubleshooting.md` (chạy qua junction ASCII hoặc `java -jar`).
 
-**Email khi dev:** dùng SMTP thật (Gmail App Password) hoặc Mailpit/MailHog (`localhost:1025`, xem
-thư ở `localhost:8025`) để nhận OTP.
+**Email khi dev (OTP):** `docker compose up -d` đã bật **Mailpit** (hộp thư giả, container `campvivo-mailpit`). Backend mặc
+định gửi tới `localhost:1025` nên không cần cấu hình gì thêm; mở **http://localhost:8025** để đọc thư và lấy mã OTP (thư
+không gửi ra ngoài). Muốn dùng SMTP thật (Gmail App Password) thì đặt `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+`SMTP_PASSWORD`, `SMTP_AUTH=true`, `SMTP_STARTTLS=true` (xem `tech-stack.md`). Mã OTP không bao giờ được ghi vào log.
+Nếu chưa bật Mailpit, các chức năng gửi OTP sẽ trả `EMAIL_SEND_FAILED`.
 
 **VNPay sandbox:**
 1. Đăng ký tài khoản merchant sandbox tại VNPay, lấy `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`.

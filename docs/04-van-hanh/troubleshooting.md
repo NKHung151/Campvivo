@@ -85,5 +85,8 @@ từ đầu mỗi lần gặp.
 
 ### Không nhận được email OTP
 - **Triệu chứng:** Đăng ký trả lỗi `EMAIL_SEND_FAILED` hoặc không thấy thư.
-- **Nguyên nhân:** Sai cấu hình SMTP, Gmail chặn mật khẩu thường.
-- **Cách xử lý:** Dùng App Password hoặc Mailpit khi dev.
+- **Nguyên nhân:** Mailpit chưa chạy (mặc định backend gửi tới `localhost:1025`); sai cấu hình SMTP; Gmail chặn mật khẩu
+  thường; biến `SMTP_*` được khai báo nhưng để trống (ghi đè giá trị mặc định).
+- **Cách xử lý:** Dev: `docker compose up -d` (bật Mailpit) rồi đọc thư ở http://localhost:8025. SMTP thật: dùng Gmail App
+  Password và đặt đủ `SMTP_HOST/PORT/USERNAME/PASSWORD/AUTH/STARTTLS`. Log WARN "Không gửi được email OTP" cho biết lý do
+  (không chứa mã OTP).

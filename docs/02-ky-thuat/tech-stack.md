@@ -30,6 +30,8 @@
 | `app.shipping.fee` / `app.shipping.free-threshold` | `30000` / `1000000` | D-17 |
 | `app.inventory.low-stock-threshold` | `5` | FR-08 |
 | `app.vnpay.tmn-code` / `hash-secret` / `pay-url` / `return-url` / `ipn-url` | env `VNPAY_*` | |
+| `app.mail.from` / `app.mail.from-name` | `no-reply@campvivo.local` / `Campvivo` | Người gửi email OTP/thông báo |
+| `spring.mail.*` (env `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`) | `localhost`, `1025`, rỗng, rỗng, `false`, `false` | Mặc định trỏ Mailpit (docker compose). Gmail: `smtp.gmail.com`, `587`, `SMTP_AUTH` và `SMTP_STARTTLS` = `true`. Timeout kết nối 5 giây, đọc/ghi 10 giây |
 | `app.cors.allowed-origins` | `http://localhost:3000` | |
 | `app.frontend-url` | `http://localhost:3000` | Link trong email |
 
