@@ -1,0 +1,17 @@
+# Copy thành application-dev.yml (KHÔNG commit file đã điền secret thật)
+spring:
+  datasource:
+    # Cùng DB với backend (D-28). Backend phải chạy migration trước (chatbot_* có FK tới users, product_combos).
+    url: jdbc:postgresql://localhost:5432/campvivo
+    username: campvivo
+    password: changeme
+  ai:
+    openai:
+      # Dán key thật (https://platform.openai.com/api-keys) thay cho sk-your-key. File application-dev.yml nằm trong
+      # .gitignore nên không bị commit — KHÔNG ghi key vào application.yml hay file nào khác.
+      # Muốn dùng biến môi trường OPENAI_API_KEY thay vào đó thì xoá 3 dòng ai/openai/api-key này.
+      api-key: sk-your-key
+app:
+  jwt:
+    # PHẢI giống app.jwt.secret của backend (application-dev.yml của backend)
+    secret: dev_only_secret_change_me_at_least_32_chars

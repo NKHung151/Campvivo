@@ -9,6 +9,9 @@ backend/target/
 backend/.mvn/
 *.class
 
+# Chatbot service (FR-28)
+chatbot-service/target/
+
 # Frontend
 frontend/node_modules/
 frontend/.next/

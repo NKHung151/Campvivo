@@ -264,6 +264,45 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   lưu sang combo — đổi ảnh sản phẩm thì combo hiển thị theo.
 - **Dữ liệu:** không đổi cấu trúc bảng. Seed V5 không còn chèn ảnh riêng cho combo (dùng ảnh sản phẩm).
 
+### 2026-10-25 — D-27: Nâng Spring Boot 3.3.0 → 3.5.16; PostgreSQL dùng image có pgvector
+- **Bối cảnh:** chatbot AI (FR-28, D-28) dùng Spring AI. Spring AI 1.x chạy trên Spring Boot 3.5; Spring AI 2.0 đòi
+  Spring Boot 4 (Spring Framework 7, Jackson 3) — đổi lớn, không đáng cho đồ án. Embedding cần extension pgvector.
+- **Quyết định:**
+  - `spring-boot-starter-parent` 3.5.16; springdoc 2.8.17 (bản 2.6 làm Swagger lỗi `NoSuchMethodError` với
+    Spring Framework 6.2). Không lên Boot 4.
+  - PostgreSQL giữ bản 16, đổi image `postgres:16` → `pgvector/pgvector:pg16` (cùng PostgreSQL 16 + extension
+    `vector`) ở compose, Testcontainers và CI. Volume dữ liệu cũ dùng tiếp được, không cần dump/restore.
+- **Đã kiểm:** 123/123 test backend trên Boot 3.5.16 với `postgres:16`, `pgvector/pgvector:pg16` và `pg18`; chạy app
+  với seed V1–V4: health UP, Swagger 200, API sản phẩm/combo đúng, `CREATE EXTENSION vector` chạy được. Đối chiếu
+  thay đổi của Boot 3.4/3.5 (graceful shutdown mặc định, `@MockBean` deprecated, validate `@ConfigurationProperties`
+  lồng nhau cần `@Valid`, chỉ còn bean `applicationTaskExecutor`…): code hiện có không bị ảnh hưởng.
+- **Còn lại:** 4 cảnh báo deprecation `Specification.where(...)` (catalog, combo) — vẫn chạy; chủ module đổi sang
+  `Specification.allOf(...)` khi tiện.
+
+### 2026-10-25 — D-28: Chatbot AI (FR-28) là service riêng dùng chung DB, gộp vào backend sau
+- **Bối cảnh:** FR-28 (Tier 3) được yêu cầu làm. Phần nghiệp vụ còn lại (giỏ, đơn, khuyến mãi) chưa xong; chatbot
+  cần làm và demo được độc lập mà không chặn/đụng code của thành viên khác.
+- **Quyết định:**
+  - App Spring Boot riêng `chatbot-service/` (cổng 8090, package `vn.campvivo.chatbot`, cùng quy ước code và format
+    lỗi với backend). Spring AI 1.1.x + OpenAI (chat + embedding `text-embedding-3-small`), pgvector.
+  - **Dùng chung DB `campvivo`**, không có DB bản sao: chỉ **đọc** `users`, `categories`, `products`, `images`,
+    `product_combos`, `combo_items`; chỉ ghi các bảng riêng tiền tố `chatbot_` (`database.md` 3.24, ngoài 22 bảng
+    báo cáo). Lịch sử Flyway riêng `flyway_schema_history_chatbot`.
+  - Dùng chung `JWT_SECRET`; filter của chatbot kiểm `is_active` + `token_version` trong `users` giống backend nên
+    đăng xuất ở backend là token mất hiệu lực ở chatbot. Chỉ **CUSTOMER** chat; tài liệu do **ADMIN** quản lý.
+  - LLM **không viết SQL**. LLM chỉ gọi tool có tham số định kiểu (tìm sản phẩm, xem combo, tư vấn chuyến đi, tìm
+    tài liệu); tool chạy query cố định. Giá/tồn kho trong câu trả lời luôn lấy từ DB.
+  - Tư vấn combo dùng **combo admin dựng trong DB**; mức phù hợp (số người, loại chuyến, mùa, món còn thiếu) được tính
+    **mỗi lần khách hỏi** từ thành phần + tên/mô tả combo, không lưu bảng phụ. Thiếu thì bổ sung sản phẩm lẻ trong
+    ngân sách còn lại; việc chọn món và cộng tiền làm bằng code Java, không để LLM tính.
+  - Hội thoại bot lưu ở `chatbot_conversations`/`chatbot_messages`, tách khỏi `support_messages` (D-05 không đổi).
+- **Lý do:** dùng chung DB thì giá, tồn kho, combo mới luôn đúng ngay, không phải đồng bộ; service riêng thì nhóm
+  không phải chờ và chatbot không cần `OPENAI_API_KEY` để backend chạy.
+- **Lộ trình gộp:** chuyển package vào `backend/`, migration chatbot thành `V<n>__chatbot.sql`, bỏ filter JWT chép
+  lại, đọc catalog qua service public của `catalog`/`combo` (cần chủ module thêm hàm), dùng `PricingService` khi có.
+- **Phương án khác:** module trong backend ngay (phải chờ/đụng code chung); DB bản sao (giá/tồn kho lệch, phải đồng
+  bộ); text-to-SQL (rủi ro bảo mật, kết quả khó kiểm).
+
 ---
 
 ## Quyết định trước đó

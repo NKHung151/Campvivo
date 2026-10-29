@@ -82,6 +82,13 @@ Danh sách có phân trang:
 | 409 | RETURN_ALREADY_EXISTS | |
 | 403 | NOT_PURCHASED | Đánh giá khi chưa mua |
 | 409 | REVIEW_ALREADY_EXISTS | |
+| **chatbot** (4.12) | | |
+| 400 | UNSUPPORTED_FILE_TYPE | Tài liệu không phải .pdf/.docx/.txt/.md |
+| 400 | FILE_TOO_LARGE | Tài liệu vượt `app.chatbot.knowledge.max-file-size`; `details.maxBytes` |
+| 409 | DOCUMENT_DUPLICATE | File trùng nội dung với tài liệu đã có; `details.documentId` |
+| 409 | DOCUMENT_PROCESSING | Thay file / nạp lại khi tài liệu đang `PROCESSING` |
+| 429 | CHAT_RATE_LIMITED | Gửi quá số tin cho phép; `details.retryAfterSeconds` |
+| 503 | AI_UNAVAILABLE | Không gọi được dịch vụ AI (OpenAI lỗi, hết hạn mức, chưa cấu hình key) |
 
 ## 3. Kiểu dữ liệu dùng chung (đặt trong `frontend/src/types/`)
 
@@ -366,6 +373,59 @@ interface ComboRequest { name: string; slug?: string; description?: string | nul
   items: { productId: number; quantity: number }[]; }
   // 2..20 sản phẩm khác nhau, quantity 1..99.
   // Combo còn bộ đã đóng gói thì không đổi được thành phần (400 fieldErrors.items)
+```
+
+### 4.12 chatbot — FR-28 (D-28)
+Do `chatbot-service` phục vụ: base URL `http://localhost:8090/api` khi chạy riêng (frontend:
+`NEXT_PUBLIC_CHATBOT_API_URL`); khi gộp vào backend thì về chung `/api`. Cùng quy ước mục 1 (JWT, format thành
+công/lỗi, phân trang). Hội thoại/tài liệu không tồn tại hoặc của người khác → 404 `NOT_FOUND`.
+
+| Method | Path | Quyền | Body → Response |
+|---|---|---|---|
+| GET | `/chatbot/conversations` | Customer | `?page&limit` → `[ChatConversation]` của chính mình, mới cập nhật trước |
+| POST | `/chatbot/conversations` | Customer | — → 201 `ChatConversation` (rỗng, tiêu đề "Cuộc trò chuyện mới") |
+| GET | `/chatbot/conversations/{id}/messages` | Customer (chủ) | → `[ChatMessage]` cũ trước |
+| DELETE | `/chatbot/conversations/{id}` | Customer (chủ) | → 204 |
+| POST | `/chatbot/conversations/{id}/messages` | Customer (chủ) | `{content}` (1–`app.chatbot.message-max-length`) → `text/event-stream` (dưới đây). Lỗi trước khi bắt đầu trả lời (400, 404, 429) trả JSON lỗi bình thường |
+| GET | `/admin/chatbot/documents` | Admin | `?q` (tiêu đề/tên file), `status`, `isActive`, `page`, `limit` → `[ChatbotDocument]` |
+| POST | `/admin/chatbot/documents` | Admin | multipart `file`, `title`, `description?` → 201 `ChatbotDocument` (`PROCESSING`; xử lý nền) |
+| GET | `/admin/chatbot/documents/{id}` | Admin | → `ChatbotDocumentDetail` (+ tối đa 20 chunk đầu) |
+| PUT | `/admin/chatbot/documents/{id}` | Admin | `{title, description?, isActive}` → `ChatbotDocument` |
+| PUT | `/admin/chatbot/documents/{id}/file` | Admin | multipart `file` → `ChatbotDocument` (`PROCESSING`, nạp lại) |
+| POST | `/admin/chatbot/documents/{id}/reindex` | Admin | → `ChatbotDocument` (`PROCESSING`) |
+| DELETE | `/admin/chatbot/documents/{id}` | Admin | → 204 (xoá cả chunk) |
+| GET | `/admin/chatbot/documents/{id}/file` | Admin | → file gốc (`Content-Disposition: attachment`) |
+| POST | `/admin/chatbot/documents/search-test` | Admin | `{question}` → `[RetrievalHit]` (không gọi LLM — để admin kiểm tra truy hồi) |
+
+**Sự kiện SSE** của `POST /chatbot/conversations/{id}/messages` (mỗi sự kiện `event: <tên>` + `data: <JSON>`). Client
+gửi `Accept: text/event-stream, application/json` (để nhận được JSON lỗi trước khi stream bắt đầu) và đọc stream bằng
+`fetch` — `EventSource` không gửi được header `Authorization`:
+| event | data | Ghi chú |
+|---|---|---|
+| `delta` | `{text}` | Một đoạn chữ của câu trả lời, nối lại theo thứ tự |
+| `cards` | `ChatCard[]` | Sản phẩm/combo bot đề xuất (lấy từ DB) |
+| `sources` | `ChatSource[]` | Tài liệu đã trích |
+| `done` | `{messageId, promptTokens, completionTokens}` | Kết thúc, tin đã lưu |
+| `error` | `{errorCode, message}` | Lỗi giữa chừng (vd. `AI_UNAVAILABLE`); tin trả lời không được lưu |
+
+```ts
+interface ChatConversation { id: string; title: string; createdAt: string; updatedAt: string; }
+type ChatRole = "USER" | "ASSISTANT";
+interface ChatMessage { id: number; role: ChatRole; content: string; cards: ChatCard[]; sources: ChatSource[];
+  createdAt: string; }
+interface ChatCard { type: ItemType; id: number; slug: string; name: string; price: Money;
+  primaryImageUrl: string | null; availableQuantity: number;
+  suggestedQuantity: number | null;   // số lượng bot đề xuất mua (tư vấn chuyến đi), null nếu chỉ giới thiệu
+  note: string | null; }              // lý do ngắn, vd. "Bổ sung túi ngủ cho 2 người còn lại"
+interface ChatSource { documentId: number; title: string; page: number | null; }
+type ChatbotDocumentStatus = "PROCESSING" | "READY" | "FAILED";
+interface ChatbotDocument { id: number; title: string; description: string | null; fileName: string;
+  contentType: string; sizeBytes: number; status: ChatbotDocumentStatus; errorMessage: string | null;
+  chunkCount: number; isActive: boolean; createdAt: string; updatedAt: string; }
+interface ChatbotDocumentDetail extends ChatbotDocument {
+  chunks: { index: number; page: number | null; content: string }[]; }
+interface RetrievalHit { documentId: number; title: string; page: number | null; content: string;
+  score: number; }   // 0..1, cao = giống hơn; chỉ gồm tài liệu đang bật và READY
 ```
 
 ## 5. Ánh xạ sang frontend

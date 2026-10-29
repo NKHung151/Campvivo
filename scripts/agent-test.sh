@@ -3,5 +3,7 @@
 set -euo pipefail
 echo "== Backend test (mvn test, bao gồm Testcontainers IT) =="
 (cd backend && mvn -q test)
+echo "== Chatbot service test (Testcontainers pgvector, model AI giả — không cần OPENAI_API_KEY) =="
+(cd chatbot-service && mvn -q test)
 echo "== Frontend build check (Next.js không có unit test mặc định ở scaffold này) =="
 (cd frontend && npm run build)

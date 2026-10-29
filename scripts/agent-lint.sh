@@ -3,5 +3,7 @@
 set -euo pipefail
 echo "== Backend checkstyle (nếu có cấu hình) =="
 (cd backend && mvn -q -DskipTests compile)
+echo "== Chatbot service compile (FR-28) =="
+(cd chatbot-service && mvn -q -DskipTests compile)
 echo "== Frontend lint =="
 (cd frontend && npm run lint)

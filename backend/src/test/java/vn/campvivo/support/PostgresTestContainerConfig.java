@@ -4,6 +4,7 @@ import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * Dùng PostgreSQL thật qua Testcontainers cho test liên quan transaction/locking —
@@ -15,7 +16,9 @@ public class PostgresTestContainerConfig
         implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
     static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:16")
+            // Cùng image với docker-compose.yml: PostgreSQL 16 + pgvector (D-27)
+            new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16")
+                    .asCompatibleSubstituteFor("postgres"))
                     .withDatabaseName("campvivo_test")
                     .withUsername("campvivo")
                     .withPassword("campvivo");

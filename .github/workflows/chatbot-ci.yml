@@ -1,0 +1,42 @@
+name: chatbot-ci
+
+# Chatbot AI (FR-28, D-28). Test chạy migration + seed của backend nên đổi backend/src/main/resources/db cũng chạy lại.
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "chatbot-service/**"
+      - "backend/src/main/resources/db/**"
+      - ".github/workflows/chatbot-ci.yml"
+  push:
+    branches: [dev, main]
+    paths:
+      - "chatbot-service/**"
+      - "backend/src/main/resources/db/**"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chatbot-service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # Testcontainers (pgvector/pgvector:pg16) + model AI giả: không cần OPENAI_API_KEY
+      - name: Build & test
+        run: mvn -B verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatbot-test-reports
+          path: chatbot-service/target/surefire-reports/

@@ -38,7 +38,22 @@ Entity/DTO của mình. Ánh xạ module ↔ bảng: `database.md` mục 2.
 | `analytics` | Thống kê dashboard (chỉ đọc) | — |
 | `common` | config (security, websocket, async, cors), exception, `ApiResponse`, util (slug, money, sanitize) | — |
 
-Không còn module `rental` (D-01). `chatbot` sẽ thêm ở giai đoạn sau (D-05).
+Không còn module `rental` (D-01).
+
+## Chatbot AI — `chatbot-service` (FR-28, D-28)
+```
+Next.js (widget chat, /admin/chatbot/*) ──REST + SSE──► chatbot-service :8090 ──► OpenAI (chat + embedding)
+                                                              │
+                                                              ▼  cùng database `campvivo`
+                                      đọc: users, categories, products, images, product_combos, combo_items
+                                      ghi: chatbot_* (database.md 3.24) — pgvector
+```
+- App Spring Boot riêng (Spring AI 1.1.x), package `vn.campvivo.chatbot`, cùng format `ApiResponse`/lỗi với backend.
+  Xác thực bằng JWT của backend (chung `JWT_SECRET`, kiểm `token_version` trong `users`).
+- LLM chỉ gọi tool có tham số (tìm sản phẩm/combo, tư vấn chuyến đi, tìm tài liệu); tool chạy query cố định qua
+  `CatalogReadPort` (chỉ đọc). Chọn combo + cộng tiền khi tư vấn làm bằng code (`TripAdvisorService`).
+- Tài liệu: tải lên → xử lý nền (đọc PDF/DOCX, chia đoạn, embed) → `chatbot_document_chunks`.
+- Gộp vào backend sau này thành module `chatbot` (lộ trình ở D-28).
 
 Cấu trúc trong một module:
 ```

@@ -11,7 +11,9 @@ import "@/styles/shop/journal.css";
 import "@/styles/shop/custom.css";
 import "@/styles/shop/ui.css";
 import "@/styles/shop/auth.css";
+import "@/styles/shop/chatbot.css";
 import { AuthProvider } from "@/components/features/auth/AuthProvider";
+import { ChatLauncher } from "@/components/features/chatbot/ChatLauncher";
 
 /**
  * Root layout của storefront (route group `(store)`: cửa hàng, tài khoản, đăng nhập). CSS storefront nạp
@@ -32,7 +34,11 @@ export default function StoreRootLayout({ children }: { children: React.ReactNod
   return (
     <html lang="vi">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          {/* Chatbot AI (FR-28): chỉ CUSTOMER chat được, khách vãng lai được mời đăng nhập */}
+          <ChatLauncher />
+        </AuthProvider>
       </body>
     </html>
   );

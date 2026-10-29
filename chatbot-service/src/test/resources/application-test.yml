@@ -1,0 +1,13 @@
+# Profile test: model AI giả (TestAiConfig), không cần OPENAI_API_KEY. DataSource do PgvectorTestContainer đặt.
+spring:
+  ai:
+    model:
+      chat: none
+      embedding: none
+app:
+  jwt:
+    secret: test_secret_with_at_least_32_characters_ok
+  chatbot:
+    embedding:
+      # Job embedding chạy tay trong test, không để chạy nền chen vào
+      enabled: false

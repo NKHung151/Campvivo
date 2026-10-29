@@ -1,0 +1,271 @@
+# Mẫu nhu cầu theo loại chuyến cho tư vấn combo (FR-28, CB-18). Map vào TripTemplateProperties (app.trip.templates).
+#
+# Mỗi "slot" là một nhóm đồ cần có:
+#   categories          slug danh mục (lấy cả danh mục con), khớp seed V3 (backend/src/main/resources/db/seed)
+#   exclude             slug danh mục con bị loại khỏi nhánh trên (vd. bỏ nhiên liệu khỏi nhánh "Bếp cắm trại")
+#   winter-categories   ưu tiên khi đi mùa đông (nếu còn hàng)
+#   required            true = bắt buộc (không đủ tiền thì báo thiếu); false = nên có (mua nếu còn ngân sách)
+#   mode                PER_PERSON: amount × số người | PER_GROUP: ceil(số người / group-size) × amount
+#                       CAPACITY: tổng sức chứa (lều) ≥ số người
+#   weight              tỷ trọng chia ngân sách giữa các slot
+#   aliases             cách khách gọi món này (để hiểu "đã có lều", "không cần ghế")
+#   name-keywords       sản phẩm lẻ đề xuất phải có một từ này trong tên (chống hàng bị gắn nhầm danh mục)
+# Danh mục đổi tên/slug ở admin thì sửa file này cho khớp.
+app:
+  trip:
+    templates:
+      CAMPING:
+        label: Cắm trại qua đêm
+        slots:
+          - key: tent
+            label: Lều
+            categories: [leu-trai]
+            required: true
+            mode: CAPACITY
+            weight: 30
+            aliases: [lều, leu, tent]
+            name-keywords: [lều, tent]
+          - key: sleeping-bag
+            label: Túi ngủ
+            categories: [tui-ngu, do-du-lich-tui-ngu, do-leo-nui-tui-ngu]
+            exclude: [tui-ngu-tre-em]
+            winter-categories: [tui-ngu-mua-dong, tui-ngu-tui-ngu-mua-dong]
+            required: true
+            mode: PER_PERSON
+            weight: 20
+            aliases: [túi ngủ, tui ngu, sleeping bag]
+            name-keywords: [túi ngủ, sleeping bag]
+          - key: light
+            label: Đèn
+            categories: [den-cam-trai, den-den-pin]
+            required: true
+            mode: PER_GROUP
+            group-size: 4
+            weight: 5
+            aliases: [đèn, den, đèn pin, đèn lều]
+            name-keywords: [đèn, light, lamp, lantern, torch]
+          - key: stove
+            label: Bếp
+            categories: [bep-cam-trai]
+            exclude: [nhien-lieu-bep-da-ngoai, phu-kien-bep-da-ngoai]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 10
+            aliases: [bếp, bep, bếp gas, bếp nướng]
+            name-keywords: [bếp, stove, grill]
+          - key: mat
+            label: Đệm / tấm trải
+            categories: [dem-chan-goi-vong]
+            required: false
+            mode: PER_PERSON
+            weight: 8
+            aliases: [đệm, dem, nệm, tấm trải, tấm lót]
+          - key: chair
+            label: Ghế
+            categories: [ban-ghe-cam-trai]
+            exclude: [ban-cam-trai, gia-ke-cam-trai, giuong-cam-trai]
+            required: false
+            mode: PER_PERSON
+            weight: 6
+            aliases: [ghế, ghe, chair]
+          - key: cooler
+            label: Đồ giữ lạnh
+            categories: [bao-quan-thuc-pham]
+            exclude: [da-gel]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 6
+            aliases: [thùng đá, túi giữ lạnh, giữ lạnh, giữ nhiệt]
+          - key: cookware
+            label: Dụng cụ nấu ăn
+            categories: [dung-cu-nau-an]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 5
+            aliases: [nồi, xoong, chảo, ấm, dụng cụ nấu ăn]
+      PICNIC:
+        label: Dã ngoại / picnic trong ngày
+        slots:
+          - key: chair
+            label: Ghế
+            categories: [ban-ghe-cam-trai]
+            exclude: [ban-cam-trai, gia-ke-cam-trai, giuong-cam-trai]
+            required: true
+            mode: PER_PERSON
+            weight: 20
+            aliases: [ghế, ghe, chair]
+          - key: mat
+            label: Tấm trải
+            categories: [tam-trai-tam-lot]
+            required: true
+            mode: PER_GROUP
+            group-size: 4
+            weight: 10
+            aliases: [tấm trải, thảm, tấm lót]
+          - key: cooler
+            label: Đồ giữ lạnh
+            categories: [bao-quan-thuc-pham]
+            exclude: [da-gel]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 10
+            aliases: [thùng đá, túi giữ lạnh, giữ lạnh]
+          - key: table
+            label: Bàn
+            categories: [ban-cam-trai]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 10
+            aliases: [bàn, ban, table]
+          - key: stove
+            label: Bếp
+            categories: [bep-cam-trai]
+            exclude: [nhien-lieu-bep-da-ngoai, phu-kien-bep-da-ngoai]
+            required: false
+            mode: PER_GROUP
+            group-size: 6
+            weight: 8
+            aliases: [bếp, bep, bếp nướng]
+            name-keywords: [bếp, stove, grill]
+      TREKKING_DAY:
+        label: Leo núi / trekking trong ngày
+        slots:
+          - key: backpack
+            label: Balo
+            categories: [balo-tui]
+            exclude: [phu-kien-balo-tui]
+            required: true
+            mode: PER_PERSON
+            weight: 30
+            aliases: [balo, ba lô, backpack]
+          - key: poles
+            label: Gậy leo núi
+            categories: [gay-leo-nui]
+            exclude: [phu-kien-gay-leo-nui]
+            required: false
+            mode: PER_PERSON
+            amount: 2
+            weight: 15
+            aliases: [gậy, gay, gậy leo núi]
+          - key: light
+            label: Đèn
+            categories: [den-den-pin, den-cam-trai]
+            required: false
+            mode: PER_PERSON
+            weight: 8
+            aliases: [đèn, den, đèn pin, đèn đội đầu]
+            name-keywords: [đèn, light, lamp, lantern, torch]
+          - key: rain
+            label: Áo mưa / che mưa balo
+            categories: [phu-kien-balo-tui, ao-mua-leo-nui, ao-mua-da-ngoai]
+            required: false
+            mode: PER_PERSON
+            weight: 8
+            aliases: [áo mưa, ao mua, che mưa]
+          - key: water
+            label: Bình nước
+            categories: [do-leo-nui-dung-nuoc-loc-nuoc, dung-nuoc-loc-nuoc]
+            required: false
+            mode: PER_PERSON
+            weight: 6
+            aliases: [bình nước, binh nuoc, nước]
+      TREKKING_OVERNIGHT:
+        label: Leo núi qua đêm
+        slots:
+          - key: backpack
+            label: Balo
+            categories: [balo-tui]
+            exclude: [phu-kien-balo-tui]
+            required: true
+            mode: PER_PERSON
+            weight: 25
+            aliases: [balo, ba lô, backpack]
+          - key: tent
+            label: Lều
+            categories: [leu-trai]
+            required: true
+            mode: CAPACITY
+            weight: 25
+            aliases: [lều, leu, tent]
+            name-keywords: [lều, tent]
+          - key: sleeping-bag
+            label: Túi ngủ
+            categories: [tui-ngu, do-du-lich-tui-ngu, do-leo-nui-tui-ngu]
+            exclude: [tui-ngu-tre-em]
+            winter-categories: [tui-ngu-mua-dong, tui-ngu-tui-ngu-mua-dong]
+            required: true
+            mode: PER_PERSON
+            weight: 20
+            aliases: [túi ngủ, tui ngu, sleeping bag]
+            name-keywords: [túi ngủ, sleeping bag]
+          - key: light
+            label: Đèn
+            categories: [den-den-pin, den-cam-trai]
+            required: true
+            mode: PER_PERSON
+            weight: 6
+            aliases: [đèn, den, đèn pin, đèn đội đầu]
+            name-keywords: [đèn, light, lamp, lantern, torch]
+          - key: poles
+            label: Gậy leo núi
+            categories: [gay-leo-nui]
+            exclude: [phu-kien-gay-leo-nui]
+            required: false
+            mode: PER_PERSON
+            amount: 2
+            weight: 10
+            aliases: [gậy, gay, gậy leo núi]
+          - key: stove
+            label: Bếp
+            categories: [bep-cam-trai]
+            exclude: [nhien-lieu-bep-da-ngoai, phu-kien-bep-da-ngoai, bep-nuong-cam-trai]
+            required: false
+            mode: PER_GROUP
+            group-size: 4
+            weight: 8
+            aliases: [bếp, bep, bếp gas]
+            name-keywords: [bếp, stove, grill]
+          - key: rain
+            label: Áo mưa / che mưa balo
+            categories: [phu-kien-balo-tui, ao-mua-leo-nui, ao-mua-da-ngoai]
+            required: false
+            mode: PER_PERSON
+            weight: 6
+            aliases: [áo mưa, ao mua, che mưa]
+      BEACH:
+        label: Đi biển / bơi lội
+        slots:
+          - key: goggles
+            label: Kính bơi
+            categories: [kinh-boi]
+            required: true
+            mode: PER_PERSON
+            weight: 20
+            aliases: [kính bơi, kinh boi]
+          - key: float
+            label: Phao bơi
+            categories: [phao-boi]
+            required: false
+            mode: PER_PERSON
+            weight: 15
+            aliases: [phao, phao bơi]
+          - key: dry-bag
+            label: Túi chống nước
+            categories: [do-chong-nuoc]
+            required: false
+            mode: PER_GROUP
+            group-size: 4
+            weight: 10
+            aliases: [túi chống nước, túi khô, chống nước]
+          - key: swimwear
+            label: Đồ bơi
+            categories: [trang-phuc-boi]
+            required: false
+            mode: PER_PERSON
+            weight: 10
+            aliases: [đồ bơi, áo bơi, quần bơi]

@@ -13,9 +13,11 @@ từ đầu mỗi lần gặp.
 
 ### Backend không kết nối được PostgreSQL: `invalid value for parameter "TimeZone": "Asia/Saigon"`
 - **Triệu chứng:** App dừng lúc khởi động, lỗi `FATAL: invalid value for parameter "TimeZone"` (thường từ Flyway).
-- **Nguyên nhân:** JVM trên Windows báo múi giờ cũ `Asia/Saigon`; PostgreSQL 16 từ chối tên này.
-- **Cách xử lý:** Đặt `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh` (biến môi trường), hoặc chạy
-  `mvn -DskipTests spring-boot:run "-Dspring-boot.run.jvmArguments=-Duser.timezone=Asia/Ho_Chi_Minh"`.
+- **Nguyên nhân:** JVM trên Windows báo múi giờ cũ `Asia/Saigon`. Image `postgres:16` bản mới (Debian 13) không
+  còn tên này nên PostgreSQL từ chối; image cũ hơn (Debian 12) vẫn nhận nên không phải máy nào cũng gặp.
+- **Cách xử lý:** Đã sửa trong code (2026-10-25): `CampvivoApplication.main` đặt múi giờ mặc định `Asia/Ho_Chi_Minh`,
+  `pom.xml` đặt `argLine=-Duser.timezone=Asia/Ho_Chi_Minh` cho test. Không cần đặt biến môi trường nữa. Nếu vẫn gặp
+  (vd. chạy class khác `main` hoặc bản code cũ): đặt `JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh`.
 
 ### App báo `Schema-validation: missing table [...]` khi khởi động
 - **Triệu chứng:** `Failed to initialize JPA EntityManagerFactory ... missing table [cart_items]`.

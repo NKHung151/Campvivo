@@ -17,6 +17,22 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-25 — Nguyen Nhu Khanh + Claude Code — chatbot AI (FR-28), backend nền, frontend
+- Đã làm (nhánh `feature/chatbot-rag`, CHƯA commit/push):
+  - Nền backend: sửa lỗi time zone `Asia/Saigon` trong code; Spring Boot 3.3.0 → 3.5.16, springdoc 2.8.17 (D-27); image
+    `pgvector/pgvector:pg16` ở compose/Testcontainers/CI. Backend 123/123 test.
+  - `chatbot-service/` (Spring AI 1.1.8, cổng 8090, chung DB, D-28): JWT chung, chỉ CUSTOMER chat/ADMIN quản lý tài liệu;
+    tool tìm sản phẩm/combo/tư vấn chuyến đi/tra tài liệu (không text-to-SQL); combo đánh giá lúc hỏi + mua thêm trong
+    ngân sách; tài liệu PDF/DOCX/MD/TXT nạp nền + truy hồi pgvector; hội thoại SSE, giới hạn tần suất. 48/48 test.
+  - Frontend: trang `/admin/chatbot/documents` (+ chi tiết, hỏi thử), widget chat storefront (`components/features/chatbot`).
+  - Docs: D-27, D-28, database 3.24, api 4.12, pages, features FR-28, architecture, tech-stack, troubleshooting.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy thử với OpenAI key thật + `node chatbot-service/eval/run-eval.mjs`; nạp `chatbot-service/sample-docs/`.
+  - Nhóm duyệt Giai đoạn 0 (đổi Boot/image ảnh hưởng mọi người) rồi commit/PR; CB-30 gộp vào backend sau.
+  - Lỗi có sẵn ngoài phạm vi: `npm run build` lỗi prerender do `services/serverApi.ts`; surefire backend không chạy `*IT`;
+    seed V3 có sản phẩm gắn nhầm danh mục.
+- Plan liên quan: `.agents/plans/active/chatbot-rag.md`
+
 ### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
 - Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích
   lý do và khi nào đổi lại), vì `validate` làm backend báo `missing table [...]` đến khi F-06 → F-09 merge và ai copy `.example`

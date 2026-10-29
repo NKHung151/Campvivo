@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: campvivo-chatbot
+  profiles:
+    active: dev
+  config:
+    # Mẫu nhu cầu theo loại chuyến (tư vấn combo — CB-18)
+    import: classpath:chatbot/trip-templates.yml
+  servlet:
+    multipart:
+      # Giới hạn nghiệp vụ (app.chatbot.knowledge.max-file-size) kiểm ở service để trả lỗi FILE_TOO_LARGE rõ ràng
+      max-file-size: 20MB
+      max-request-size: 21MB
+  flyway:
+    # Dùng chung DB với backend (D-28): lịch sử migration riêng, chỉ tạo bảng chatbot_*.
+    # DB đã có bảng của backend nên phải baseline; version 0 để V1 của chatbot vẫn chạy.
+    table: flyway_schema_history_chatbot
+    locations: classpath:db/chatbot
+    baseline-on-migrate: true
+    baseline-version: 0
+  ai:
+    openai:
+      # Không có key thì app vẫn chạy; gọi AI sẽ lỗi AI_UNAVAILABLE
+      api-key: ${OPENAI_API_KEY:chua-cau-hinh}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-4.1-mini}
+          temperature: 0.3
+          max-tokens: 1200
+          stream-usage: true
+      embedding:
+        options:
+          # 1536 chiều — khớp cột vector(1536). Đổi model phải đổi cột và nạp lại.
+          model: text-embedding-3-small
+    retry:
+      max-attempts: 2
+    model:
+      # Chỉ dùng chat + embedding
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"
+server:
+  port: 8090
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# Tham số (docs/02-ky-thuat/tech-stack.md, mục cấu hình chatbot-service). Map vào ChatbotProperties.
+app:
+  jwt:
+    # Chung JWT_SECRET với backend để đọc được token do backend cấp
+    secret: ${JWT_SECRET:}
+  cors:
+    allowed-origins: http://localhost:3000
+  chatbot:
+    message-max-length: 1000
+    history-size: 20
+    max-tool-calls: 5
+    rate-limit:
+      per-minute: 20
+      per-day: 200
+    knowledge:
+      max-file-size: 10MB
+      chunk-size: 600
+      top-k: 5
+      similarity-threshold: 0.3
+    embedding:
+      refresh-interval: 10m

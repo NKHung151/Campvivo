@@ -76,7 +76,7 @@ Lưu ý thiết kế xuyên tier:
 | Mã | Yêu cầu | Ghi chú |
 |---|---|---|
 | FR-27 | Thanh toán MoMo | Thêm implementation `PaymentGateway` mới (xem `architecture.md`) |
-| FR-28 | Chatbot AI | Cần migration bổ sung cho `support_messages` (decisions D-05) |
+| FR-28 | Chatbot AI | **Đang làm** (2026-10-25) — service riêng dùng chung DB (D-28), mô tả ở mục "FR-28 Chatbot AI" bên dưới; không đổi `support_messages` |
 
 ## Mô tả chi tiết từng FR
 
@@ -258,3 +258,24 @@ xem BR-xx trong `database.md`.
 - **Nhân viên:** danh sách hội thoại (sắp theo tin mới nhất), mở hội thoại một khách, trả lời.
   Tin của nhân viên lưu `user_id` = khách, `is_from_staff = true` (D-05).
 - Nội dung 1–2000 ký tự, chỉ text.
+
+### FR-28 Chatbot AI (Tier 3, D-28)
+- **Ai dùng:** chỉ Customer đã đăng nhập. Admin quản lý tài liệu cho bot ở `/admin/chatbot/documents`.
+- **Hỏi theo tài liệu:** bot tìm đoạn liên quan trong tài liệu đang bật và đã xử lý xong (`READY`), trả lời kèm nguồn
+  (tên tài liệu, trang). Admin tắt/xoá/thay tài liệu thì từ câu hỏi sau bot dùng nội dung mới.
+- **Hỏi về sản phẩm:** bot tự tra DB qua tool (theo tầm giá, danh mục, thương hiệu, còn hàng, so sánh) — không đoán giá;
+  câu trả lời kèm thẻ sản phẩm/combo (ảnh, giá, link).
+- **Tư vấn chuyến đi:** khách nêu số người, ngân sách, loại chuyến (cắm trại, leo núi trong ngày/qua đêm, đi biển…), số
+  đêm. Bot chọn combo admin dựng khớp nhất (còn bộ), đánh giá ngay lúc hỏi từ thành phần + tên/mô tả combo; còn thiếu
+  thì đề xuất thêm sản phẩm lẻ trong ngân sách còn lại; tổng tiền không vượt ngân sách. Không combo nào hợp thì ráp
+  bằng sản phẩm lẻ và nói rõ.
+- **Hội thoại:** khách có nhiều hội thoại, xem lại, xoá được; câu trả lời hiện dần (SSE).
+- **Ngoại lệ:**
+  - Chưa đăng nhập → widget mời đăng nhập; API trả 401. Role khác Customer → 403, widget không hiện.
+  - Thiếu số người hoặc ngân sách khi xin tư vấn → bot hỏi lại, không tự đoán.
+  - Không có tài liệu liên quan → bot nói chưa có thông tin, gợi ý liên hệ hỗ trợ (FR-26); không bịa.
+  - Câu hỏi ngoài phạm vi đồ dã ngoại / cửa hàng → bot từ chối lịch sự.
+  - Ngân sách thấp hơn mức tối thiểu cho đủ đồ bắt buộc → bot báo số tiền tối thiểu cần.
+  - Gửi quá nhanh/quá nhiều → 429 `CHAT_RATE_LIMITED`; tin quá dài → 400 `VALIDATION_ERROR`.
+  - Dịch vụ AI lỗi → sự kiện `error` `AI_UNAVAILABLE`, khách thử lại được; tin lỗi không được lưu.
+  - Tài liệu PDF chỉ có ảnh (scan) → `FAILED` "Không trích được chữ".

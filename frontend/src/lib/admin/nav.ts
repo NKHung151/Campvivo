@@ -95,6 +95,10 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       },
     ],
   },
+  {
+    label: "Chatbot AI",
+    entries: [{ href: "/admin/chatbot/documents", label: "Tài liệu cho chatbot", roles: ADMIN_ONLY }],
+  },
   { label: "Hệ thống", entries: [{ href: "/admin/users", label: "Người dùng", roles: ADMIN_ONLY }] },
 ];
 

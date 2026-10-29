@@ -50,6 +50,12 @@ const BACKEND_MESSAGES: Record<string, string> = {
   RETURN_ALREADY_EXISTS: "Đơn hàng này đã có yêu cầu trả hàng.",
   NOT_PURCHASED: "Bạn chỉ có thể đánh giá sản phẩm đã mua.",
   REVIEW_ALREADY_EXISTS: "Bạn đã đánh giá sản phẩm này rồi.",
+  // chatbot (api.md 4.12). FILE_TOO_LARGE, CHAT_RATE_LIMITED cố ý không có ở đây: dùng câu server trả (có dung lượng
+  // tối đa / phân biệt hết lượt trong phút hay trong ngày)
+  UNSUPPORTED_FILE_TYPE: "Chỉ nhận tài liệu PDF, Word (.docx), .txt hoặc .md.",
+  DOCUMENT_DUPLICATE: "Tài liệu này đã được tải lên trước đó.",
+  DOCUMENT_PROCESSING: "Tài liệu đang được xử lý. Vui lòng đợi xử lý xong.",
+  AI_UNAVAILABLE: "Trợ lý ảo đang tạm thời gián đoạn. Vui lòng thử lại sau.",
 };
 
 /** Mã do frontend tự sinh (services/apiError.ts), không có ở backend. */

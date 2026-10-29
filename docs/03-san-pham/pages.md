@@ -45,6 +45,11 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/account/notifications` | Thông báo: lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | `/notifications` | ⬜ |
 | `/account/support` | Chat hỗ trợ với nhân viên (realtime) | `/support/messages`, WS `/user/queue/support` | ⬜ |
 
+**Widget chatbot (FR-28):** nút nổi góc phải trên mọi trang storefront (gắn ở `(store)/layout.tsx`). CUSTOMER: mở
+khung chat (danh sách hội thoại, tin nhắn hiện dần, thẻ sản phẩm/combo, nguồn tài liệu). Chưa đăng nhập: khung chat
+hiện "Đăng nhập để chat với trợ lý" + nút tới `/login?redirect=...`. EMPLOYEE/ADMIN: không hiện nút. API: `/chatbot/*`
+(chatbot-service).
+
 `/account/*` dùng chung layout có menu bên trái. Tab "địa chỉ" và "điểm" trong UI mock hiện tại bị
 bỏ (không có sổ địa chỉ — D-02; không có tích điểm trong báo cáo). Chuông thông báo trên header hiển
 thị số chưa đọc cho mọi user đã đăng nhập.
@@ -65,6 +70,8 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/vouchers` | Voucher: danh sách, thêm/sửa (modal), xoá/tắt | Admin | `/admin/vouchers` |
 | `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]` | Chiến dịch giảm giá + chọn sản phẩm | Admin | `/admin/campaigns` |
 | `/admin/articles`, `/admin/articles/new`, `/admin/articles/[id]` | Bài viết: danh sách, soạn (rich text), xuất bản | Admin | `/admin/articles` |
+| `/admin/chatbot/documents` | Tài liệu cho chatbot (FR-28): danh sách, tải lên (.pdf/.docx/.txt/.md), sửa tiêu đề/mô tả, bật/tắt, thay file, nạp lại, xoá; trạng thái xử lý tự cập nhật | Admin | `/admin/chatbot/documents` (chatbot-service) |
+| `/admin/chatbot/documents/[id]` | Chi tiết tài liệu: thông tin, các đoạn bot đọc được, tải file gốc, ô "hỏi thử" xem bot tìm được đoạn nào | Admin | `/admin/chatbot/documents/{id}`, `.../search-test` |
 
 Khung admin đã có (`AdminShell`): sidebar theo quyền khai báo ở `src/lib/admin/nav.ts`; trang có trong
 menu nhưng chưa làm hiển thị "đang xây dựng"; khách hàng vào `/admin` thấy trang 403. Phiên đăng nhập là

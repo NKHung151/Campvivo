@@ -3,8 +3,10 @@
 ## Yêu cầu
 - JDK 17+, Maven
 - Node.js 18+
-- PostgreSQL 15+: dùng Docker (`docker compose up -d`, xem `docker.md`) **hoặc** PostgreSQL cài trực
-  tiếp trên máy. Cài trực tiếp thì tạo sẵn user + database (cùng thông số với `docker-compose.yml`):
+- PostgreSQL 16 có extension **pgvector** (chatbot cần, D-27): dùng Docker (`docker compose up -d`, image
+  `pgvector/pgvector:pg16`, xem `docker.md`) **hoặc** PostgreSQL cài trực tiếp trên máy. Cài trực tiếp thì phải tự cài
+  thêm pgvector (Windows: build bằng Visual Studio theo hướng dẫn của pgvector — khá mất công, nên dùng Docker) và tạo
+  sẵn user + database (cùng thông số với `docker-compose.yml`):
   ```sql
   CREATE ROLE campvivo LOGIN PASSWORD 'changeme';
   CREATE DATABASE campvivo OWNER campvivo ENCODING 'UTF8' TEMPLATE template0;
@@ -23,7 +25,7 @@ Làm theo thứ tự. Lệnh dạng PowerShell (Windows); trên macOS/Linux dùn
    (file không được commit). Bản `.example` đã có `app.jwt.secret` (≥ 32 ký tự) và `ddl-auto: none`; nếu đổi sang
    `validate` backend sẽ báo `missing table [...]` cho đến khi F-06 → F-09 merge (xem `troubleshooting.md`).
 4. **Chạy backend** (chờ dòng `Started CampvivoApplication`): `cd backend` rồi `mvn clean spring-boot:run -DskipTests`.
-   Nếu báo lỗi `TimeZone "Asia/Saigon"` (Windows): đặt `$env:JAVA_TOOL_OPTIONS="-Duser.timezone=Asia/Ho_Chi_Minh"` trước khi chạy.
+   Lỗi `TimeZone "Asia/Saigon"` (Windows) đã được xử lý trong code; nếu vẫn gặp xem `troubleshooting.md`.
 5. **Chèn 3 tài khoản mẫu** vào DB (mục "Tài khoản mẫu" bên dưới); làm lại sau mỗi lần reset DB.
 6. **Chạy frontend:** `cd frontend`, `npm install`, `npm run dev`, mở `http://localhost:3000/login`. Frontend phải chạy
    đúng cổng 3000 (backend chỉ cho phép origin này, `app.cors.allowed-origins`).

@@ -376,6 +376,72 @@ trạng thái đã đọc.
 - `idx_support_messages_user_id_created_at (user_id, created_at)`.
 - `idx_discount_campaigns_active_dates (is_active, start_date, end_date)`.
 
+### 3.24 Bảng chatbot (FR-28, D-28) — ngoài 22 bảng của báo cáo
+Do `chatbot-service` tạo bằng Flyway riêng (`chatbot-service/src/main/resources/db/chatbot/`, lịch sử
+`flyway_schema_history_chatbot`). Cần extension `vector`, `pg_trgm`, `unaccent` (D-27). Chatbot chỉ **đọc** bảng
+nghiệp vụ, chỉ ghi các bảng dưới đây.
+
+**`chatbot_documents`** — tài liệu admin nạp cho bot
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | BIGINT | PK |
+| title | VARCHAR(255) | |
+| description | VARCHAR(1000) | N |
+| file_name, content_type | VARCHAR(255), VARCHAR(100) | Tên và loại file gốc |
+| size_bytes | BIGINT | > 0, tối đa `app.chatbot.knowledge.max-file-size` |
+| sha256 | CHAR(64) | U — chống nạp trùng |
+| content | BYTEA | File gốc (để tải lại / nạp lại) |
+| status | VARCHAR(30) | `PROCESSING` \| `READY` \| `FAILED` |
+| error_message | VARCHAR(1000) | N — lý do FAILED |
+| chunk_count | INT | mặc định 0 |
+| is_active | BOOLEAN | mặc định true; false = bot không dùng |
+| created_by | BIGINT | FK → users(id) |
+| created_at, updated_at | timestamptz | |
+
+**`chatbot_document_chunks`** — đoạn văn bản đã embed
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | UUID | PK |
+| document_id | BIGINT | FK → chatbot_documents(id) `ON DELETE CASCADE` |
+| chunk_index | INT | Unique `(document_id, chunk_index)` |
+| content | TEXT | |
+| metadata | JSONB | `{"page": 3}` (PDF) |
+| embedding | vector(1536) | Index HNSW `vector_cosine_ops` |
+
+Bot chỉ truy hồi chunk của tài liệu `is_active AND status = 'READY'`. Thay file: chunk cũ được thay bằng chunk mới
+trong một transaction.
+
+**`chatbot_item_embeddings`** — embedding sản phẩm/combo cho tìm kiếm ngữ nghĩa
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| item_type | VARCHAR(10) | `PRODUCT` \| `COMBO`; PK `(item_type, item_id)` |
+| item_id | BIGINT | id sản phẩm/combo (không FK — job dọn dòng của mặt hàng đã xoá) |
+| content_hash | CHAR(64) | SHA-256 của văn bản đã embed; đổi thì embed lại |
+| embedding | vector(1536) | Index HNSW `vector_cosine_ops` |
+| updated_at | timestamptz | |
+
+**`chatbot_conversations`** — hội thoại của khách với bot
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | UUID | PK |
+| user_id | BIGINT | FK → users(id) `ON DELETE CASCADE` — luôn là CUSTOMER |
+| title | VARCHAR(100) | Lấy từ câu hỏi đầu tiên |
+| created_at, updated_at | timestamptz | Index `(user_id, updated_at DESC)` |
+
+**`chatbot_messages`**
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | BIGINT | PK |
+| conversation_id | UUID | FK → chatbot_conversations(id) `ON DELETE CASCADE`; index `(conversation_id, created_at)` |
+| role | VARCHAR(10) | `USER` \| `ASSISTANT` |
+| content | TEXT | |
+| cards | JSONB | `ChatCard[]` bot đề xuất (`api.md` 4.12), mặc định `[]` |
+| sources | JSONB | `ChatSource[]` tài liệu đã trích, mặc định `[]` |
+| prompt_tokens, completion_tokens | INT | N — chỉ tin ASSISTANT |
+| created_at | timestamptz | |
+
+Giới hạn số tin của khách (`app.chatbot.rate-limit.*`) đếm trên tin `USER` của bảng này.
+
 ## 4. Quy tắc nghiệp vụ bắt buộc
 
 Mọi tham số có tên `app.*` là cấu hình trong `application.yml` (không hardcode — rule general.md).
