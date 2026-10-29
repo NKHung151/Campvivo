@@ -17,6 +17,26 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-29 — Người 3 — frontend (giao diện đăng ký + xác thực email, đi kèm N3-02)
+- Đã làm: nhánh `feature/auth-n3-02-register-ui` (tách từ `dev`). Trang `/register` (`RegisterForm`) và `/verify-email?email=` (`VerifyEmailForm`:
+  ô mã 6 số, nút "Gửi lại mã" đếm ngược 60 giây bắt đầu khi vào trang). `authService.register/verifyEmail/resendCode` (đều `skipAuth`);
+  `AuthProvider.verifyEmail` dùng chung đường lưu token với `login` (đúng mã → đăng nhập luôn). `LoginForm`: liên kết "Tạo tài khoản"; gặp
+  `EMAIL_NOT_VERIFIED` → gọi `resend-code` (bỏ qua `OTP_RESEND_TOO_SOON`) rồi chuyển `/verify-email`. Hook dùng chung `useLandingRedirect`;
+  `lib/auth/validation.ts` (luật khớp `RegisterRequest`, đếm byte UTF-8 ≤ 72); `authHref()` giữ `?redirect=` (đã qua `safeRedirectPath`).
+  `components/ui/Input`: prop `revealable` (nút Hiện/Ẩn mật khẩu). Docs: `pages.md`.
+  Kiểm chứng: `npm run lint`, `tsc --noEmit` xanh; script ngoài repo kiểm tra các hàm thuần (mật khẩu, tên, email, OTP, href/redirect chống open
+  redirect); chạy thật backend 8081 + Mailpit: đăng ký → đọc mã trong thư → sai mã `INVALID_OTP` → đúng mã nhận token → email trùng 409 → lỗi theo
+  trường; đăng nhập tài khoản chưa xác thực trả `EMAIL_NOT_VERIFIED`, gửi lại ngay thì `OTP_RESEND_TOO_SOON`; token rác trên `verify-email` bị 401
+  (chứng minh cần `skipAuth`).
+- Còn dang dở / TODO tiếp theo:
+  - CHƯA kiểm chứng giao diện trên trình duyệt thật (agent không có trình duyệt); cần người thử `/register` → `/verify-email` ở mobile/desktop.
+  - `npm run build` trên `dev` (cả khi chưa có thay đổi này) lỗi prerender `NETWORK_ERROR` ở `/`, `/brands`, `/products`... dù backend đang chạy:
+    nghi `serverApi.request` bắt nhầm lỗi `DynamicServerError` của Next (fetch `cache: "no-store"` lúc build) thành `networkError()`. Thuộc phần catalog
+    (Người 2), cần báo/chốt người sửa. `tsc` và bước biên dịch của build vẫn xanh.
+  - `/forgot-password` và liên kết "Quên mật khẩu?" thuộc N3-04. `EMAIL_ALREADY_EXISTS` hiện chỉ gợi ý "Đăng nhập" (chưa có trang quên mật khẩu).
+  - Email nằm trên URL `/verify-email?email=` theo đúng docs.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
+
 ### 2026-10-26 — Người 3 — backend (N3-02: đăng ký, xác thực email, gửi lại mã)
 - Đã làm: nhánh `feature/auth-n3-02-register` (XẾP CHỒNG lên `feature/auth-n3-01-otp`: PR 1 phải merge trước). `POST /auth/register` (201 `{email}`;
   email chưa xác thực đăng ký lại → ghi đè mật khẩu/họ tên + mã mới; gửi lại < 60 giây → `OTP_RESEND_TOO_SOON`, rollback không ghi đè;
