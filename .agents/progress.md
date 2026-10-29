@@ -37,6 +37,19 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-10-29 — Người 3 — frontend (sửa `next build` lỗi NETWORK_ERROR trên CI)
+- Đã làm: nhánh `fix/frontend-server-api-dynamic-build` (tách từ `dev`). Nguyên nhân (đã chứng minh bằng cách in lỗi gốc): `services/serverApi.ts`
+  (F-14) bọc `fetch` no-store trong `catch` đổi MỌI lỗi thành `NETWORK_ERROR`, nuốt `DYNAMIC_SERVER_USAGE` mà Next ném lúc prerender → `next build`
+  hỏng ở `/`, `/brands`, `/products` khi không có backend (CI) và cả khi có backend. Sửa: để lỗi điều khiển luồng của Next (`digest` =
+  `DYNAMIC_SERVER_USAGE` / `BAILOUT_TO_CLIENT_SIDE_RENDERING`) đi tiếp. Kiểm chứng: `npm run build` không có backend (như CI) exit 0, các trang
+  catalog chuyển sang render động; chạy `next start` với backend tắt thì lỗi mạng thật vẫn được ghi nhận là `NETWORK_ERROR`. Trước khi sửa, `dev` sạch
+  build exit 1. Docs: `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy thật với backend tắt, `/brands` trả HTTP 500 (trang catalog không bắt `ApiError`); roadmap N2-04 yêu cầu "tắt BE → trang báo lỗi thân thiện".
+    Việc này thuộc catalog (Người 2), không nằm trong PR sửa này.
+  - Không xem được CI từ máy này; kết quả CI sau khi sửa cần người mở PR xác nhận.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-14, N2-04)
+
 ### 2026-10-26 — Người 3 — backend (N3-02: đăng ký, xác thực email, gửi lại mã)
 - Đã làm: nhánh `feature/auth-n3-02-register` (XẾP CHỒNG lên `feature/auth-n3-01-otp`: PR 1 phải merge trước). `POST /auth/register` (201 `{email}`;
   email chưa xác thực đăng ký lại → ghi đè mật khẩu/họ tên + mã mới; gửi lại < 60 giây → `OTP_RESEND_TOO_SOON`, rollback không ghi đè;
