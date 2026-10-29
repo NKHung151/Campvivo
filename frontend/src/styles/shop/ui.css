@@ -95,6 +95,34 @@
   outline: 3px solid rgba(47, 106, 63, 0.3);
   border-color: #2f6a3f;
 }
+.cv-ui-field__control {
+  position: relative;
+  display: flex;
+}
+.cv-ui-field__control .cv-ui-field__input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 64px;
+}
+.cv-ui-field__reveal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  min-width: 56px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #2f6a3f;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-ui-field__reveal:focus-visible {
+  outline: 3px solid rgba(47, 106, 63, 0.35);
+  border-radius: 4px;
+}
 .cv-ui-field--error .cv-ui-field__input {
   border-color: #b3261e;
 }

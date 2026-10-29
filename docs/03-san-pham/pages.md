@@ -25,9 +25,9 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 ## Auth — nhóm `src/app/(store)/(auth)/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
-| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ✅ (email + mật khẩu; sau đăng nhập về `?redirect=` nếu role được vào, không thì ADMIN → `/admin`, EMPLOYEE → `/admin/orders`, CUSTOMER → `/`; popup OTP giả đã bỏ). Chưa có liên kết tới `/register`, `/forgot-password` (trang chưa làm); `EMAIL_NOT_VERIFIED` mới chỉ hiện thông báo, chưa tự chuyển `/verify-email` |
-| `/register` | Đăng ký | `POST /auth/register` | ⬜ |
-| `/verify-email?email=` | Nhập OTP xác thực email, gửi lại mã (đếm ngược 60s) | `/auth/verify-email`, `/auth/resend-code` | ⬜ (tái sử dụng UI popup OTP) |
+| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ✅ (email + mật khẩu; sau đăng nhập về `?redirect=` nếu role được vào, không thì ADMIN → `/admin`, EMPLOYEE → `/admin/orders`, CUSTOMER → `/`; popup OTP giả đã bỏ). Có liên kết "Tạo tài khoản" (`/register`); `EMAIL_NOT_VERIFIED` → tự gọi `resend-code` rồi chuyển `/verify-email`. Chưa có liên kết tới `/forgot-password` (trang chưa làm) |
+| `/register` | Đăng ký (họ tên, email, mật khẩu; có nút Hiện/Ẩn mật khẩu). Giữ `?redirect=` sang `/verify-email` | `POST /auth/register` | ✅ |
+| `/verify-email?email=` | Nhập OTP xác thực email, gửi lại mã (đếm ngược 60s, bắt đầu khi vào trang). Đúng mã → đăng nhập luôn, về `?redirect=` hoặc trang mặc định của role | `/auth/verify-email`, `/auth/resend-code` | ✅ |
 | `/forgot-password` | Nhập email nhận mã | `POST /auth/forgot-password` | ⬜ |
 | `/reset-password?email=` | Nhập OTP + mật khẩu mới | `POST /auth/reset-password` | ⬜ |
 
