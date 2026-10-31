@@ -56,7 +56,7 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/orders` | Danh sách đơn, lọc trạng thái/phương thức/ngày, tìm mã đơn/email/SĐT | Staff | `GET /admin/orders` |
 | `/admin/orders/[id]` | Chi tiết đơn + lịch sử; nút chuyển trạng thái hợp lệ (kèm ghi chú) | Staff | `/admin/orders/{id}`, `PATCH .../status` |
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
-| `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
+| `/admin/inventory` | Tồn kho: tab Sản phẩm (Nhập / Xuất / Kiểm kê), tab Combo (Đóng gói / Tháo / Xuất bộ hỏng), lọc "sắp hết", tab Nhật ký kho (lọc mặt hàng, lý do, ngày) — đã làm (N2-24, N2-25) | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá | Admin | `/admin/users` |
 | `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |

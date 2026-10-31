@@ -321,11 +321,11 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | POST | `/admin/combos` | Admin | `ComboRequest` → 201 `AdminComboDetail`; tồn kho bắt đầu 0 (đóng gói ở `/pack`). `categoryId` phải là danh mục cấp 1 (D-23), không thì 400 `fieldErrors.categoryId`. < 2 sản phẩm hoặc trùng sản phẩm → 400 `fieldErrors.items`; sản phẩm không tồn tại → `NOT_FOUND`; slug tự nhập trùng → `SLUG_ALREADY_EXISTS` |
 | GET/PUT | `/admin/combos/{id}` | Admin | PUT như POST (thay toàn bộ thành phần và ảnh; slug trống = giữ slug cũ) |
 | PATCH | `/admin/combos/{id}/status` | Admin | `{isActive}` → `AdminComboSummary`. "Xoá" combo = ẩn (BR-14) |
-| POST | `/admin/combos/{id}/pack` | Admin | `{sets: 1..999}` → `AdminComboDetail`. Trừ `sets × quantity` ở kho sản phẩm của từng dòng, cộng `sets` vào kho combo (D-22). Thiếu → 409 `OUT_OF_STOCK` (`details.shortages`) |
-| POST | `/admin/combos/{id}/unpack` | Admin | `{sets}` → `AdminComboDetail`. Trả hàng về kho sản phẩm; `sets` > số bộ khả dụng → `INVALID_STOCK_ADJUSTMENT` |
-| GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO&q&lowStock=true&page&limit` → `[{type, id, name, stockQuantity, reservedQuantity, availableQuantity, isLowStock}]` |
-| POST | `/admin/inventory/adjustments` | Staff | `{productId? \| comboId?, changeQuantity, reason: IMPORT\|EXPORT\|ADJUST, note?}` → log mới |
-| GET | `/admin/inventory/logs` | Staff | `?productId&comboId&from&to&page&limit` |
+| POST | `/admin/combos/{id}/pack` | Staff | `{sets: 1..999}` → `AdminComboDetail`. Trừ `sets × quantity` ở kho sản phẩm của từng dòng, cộng `sets` vào kho combo (D-22); ghi nhật ký kho cho combo (IMPORT) và từng sản phẩm (EXPORT) (D-27). Thiếu → 409 `OUT_OF_STOCK` (`details.shortages`) |
+| POST | `/admin/combos/{id}/unpack` | Staff | `{sets}` → `AdminComboDetail`. Trả hàng về kho sản phẩm, ghi nhật ký (combo EXPORT, sản phẩm IMPORT); `sets` > số bộ khả dụng → `INVALID_STOCK_ADJUSTMENT` |
+| GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO` (mặc định PRODUCT) `&q&lowStock=true&page&limit` → `[InventoryItem]`, ít hàng khả dụng nhất lên đầu. `q` tìm như danh sách sản phẩm (không dấu). `lowStock`: khả dụng ≤ `app.inventory.low-stock-threshold` (gồm hết hàng) |
+| POST | `/admin/inventory/adjustments` | Staff | `AdjustmentRequest` → 201 `InventoryLogEntry`. Đúng một trong productId/comboId; IMPORT phải dương, EXPORT phải âm, ADJUST khác 0, RETURN không chọn tay (400 `fieldErrors`). Combo chỉ được giảm (D-27) và mọi điều chỉnh không được làm `stock < reserved` → `INVALID_STOCK_ADJUSTMENT` |
+| GET | `/admin/inventory/logs` | Staff | `?productId&comboId&type=PRODUCT\|COMBO&reason&from&to&page&limit` → `[InventoryLogEntry]`, mới nhất trước. `from`/`to`: `YYYY-MM-DD` giờ Việt Nam, gồm cả hai đầu |
 | GET | `/admin/orders` | Staff | `?status&paymentMethod&q (orderCode/email/SĐT)&from&to&page&limit` |
 | GET | `/admin/orders/{id}` | Staff | `OrderDetail` + thông tin khách |
 | PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` (mục 5.1 `database.md`) → `{orderId, oldStatus, newStatus, updatedAt}` |
@@ -362,6 +362,14 @@ interface ProductRequest { name: string; slug?: string; shortDescription?: strin
   price: Money; categoryId: number; isActive: boolean;
   specs: ProductSpec[];                     // ≤ 30 dòng; tên trùng (không phân biệt hoa thường) bị gộp
   images: AdminProductImage[]; }   // thay toàn bộ ảnh, đúng 1 ảnh isPrimary
+interface InventoryItem { type: "PRODUCT" | "COMBO"; id: number; name: string; slug: string; imageUrl: string | null;
+  stockQuantity: number; reservedQuantity: number; availableQuantity: number; isLowStock: boolean; isActive: boolean;
+  maxPackable: number | null; }   // chỉ combo: số bộ đóng gói được ngay với hàng lẻ hiện có
+interface AdjustmentRequest { productId?: number; comboId?: number; changeQuantity: number;   // −100000..100000, khác 0
+  reason: "IMPORT" | "EXPORT" | "ADJUST"; note?: string | null; }   // note ≤ 500
+interface InventoryLogEntry { id: number; type: "PRODUCT" | "COMBO"; itemId: number; itemName: string;
+  changeQuantity: number; stockAfter: number; reason: "IMPORT" | "EXPORT" | "ADJUST" | "RETURN"; note: string | null;
+  user: { id: number; fullName: string }; createdAt: string; }
 interface AdminComboSummary { id: number; name: string; slug: string; categoryId: number; categoryName: string;
   categoryPath: string[]; comboPrice: Money; itemsTotal: Money;   // itemsTotal = tổng giá lẻ hiện tại (giá × số lượng)
   itemCount: number; stockQuantity: number; reservedQuantity: number; availableQuantity: number;   // tồn kho theo bộ (D-03)

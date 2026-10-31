@@ -264,6 +264,18 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   lưu sang combo — đổi ảnh sản phẩm thì combo hiển thị theo.
 - **Dữ liệu:** không đổi cấu trúc bảng. Seed V5 không còn chèn ảnh riêng cho combo (dùng ảnh sản phẩm).
 
+### 2026-10-31 — D-27: Combo chỉ giảm tay ở trang Tồn kho; đóng gói/tháo ghi nhật ký kho
+- **Bối cảnh:** kho combo tăng bằng đóng gói (trừ hàng lẻ — D-22). Nếu trang Tồn kho cho nhập tay combo như sản phẩm, kho
+  combo tăng mà kho lẻ không giảm → có bộ combo "không có nguồn", bán ra là thiếu hàng lẻ thật.
+- **Quyết định:**
+  - Sản phẩm: nhập (IMPORT +), xuất (EXPORT −), kiểm kê (ADJUST ±).
+  - Combo: KHÔNG nhập tay; chỉ xuất/giảm tay khi bộ combo hỏng/mất (kho lẻ không đổi). Thêm bộ combo bằng Đóng gói, bớt
+    bằng Tháo — làm được ngay ở trang Tồn kho; ADMIN và EMPLOYEE đều dùng được (việc của kho).
+  - Đóng gói/tháo ghi `inventory_logs` (BR-8 mở rộng): combo ± số bộ và từng sản phẩm thành phần ∓ số lượng, ghi chú
+    "Đóng gói/Tháo N bộ combo …" — truy được vì sao hàng lẻ giảm.
+- **Ảnh hưởng:** migration `V6__inventory_logs.sql` (bảng có trong báo cáo, thêm `combo_id`). `/admin/combos/{id}/pack|unpack`
+  mở cho EMPLOYEE.
+
 ---
 
 ## Quyết định trước đó

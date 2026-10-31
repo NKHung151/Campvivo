@@ -141,8 +141,11 @@ xem BR-xx trong `database.md`.
 - **Chính:** danh sách sản phẩm + combo với `stock`, `reserved`, `available`, cảnh báo khi
   `available ≤ app.inventory.low-stock-threshold` (mặc định 5). Điều chỉnh: chọn mặt hàng,
   `change_quantity` (+ nhập / − xuất), lý do (IMPORT/EXPORT/ADJUST), ghi chú → ghi
-  `inventory_logs` (BR-8).
-- **Ngoại lệ:** `change_quantity = 0` hoặc làm `stock < reserved` → `INVALID_STOCK_ADJUSTMENT`.
+  `inventory_logs` (BR-8). Combo chỉ được giảm tay (hỏng/mất); muốn thêm bộ combo phải đóng gói để trừ hàng lẻ —
+  đóng gói/tháo làm được ngay ở trang Tồn kho và cũng ghi nhật ký (D-27). Kiểm kê: nhập số đếm thực tế, hệ thống tự tính
+  chênh lệch (ADJUST).
+- **Ngoại lệ:** `change_quantity = 0` hoặc làm `stock < reserved` → `INVALID_STOCK_ADJUSTMENT`; nhập tay combo →
+  `INVALID_STOCK_ADJUSTMENT`.
 
 ### FR-09 Giỏ hàng
 - **Chính:** mỗi Customer có 1 giỏ. Thêm mặt hàng đã có trong giỏ → cộng dồn số lượng. Giá luôn

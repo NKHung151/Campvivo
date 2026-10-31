@@ -361,7 +361,9 @@ trạng thái đã đọc.
 | note | VARCHAR(500) | N |
 | created_at | timestamptz | |
 
-`CHECK (num_nonnulls(product_id, combo_id) = 1)`.
+`CHECK (num_nonnulls(product_id, combo_id) = 1)`. Migration `V6__inventory_logs.sql` (V5 dành cho bảng đơn hàng của
+Người 1). Ngoài điều chỉnh tay và trả hàng, đóng gói/tháo combo cũng ghi log (D-27): combo `IMPORT`/`EXPORT` ± số bộ,
+từng sản phẩm thành phần `EXPORT`/`IMPORT` ± số lượng.
 
 ### 3.23 Index bắt buộc
 Đặt tên `idx_<bang>_<cot>`. Ngoài index tự sinh từ PK/UNIQUE:
