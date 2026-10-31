@@ -4,8 +4,9 @@ import type { ComboDetail } from "@/types/api/catalog";
 import { productHref, vnd } from "@/lib/format";
 import { Breadcrumb } from "@/components/features/layout/Breadcrumb";
 import { ProductGallery } from "@/components/features/product/ProductGallery";
+import { ComboBuyBox } from "@/components/features/combo/ComboBuyBox";
 
-/** Trang chi tiết combo (FR-07) — chỉ xem: ảnh, giá so với mua lẻ, tình trạng, các món trong combo, mô tả. */
+/** Trang chi tiết combo (FR-07, FR-09): ảnh, giá so với mua lẻ, tình trạng, mua/thêm giỏ, các món trong combo, mô tả. */
 export function ComboPage({ c }: { c: ComboDetail }) {
   const saving = c.itemsTotal - c.price;
   const images = (c.images.length ? c.images : c.primaryImageUrl ? [{ url: c.primaryImageUrl, isPrimary: true }] : [])
@@ -44,6 +45,7 @@ export function ComboPage({ c }: { c: ComboDetail }) {
                 {c.availableQuantity > 0 ? `Còn ${c.availableQuantity} bộ` : "Tạm hết hàng"}
               </div>
             </div>
+            <ComboBuyBox comboId={c.id} available={c.availableQuantity} />
             <div className="cv-combo-items">
               <div className="cv-combo-items-title">
                 Combo gồm {pieces} sản phẩm

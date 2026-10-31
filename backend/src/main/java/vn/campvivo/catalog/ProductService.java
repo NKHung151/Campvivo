@@ -15,6 +15,7 @@ import vn.campvivo.common.exception.ErrorCode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -70,6 +71,16 @@ public class ProductService {
                 : imageRepository.findPrimaryByProductIds(ids).stream()
                         .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
         return PageResponse.of(result.map(p -> ItemSummary.from(p, primaryUrls.get(p.getId()))));
+    }
+
+    /** Ảnh chính của nhiều sản phẩm (giỏ hàng, đơn hàng dùng — tránh N+1). */
+    @Transactional(readOnly = true)
+    public Map<Long, String> primaryImageUrls(Collection<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return imageRepository.findPrimaryByProductIds(productIds).stream()
+                .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
     }
 
     @Transactional(readOnly = true)

@@ -1,11 +1,13 @@
 package vn.campvivo.user;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -20,6 +22,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update User u set u.tokenVersion = u.tokenVersion + 1, u.updatedAt = CURRENT_TIMESTAMP where u.id = :id")
     int incrementTokenVersion(@Param("id") Long id);
+
+    /** Id user có email hoặc họ tên chứa `pattern` (đã kèm %, chữ thường) — tìm đơn hàng theo khách (FR-13). */
+    @Query("select u.id from User u where lower(u.email) like :pattern or lower(u.fullName) like :pattern order by u.id")
+    List<Long> findIdsByKeyword(@Param("pattern") String pattern, Pageable pageable);
 
     /**
      * Tính một lần thử OTP, chỉ khi chưa đủ số lần cho phép (BR-11). Một câu UPDATE nguyên tử nên nhiều lần đoán

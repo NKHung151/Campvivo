@@ -50,3 +50,16 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
 - **Ảnh hưởng:** ai cũng vào được `/admin` ở môi trường dev; nút Đăng xuất bị tắt.
 - **Xử lý:** khi có auth thật (N3-03 + F-14) thay ruột `useAdminSession` bằng AuthProvider (`GET /users/me`),
   bỏ ô "Dev". Các trang admin chỉ dùng `useAdmin()` nên không phải sửa.
+
+### KI-07 — Cân nặng kiện GHN ước lượng theo số món (2026-10-26)
+- **Mô tả:** `products` không có cân nặng/kích thước → cân kiện = số món × `app.ghn.default-weight`, kích thước kiện cố định
+  (`app.ghn.parcel-*`). Phí ship có thể lệch thực tế với hàng nặng/cồng kềnh (lều, bàn ghế).
+- **Xử lý sau:** thêm cột cân nặng cho sản phẩm (cần cập nhật `database.md`, D-12) rồi đổi `ShippingService.weightOf`.
+
+### KI-08 — Voucher chưa áp dụng được khi đặt hàng (2026-10-26)
+- **Mô tả:** module promotion (F-07, FR-16) chưa có; `VoucherService` trả `INVALID_VOUCHER` cho mọi mã.
+- **Xử lý:** khi làm FR-16, cài BR-5 trong `VoucherService` (+ khoá voucher, trừ/trả lượt ở `OrderService` / `OrderStateService`).
+
+### KI-09 — Địa chỉ giao hàng gần nhất lưu ở trình duyệt (2026-10-26)
+- **Mô tả:** `users.address` chỉ là chuỗi (D-02) nên mã GHN của địa chỉ lần trước lưu ở localStorage; đổi trình duyệt phải chọn
+  lại Tỉnh/Quận/Phường. "Lưu vào hồ sơ" vẫn cập nhật `users.phone`, `users.address` (chuỗi đầy đủ).

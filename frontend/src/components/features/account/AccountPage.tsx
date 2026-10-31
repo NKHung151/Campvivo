@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { ProductCard } from "@/types/shop";
 import { GridCard } from "@/components/features/catalog/ProductCard";
 import { useShop } from "@/components/features/shop/ShopProvider";
-import { OrderCard } from "@/components/features/cart/OrderCard";
+import { MyOrders } from "@/components/features/account/MyOrders";
 
 type Tab = "orders" | "wishlist" | "address";
 const TABS: { id: Tab; label: string }[] = [
@@ -14,11 +14,11 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 /**
- * Member area, backed by the mock store until the account API exists, so this is authored
- * from what the site promises members (orders, wishlist) using its visual language.
+ * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); yêu thích và địa chỉ giao gần nhất còn lưu ở trình duyệt
+ * (chưa có API favorites — Tier 2).
  */
 export function AccountPage() {
-  const { ready, user, orders, wishlist, customer, openLogin, logout } = useShop();
+  const { ready, user, wishlist, customer, openLogin, logout } = useShop();
   const [tab, setTab] = useState<Tab>("orders");
   const [wish, setWish] = useState<ProductCard[]>([]);
 
@@ -41,14 +41,6 @@ export function AccountPage() {
             Đăng nhập
           </button>
         </div>
-        {orders.length > 0 && (
-          <div className="box">
-            <p>Đơn hàng đã đặt trên trình duyệt này (khách):</p>
-            {orders.map((o) => (
-              <OrderCard key={o.id} order={o} />
-            ))}
-          </div>
-        )}
       </div>
     );
   }
@@ -70,8 +62,7 @@ export function AccountPage() {
         </aside>
         <section>
           <h1>{TABS.find((t) => t.id === tab)!.label}</h1>
-          {tab === "orders" &&
-            (orders.length ? orders.map((o) => <OrderCard key={o.id} order={o} />) : <div className="cv-empty">Bạn chưa có đơn hàng nào.</div>)}
+          {tab === "orders" && <MyOrders />}
           {tab === "wishlist" &&
             (wishlist.length ? (
               <div id="ProductCategory" style={{ width: "100%" }}>
@@ -91,7 +82,7 @@ export function AccountPage() {
                   <b>
                     {customer.gender} {customer.name}
                   </b>{" "}
-                  – {customer.phone} – {customer.email}
+                  – {customer.phone}
                   <br />
                   {[customer.street, customer.ward, customer.district, customer.province].filter(Boolean).join(", ")}
                 </div>

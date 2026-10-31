@@ -39,7 +39,6 @@ class AppPropertiesTest {
             assertThat(props.otp().resendInterval()).isEqualTo(Duration.ofSeconds(60));
             assertThat(props.order().paymentTimeout()).isEqualTo(Duration.ofMinutes(15));
             assertThat(props.returns().windowDays()).isEqualTo(7);
-            assertThat(props.shipping().fee()).isEqualTo(30000L);
             assertThat(props.shipping().freeThreshold()).isEqualTo(1000000L);
             assertThat(props.inventory().lowStockThreshold()).isEqualTo(5);
             assertThat(props.cors().allowedOrigins()).containsExactly("http://localhost:3000");
@@ -59,6 +58,19 @@ class AppPropertiesTest {
     @Test
     void failsToStartWhenJwtSecretMissing() {
         runner.withPropertyValues("app.jwt.secret=").run(context -> assertThat(context).hasFailed());
+    }
+
+    /** .env cho phép KEY="giá trị"; khi nạp qua spring.config.import dấu nháy còn nguyên nên phải tự bỏ. */
+    @Test
+    void stripsQuotesFromGhnValuesWrittenInDotEnv() {
+        runner.withPropertyValues("app.jwt.secret=" + SECRET,
+                        "app.ghn.from-ward-code=\"1A0404\"", "app.ghn.token='abc' ", "app.ghn.shop-id=123")
+                .run(context -> {
+                    AppProperties.Ghn ghn = context.getBean(AppProperties.class).ghn();
+                    assertThat(ghn.fromWardCode()).isEqualTo("1A0404");
+                    assertThat(ghn.token()).isEqualTo("abc");
+                    assertThat(ghn.shopId()).isEqualTo("123");
+                });
     }
 
     @Test

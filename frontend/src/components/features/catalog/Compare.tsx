@@ -11,6 +11,7 @@ const MAX = 3;
 const KEY = "cv-compare";
 
 interface CompareRow {
+  id: number;
   slug: string;
   name: string;
   img: string;
@@ -181,10 +182,9 @@ export function CompareBar({ compare }: { compare: ReturnType<typeof useCompare>
                       <button
                         type="button"
                         className="cmp-footer-cart"
-                        onClick={() => {
+                        onClick={async () => {
                           if (!r.price) return;
-                          addToCart({ slug: r.slug, name: r.name, img: r.img, sku: "", variant: null, price: r.price });
-                          notify("Đã thêm vào giỏ hàng");
+                          if (await addToCart({ productId: r.id })) notify("Đã thêm vào giỏ hàng");
                         }}
                       >
                         Thêm vào giỏ

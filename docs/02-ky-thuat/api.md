@@ -76,6 +76,7 @@ Danh sách có phân trang:
 | 409 | ORDER_NOT_CANCELLABLE | Huỷ khi không PENDING |
 | 409 | INVALID_STATUS_TRANSITION | Sai máy trạng thái (đơn hoặc yêu cầu trả hàng) |
 | 502 | PAYMENT_GATEWAY_ERROR | Không tạo được URL thanh toán |
+| 502 | SHIPPING_GATEWAY_ERROR | GHN lỗi/không kết nối được, chưa cấu hình `GHN_*`, hoặc địa chỉ không giao được (D-27) |
 | **return/review** | | |
 | 400 | RETURN_NOT_ALLOWED | Đơn không ở COMPLETED |
 | 400 | RETURN_WINDOW_EXPIRED | Quá hạn trả |
@@ -204,36 +205,46 @@ interface Cart {
   items: { id: number; item: ItemSummary & { isActive: boolean }; quantity: number;
            lineTotal: Money; }[];                     // giá hiện hành (D-04)
   subtotal: Money;
+  itemCount: number;                                  // tổng số món (badge giỏ hàng)
   hasProblems: boolean;                               // có dòng hết hàng/ngừng bán/vượt available
 }
 ```
-Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`.
+Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`, `VALIDATION_ERROR` (số lượng 1..999; gửi cả hai hoặc không id nào →
+`fieldErrors.exactlyOneItem`). Giỏ được tạo khi khách dùng lần đầu.
 
 ### 4.5 order / payment — FR-10, FR-11, FR-12, FR-19a
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
 | POST | `/vouchers/validate` | Customer | `{code}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
-| POST | `/orders/preview` | Customer | `{voucherCode?}` → `OrderPreview` (dùng để hiển thị trang thanh toán và lấy `expectedTotal`) |
+| POST | `/orders/preview` | Customer | `{voucherCode?, cartItemIds?, shippingDistrictId?, shippingWardCode?}` → `OrderPreview` (hiển thị trang thanh toán, lấy `expectedTotal`; có địa chỉ GHN thì tính phí ship — D-27; `cartItemIds` rỗng = cả giỏ) |
 | POST | `/orders` | Customer | `CreateOrderRequest` → 201 `{orderId, orderCode, status, finalAmount, paymentMethod, paymentUrl: string \| null}` |
-| GET | `/orders` | Customer | `?status&page&limit` → `[OrderSummary]` (của chính mình) |
+| GET | `/orders` | Customer | `?status&page&limit` (limit mặc định 10) → `[OrderSummary]` (của chính mình, mới nhất trước) |
 | GET | `/orders/{id}` | Customer | → `OrderDetail` |
-| POST | `/orders/{id}/cancel` | Customer | `{reason?}` → `OrderDetail` |
+| POST | `/orders/{id}/cancel` | Customer | `{reason?}` (≤ 500) → `OrderDetail`. Chỉ khi PENDING (`ORDER_NOT_CANCELLABLE`); đơn người khác → `NOT_FOUND` |
 | POST | `/orders/{id}/returns` | Customer | `{reason}` (10–1000 ký tự) → 201 `ReturnRequestDto` |
-| GET | `/payments/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12) |
-| GET | `/payments/vnpay/return` | Public | query `vnp_*` → `{orderId, orderCode, status, paymentStatus}` — chỉ đọc |
+| GET | `/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12, D-28) — KHÔNG bọc `{success, data}` |
+| GET | `/vnpay/return` | Public | query `vnp_*` (trang `/payment/vnpay-return` chuyển nguyên) → `VnpayReturnResult`; cùng hàm xử lý với IPN (D-28) |
 
 ```ts
 interface OrderPreview {
-  items: { type: ItemType; id: number; name: string; quantity: number;
+  items: { cartItemId: number; type: ItemType; id: number; name: string; quantity: number;
            originalPrice: Money; unitPrice: Money; lineTotal: Money }[];
   subtotal: Money; discountAmount: Money; shippingFee: Money; finalAmount: Money;
   voucherCode: string | null;
+  shippingCalculated: boolean;                        // false = chưa có địa chỉ GHN, shippingFee tạm 0
+  freeShipping: boolean; freeShippingThreshold: Money; // D-27
 }
 interface CreateOrderRequest {
-  recipientName: string; recipientPhone: string; shippingAddress: string;
+  recipientName: string; recipientPhone: string;      // SĐT: 10 số, bắt đầu bằng 0
+  shippingAddress: string;                            // địa chỉ đầy đủ (số nhà, phường, quận, tỉnh)
+  shippingDistrictId: number; shippingWardCode: string; // mã GHN (api.md 4.12) — tính phí + tạo vận đơn
   saveAsDefault: boolean; paymentMethod: PaymentMethod; voucherCode?: string;
   note?: string; expectedTotal: Money;                // = OrderPreview.finalAmount client đang thấy
+  cartItemIds?: number[];                             // dòng giỏ được chọn; rỗng = cả giỏ
 }
+type PaymentOutcome = "SUCCESS" | "FAILED" | "ALREADY_PROCESSED" | "INVALID_SIGNATURE" | "ORDER_NOT_FOUND" | "AMOUNT_MISMATCH";
+interface VnpayReturnResult { outcome: PaymentOutcome; orderId: number | null; orderCode: string | null;
+  orderStatus: OrderStatus | null; paymentStatus: PaymentStatus | null; }
 interface OrderSummary { id: number; orderCode: string; status: OrderStatus; paymentMethod: PaymentMethod;
   finalAmount: Money; itemCount: number; firstItemName: string; firstItemImageUrl: string | null;
   createdAt: string; }
@@ -243,6 +254,9 @@ interface OrderDetail extends OrderSummary {
   subtotal: Money; discountAmount: Money; shippingFee: Money; voucherCode: string | null;
   recipientName: string; recipientPhone: string; shippingAddress: string; note: string | null;
   payment: { method: PaymentMethod; status: PaymentStatus; paidAt: string | null };
+  shipping: { carrier: "GHN"; districtId: number; wardCode: string;
+              trackingCode: string | null;            // mã vận đơn GHN, null = chưa tạo (D-28)
+              error: string | null };                 // lỗi lần tạo vận đơn gần nhất
   history: { oldStatus: OrderStatus | null; newStatus: OrderStatus; note: string | null; createdAt: string }[];
   returnRequest: ReturnRequestDto | null;
   canCancel: boolean; canReturn: boolean; completedAt: string | null;
@@ -253,7 +267,8 @@ interface ReturnRequestDto { id: number; orderId: number; reason: string; status
 Ví dụ `POST /orders` VNPay:
 ```json
 { "recipientName": "Nguyễn Văn A", "recipientPhone": "0901234567",
-  "shippingAddress": "12 Lê Lợi, Q.1, TP.HCM", "saveAsDefault": true,
+  "shippingAddress": "12 Lê Lợi, Phường Bến Nghé, Quận 1, Hồ Chí Minh",
+  "shippingDistrictId": 1442, "shippingWardCode": "20109", "saveAsDefault": true,
   "paymentMethod": "VNPAY", "voucherCode": "CAMPVIVO10", "expectedTotal": 840000 }
 ```
 ```json
@@ -262,7 +277,8 @@ Ví dụ `POST /orders` VNPay:
   "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..." } }
 ```
 Lỗi `POST /orders`: `CART_EMPTY`, `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `PRICE_CHANGED`, các lỗi
-voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `VALIDATION_ERROR`.
+voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `SHIPPING_GATEWAY_ERROR`, `VALIDATION_ERROR`, `NOT_FOUND` (cartItemIds không thuộc giỏ).
+Chưa có module promotion: mọi `voucherCode` khác rỗng → `INVALID_VOUCHER` (`VoucherService` là điểm cắm khi làm FR-16).
 
 ### 4.6 review / favorite — FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
@@ -326,9 +342,11 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO&q&lowStock=true&page&limit` → `[{type, id, name, stockQuantity, reservedQuantity, availableQuantity, isLowStock}]` |
 | POST | `/admin/inventory/adjustments` | Staff | `{productId? \| comboId?, changeQuantity, reason: IMPORT\|EXPORT\|ADJUST, note?}` → log mới |
 | GET | `/admin/inventory/logs` | Staff | `?productId&comboId&from&to&page&limit` |
-| GET | `/admin/orders` | Staff | `?status&paymentMethod&q (orderCode/email/SĐT)&from&to&page&limit` |
-| GET | `/admin/orders/{id}` | Staff | `OrderDetail` + thông tin khách |
-| PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` (mục 5.1 `database.md`) → `{orderId, oldStatus, newStatus, updatedAt}` |
+| GET | `/admin/orders` | Staff | `?status&paymentMethod&q&from&to&page&limit` (limit mặc định 20) → `[AdminOrderSummary]`, mới nhất trước. `q`: mã đơn, SĐT người nhận, email/họ tên khách; `from`/`to` `yyyy-MM-dd` theo giờ VN (gồm cả ngày `to`) |
+| GET | `/admin/orders/{id}` | Staff | → `AdminOrderDetail` (`OrderDetail` + khách + `allowedStatuses` + `canCreateShipment`) |
+| PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` → `{orderId, oldStatus, newStatus, updatedAt}`. Nhân viên chỉ được: PENDING+COD → CONFIRMED / CANCELLED (bắt buộc `note`, thiếu → 400 `fieldErrors.note`); CONFIRMED → SHIPPING (không ghi chú thì tự ghi mã vận đơn GHN); SHIPPING → COMPLETED. Khác → `INVALID_STATUS_TRANSITION` |
+| POST | `/admin/orders/{id}/shipment` | Staff | Tạo (lại) vận đơn GHN cho đơn CONFIRMED/SHIPPING chưa có vận đơn → `AdminOrderDetail`; đã có thì giữ nguyên; lỗi GHN → `SHIPPING_GATEWAY_ERROR` (lỗi được lưu vào `shipping.error`) — D-28 |
+| GET | `/admin/orders/{id}/shipment` | Staff | Hành trình vận đơn đọc từ GHN → `ShipmentTracking`; chưa có vận đơn → `NOT_FOUND` |
 | GET | `/admin/returns` | Staff | `?status&page&limit` |
 | GET | `/admin/returns/{id}` | Staff | + `OrderDetail` |
 | PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT" \| "COMPLETE", note?}` (REJECT bắt buộc note) |
@@ -341,6 +359,18 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
+
+Kiểu dữ liệu đơn hàng admin (định nghĩa đầy đủ ở `frontend/src/types/api/order.ts`):
+```ts
+interface AdminOrderCustomer { id: number; email: string; fullName: string; phone: string | null; }
+interface AdminOrderSummary extends OrderSummary { paymentStatus: PaymentStatus | null; customer: AdminOrderCustomer | null;
+  recipientName: string; recipientPhone: string; shippingOrderCode: string | null; }
+interface AdminOrderDetail { order: OrderDetail; customer: AdminOrderCustomer | null;
+  allowedStatuses: OrderStatus[];        // nút chuyển trạng thái được phép ngay lúc này
+  canCreateShipment: boolean; }          // CONFIRMED/SHIPPING chưa có vận đơn
+interface ShipmentTracking { carrier: "GHN"; trackingCode: string; status: string;   // mã trạng thái GHN (ready_to_pick, delivering...)
+  expectedDeliveryTime: string | null; updatedAt: string | null; log: { status: string; updatedAt: string | null }[]; }
+```
 
 ### 4.11 Kiểu dữ liệu admin catalog
 Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:
@@ -379,6 +409,34 @@ interface ComboRequest { name: string; slug?: string; description?: string | nul
   // 2..20 sản phẩm khác nhau, quantity 1..99.
   // Combo còn bộ đã đóng gói thì không đổi được thành phần (400 fieldErrors.items)
 ```
+
+### 4.12 shipping (GHN) — FR-10, D-27
+Token/ShopId GHN chỉ ở backend (`app.ghn.*` ← biến `GHN_*`); frontend chỉ gọi các endpoint dưới đây.
+| Method | Path | Quyền | Query / Body → Response |
+|---|---|---|---|
+| GET | `/shipping/provinces` | Public | → `[Province]` (bỏ tỉnh tắt/tỉnh thử nghiệm của staging; xếp theo tên tiếng Việt; cache server `app.ghn.master-data-cache-ttl`) |
+| GET | `/shipping/districts` | Public | `provinceId` (> 0) → `[District]` |
+| GET | `/shipping/wards` | Public | `districtId` (> 0) → `[Ward]` |
+| GET | `/shipping/services` | Public | `toDistrictId` → `[ShippingServiceOption]` — gói GHN khả dụng từ kho tới quận nhận (tham khảo; đơn dùng gói `app.ghn.service-type-id`) |
+| POST | `/shipping/fee` | Public | `ShippingFeeRequest` → `ShippingFee`. Tính thử ở trang thanh toán; khi tạo đơn server tự tính lại từ giỏ |
+
+```ts
+interface Province { id: number; name: string; }
+interface District { id: number; name: string; }
+interface Ward { code: string; name: string; }
+interface ShippingServiceOption { serviceId: number; serviceTypeId: number; name: string; }
+interface ShippingFeeRequest {
+  toDistrictId: number; toWardCode: string;
+  quantity: number;          // tổng số món (1..999); cân nặng = quantity × app.ghn.default-weight (gram)
+  orderValue?: Money;        // tạm tính − giảm giá, để xét miễn phí ship
+}
+interface ShippingFee {
+  fee: Money;                // phí khách trả: 0 nếu orderValue ≥ freeShippingThreshold
+  carrierFee: Money;         // phí GHN báo (shop trả GHN)
+  freeShipping: boolean; freeShippingThreshold: Money;
+}
+```
+Lỗi: `VALIDATION_ERROR` (`fieldErrors`), `SHIPPING_GATEWAY_ERROR` (502).
 
 ## 5. Ánh xạ sang frontend
 - Mỗi nhóm endpoint ↔ `frontend/src/services/<module>Service.ts` (auth, user, catalog, cart, order,

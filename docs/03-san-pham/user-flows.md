@@ -50,9 +50,10 @@ Khám phá: /, /products, /categories/[slug], /combos, /search
   ⚠ PAYMENT_GATEWAY_ERROR → báo thử lại (không có đơn nào được tạo)
 → COD: /checkout/success?orderId=… "Đặt hàng thành công, chờ xác nhận"
 → VNPay: chuyển tới paymentUrl → khách thanh toán trên VNPay
-     VNPay gọi IPN (server-to-server) → đơn CONFIRMED hoặc PAYMENT_FAILED
-     VNPay chuyển khách về /checkout/success?… [GET /payments/vnpay/return] → hiển thị trạng thái
-     (IPN chưa tới → hiển thị "đang xử lý", hỏi lại GET /orders/{id} vài lần)
+     VNPay chuyển khách về /payment/vnpay-return?vnp_… [GET /vnpay/return] và (khi deploy) gọi IPN [GET /vnpay/ipn]
+       → cùng hàm handlePaymentResult (D-28): đơn CONFIRMED hoặc PAYMENT_FAILED, chạy lặp không sao
+     → /checkout/success?orderId=… hiển thị trạng thái (chưa xác nhận → "đang xử lý", hỏi lại GET /orders/{id} vài lần)
+     → đơn CONFIRMED → hệ thống tự tạo vận đơn GHN (COD: khi nhân viên xác nhận)
      khách bỏ dở → sau 15 phút đơn tự huỷ, giải phóng tồn kho và lượt voucher
 → nhân viên xử lý (luồng 7) → SHIPPING → COMPLETED
 → khách nhận thông báo + email ở mỗi bước; sau COMPLETED có thể đánh giá hoặc yêu cầu trả hàng
@@ -79,9 +80,10 @@ Khách nhận thông báo + email ở mỗi bước. Hoàn tiền thực hiện 
 ## 7. Nhân viên xử lý đơn (FR-13)
 ```
 /admin/orders → lọc trạng thái → /admin/orders/[id]
-→ PENDING + COD: "Xác nhận" (CONFIRMED, trừ tồn kho) hoặc "Huỷ" (bắt buộc ghi chú)
+→ PENDING + COD: "Xác nhận" (CONFIRMED, trừ tồn kho, tự tạo vận đơn GHN thu hộ tổng đơn) hoặc "Huỷ" (bắt buộc ghi chú)
   (PENDING + VNPay: không có nút — chờ IPN hoặc tự huỷ khi quá hạn)
-→ CONFIRMED: "Giao hàng" + nhập mã vận đơn vào ghi chú → SHIPPING
+→ CONFIRMED: kiểm tra mã vận đơn GHN (lỗi → "Tạo lại vận đơn"), "Bàn giao vận chuyển" → SHIPPING (ghi chú tự kèm mã vận đơn)
+→ "Xem hành trình" đọc trạng thái vận đơn từ GHN
 → SHIPPING: "Hoàn tất" → COMPLETED (COD: ghi nhận đã thu tiền)
 Mỗi bước ghi lịch sử, gửi thông báo + email cho khách.
   ⚠ INVALID_STATUS_TRANSITION → tải lại đơn (có thể người khác vừa xử lý)

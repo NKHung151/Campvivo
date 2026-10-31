@@ -1,110 +1,271 @@
 package vn.campvivo.order;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.campvivo.cart.Cart;
-import vn.campvivo.cart.CartItem;
-import vn.campvivo.cart.CartRepository;
+import vn.campvivo.cart.CartService;
+import vn.campvivo.cart.CartService.CheckoutLine;
 import vn.campvivo.catalog.Product;
-import vn.campvivo.catalog.ProductRepository;
+import vn.campvivo.catalog.ProductService;
+import vn.campvivo.combo.ComboService;
+import vn.campvivo.combo.ProductCombo;
+import vn.campvivo.common.config.AppProperties;
+import vn.campvivo.common.exception.BusinessException;
+import vn.campvivo.common.exception.ErrorCode;
+import vn.campvivo.inventory.InventoryService;
+import vn.campvivo.inventory.InventoryService.StockItems;
+import vn.campvivo.inventory.StockLine;
+import vn.campvivo.order.dto.CreateOrderResponse;
+import vn.campvivo.order.dto.OrderPreviewResponse;
+import vn.campvivo.order.dto.OrderRequests;
+import vn.campvivo.order.event.OrderStatusChangedEvent;
+import vn.campvivo.payment.PaymentGateway.PaymentRequest;
+import vn.campvivo.payment.PaymentService;
+import vn.campvivo.promotion.PricingService;
+import vn.campvivo.promotion.VoucherService;
+import vn.campvivo.shipping.ShippingService;
+import vn.campvivo.shipping.dto.ShippingFeeResponse;
+import vn.campvivo.user.UserService;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 /**
- * Ví dụ THAM CHIẾU cho luồng tạo đơn hàng — bất kỳ module nào khác chạm vào tồn kho
- * (vd. rental ở Tier 3) nên theo đúng pattern ở đây.
- *
- * Quy tắc áp dụng (xem docs/02-ky-thuat/database.md):
- * - BR-1: availableQuantity = stockQuantity - reservedQuantity
- * - BR-2: tạo đơn (PENDING) chỉ tăng reservedQuantity; CONFIRMED mới trừ thật stockQuantity
- * - Lock-ordering: khoá Product theo thứ tự productId tăng dần để tránh deadlock khi nhiều
- *   request đặt hàng song song đụng các sản phẩm chung
+ * Xem trước và tạo đơn (FR-10, database.md mục 6). Giá tính bằng PricingService (BR-4/BR-6), voucher qua VoucherService
+ * (BR-5), phí ship qua ShippingService (D-27), tồn kho qua InventoryService (BR-1/BR-2), thanh toán qua PaymentService.
+ * Mọi lỗi nghiệp vụ trong lúc tạo đơn → rollback toàn bộ (không có đơn "nửa vời").
  */
 @Service
 public class OrderService {
 
-    private final CartRepository cartRepository;
-    private final ProductRepository productRepository;
+    private final CartService cartService;
+    private final InventoryService inventoryService;
+    private final PricingService pricingService;
+    private final VoucherService voucherService;
+    private final ShippingService shippingService;
+    private final PaymentService paymentService;
+    private final UserService userService;
+    private final ProductService productService;
+    private final ComboService comboService;
     private final OrderRepository orderRepository;
-    // TODO: inject OrderStatusHistoryRepository (BR-7), PromotionService (áp mã giảm giá),
-    // PaymentService (tạo paymentUrl thật qua MoMo/VNPay) khi các module đó sẵn sàng.
-    // Controller gọi OrderService; OrderService KHÔNG được gọi ngược lại Controller của module khác.
+    private final OrderStateService orderStateService;
+    private final OrderCodeGenerator codeGenerator;
+    private final ApplicationEventPublisher events;
+    private final AppProperties.Order orderProps;
+    private final Clock clock;
 
-    public OrderService(CartRepository cartRepository,
-                         ProductRepository productRepository,
-                         OrderRepository orderRepository) {
-        this.cartRepository = cartRepository;
-        this.productRepository = productRepository;
+    public OrderService(CartService cartService, InventoryService inventoryService, PricingService pricingService,
+                        VoucherService voucherService, ShippingService shippingService, PaymentService paymentService,
+                        UserService userService, ProductService productService, ComboService comboService,
+                        OrderRepository orderRepository, OrderStateService orderStateService,
+                        OrderCodeGenerator codeGenerator,
+                        ApplicationEventPublisher events, AppProperties appProperties, Clock clock) {
+        this.cartService = cartService;
+        this.inventoryService = inventoryService;
+        this.pricingService = pricingService;
+        this.voucherService = voucherService;
+        this.shippingService = shippingService;
+        this.paymentService = paymentService;
+        this.userService = userService;
+        this.productService = productService;
+        this.comboService = comboService;
         this.orderRepository = orderRepository;
+        this.orderStateService = orderStateService;
+        this.codeGenerator = codeGenerator;
+        this.events = events;
+        this.orderProps = appProperties.order();
+        this.clock = clock;
     }
 
-    @Transactional
-    public Order createOrder(Long userId, CreateOrderRequest request) {
-        Cart cart = cartRepository.findByIdForUpdate(request.cartId())
-                .orElseThrow(() -> new OutOfStockException("Giỏ hàng không tồn tại"));
-
-        // Sắp xếp theo productId tăng dần TRƯỚC khi lock từng dòng — đây là phần quan trọng
-        // nhất để tránh deadlock khi 2 request lock chung các sản phẩm theo thứ tự khác nhau.
-        List<CartItem> sortedItems = cart.getItems().stream()
-                .sorted(Comparator.comparing(CartItem::getProductId))
-                .toList();
-
-        if (sortedItems.isEmpty()) {
-            throw new OutOfStockException("Giỏ hàng đang trống");
+    /** Một dòng đã tính giá từ dữ liệu mặt hàng hiện tại. */
+    private record PricedLine(CheckoutLine source, String type, Long itemId, String name, BigDecimal originalPrice,
+                              BigDecimal unitPrice, boolean active) {
+        BigDecimal lineTotal() {
+            return unitPrice.multiply(BigDecimal.valueOf(source.quantity()));
         }
-
-        BigDecimal total = BigDecimal.ZERO;
-        Order order = new Order(userId, generateOrderCode(), request.shippingAddressId().toString(),
-                request.paymentMethod());
-
-        for (CartItem item : sortedItems) {
-            // SELECT ... FOR UPDATE — khoá đúng 1 dòng Product, không khoá cả bảng.
-            Product product = productRepository.findByIdForUpdate(item.getProductId())
-                    .orElseThrow(() -> new OutOfStockException("Sản phẩm không tồn tại"));
-
-            // Entity tự kiểm tra availableQuantity và throw nếu không đủ (xem Product.reserve).
-            product.reserve(item.getQuantity());
-
-            BigDecimal lineTotal = item.getPriceAtAdd().multiply(BigDecimal.valueOf(item.getQuantity()));
-            total = total.add(lineTotal);
-            order.addItem(new OrderItem(item.getProductId(), item.getQuantity(), item.getPriceAtAdd()));
-        }
-
-        // TODO: áp PromotionService.validate(request.promotionCode(), total) nếu có mã (BR-5),
-        // trừ vào discountAmount/finalAmount thay vì gán thẳng total ở dưới.
-        order.setTotalAmount(total);
-        order.setDiscountAmount(BigDecimal.ZERO);
-        order.setFinalAmount(total);
-        order.setPromotionCode(request.promotionCode());
-
-        return orderRepository.save(order);
-        // TODO: xoá cart_items sau khi tạo đơn thành công; gọi PaymentService để lấy paymentUrl
-        // thật; ghi OrderStatusHistory dòng đầu tiên (BR-7).
     }
 
-    /** Đơn PENDING -> CANCELLED: chỉ giải phóng reservedQuantity (BR-2), không đụng stock. */
+    private record Totals(List<PricedLine> lines, BigDecimal subtotal, BigDecimal discount, BigDecimal shippingFee,
+                          BigDecimal finalAmount, boolean shippingCalculated, boolean freeShipping, String voucherCode) {}
+
+    // ------------------------------------------------------------------ xem trước
+
+    @Transactional(readOnly = true)
+    public OrderPreviewResponse preview(Long userId, OrderRequests.Preview req) {
+        List<CheckoutLine> lines = cartService.checkoutLines(userId, req.cartItemIds());
+        List<PricedLine> priced = price(lines, load(lines, false));
+        BigDecimal subtotal = subtotal(priced);
+        BigDecimal discount = voucherService.discountFor(req.voucherCode(), subtotal, userId);
+        boolean hasAddress = req.shippingDistrictId() != null && req.shippingWardCode() != null
+                && !req.shippingWardCode().isBlank();
+        long orderValue = subtotal.subtract(discount).longValueExact();
+        long shippingFee = hasAddress
+                ? shippingService.quote(req.shippingDistrictId(), req.shippingWardCode().trim(), quantity(lines), orderValue).fee()
+                : 0;
+        return toPreview(totals(priced, subtotal, discount, shippingFee, hasAddress, req.voucherCode()));
+    }
+
+    // ------------------------------------------------------------------ tạo đơn
+
     @Transactional
-    public void cancelOrder(Long orderId, Long userId) {
-        Order order = orderRepository.findByIdAndUserId(orderId, userId)
-                .orElseThrow(() -> new OutOfStockException("Đơn hàng không tồn tại"));
+    public CreateOrderResponse create(Long userId, OrderRequests.Create req, String clientIp) {
+        List<CheckoutLine> lines = cartService.checkoutLines(userId, req.cartItemIds());
+        String wardCode = req.shippingWardCode().trim();
+
+        // 1. Hỏi phí GHN TRƯỚC khi khoá tồn kho (không giữ khoá trong lúc gọi dịch vụ ngoài)
+        BigDecimal estimatedSubtotal = subtotal(price(lines, load(lines, false)));
+        BigDecimal estimatedDiscount = voucherService.discountFor(req.voucherCode(), estimatedSubtotal, userId);
+        ShippingFeeResponse ship = shippingService.quote(req.shippingDistrictId(), wardCode, quantity(lines),
+                estimatedSubtotal.subtract(estimatedDiscount).longValueExact());
+
+        // 2. Khoá sản phẩm (id tăng dần) rồi combo (id tăng dần), tính lại giá trên dữ liệu đã khoá (BR-4, BR-14)
+        List<PricedLine> priced = price(lines, load(lines, true));
+        List<Map<String, Object>> inactive = priced.stream().filter(p -> !p.active())
+                .map(p -> InventoryService.shortage(p.type(), p.itemId(), p.name(), 0)).toList();
+        if (!inactive.isEmpty()) {
+            throw new BusinessException(ErrorCode.PRODUCT_INACTIVE,
+                    "\"" + inactive.get(0).get("name") + "\" đã ngừng kinh doanh. Vui lòng bỏ khỏi giỏ hàng.",
+                    Map.of("items", inactive));
+        }
+        BigDecimal subtotal = subtotal(priced);
+        // Voucher: khi có module promotion, khoá voucher (sau products/combos) và trừ lượt ở đây (BR-5)
+        BigDecimal discount = voucherService.discountFor(req.voucherCode(), subtotal, userId);
+        long shippingFee = shippingService.customerFee(ship.carrierFee(), subtotal.subtract(discount).longValueExact());
+        Totals totals = totals(priced, subtotal, discount, shippingFee, true, req.voucherCode());
+
+        // 3. So với số tiền khách đang thấy (D-04)
+        if (totals.finalAmount().compareTo(BigDecimal.valueOf(req.expectedTotal())) != 0) {
+            throw new BusinessException(ErrorCode.PRICE_CHANGED,
+                    "Giá đã thay đổi, tổng mới là " + totals.finalAmount().toPlainString() + " đ. Vui lòng xác nhận lại.",
+                    toPreview(totals));
+        }
+
+        // 4. Giữ chỗ tồn kho (thiếu → OUT_OF_STOCK kèm danh sách)
+        inventoryService.reserve(lines.stream().map(l -> l.productId() != null
+                ? StockLine.product(l.productId(), l.quantity()) : StockLine.combo(l.comboId(), l.quantity())).toList());
+
+        // 5. Tạo đơn + dòng (snapshot) + lịch sử, bản ghi thanh toán PENDING
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        Order order = new Order(codeGenerator.next(), userId, blankToNull(req.voucherCode()),
+                new Order.Amounts(totals.subtotal(), totals.discount(), totals.shippingFee(), totals.finalAmount()),
+                new Order.Recipient(req.recipientName().trim(), req.recipientPhone().trim(), req.shippingAddress().trim(),
+                        req.shippingDistrictId(), wardCode),
+                req.paymentMethod(), blankToNull(req.note()), now);
+        Map<String, String> images = imageUrls(lines);
+        for (PricedLine p : priced) {
+            CheckoutLine l = p.source();
+            order.addItem(l.productId(), l.comboId(), p.name(), images.get(p.type() + ":" + p.itemId()),
+                    p.originalPrice(), p.unitPrice(), l.quantity());
+        }
+        orderRepository.saveAndFlush(order);
+        paymentService.createFor(order.getId(), order.getPaymentMethod(), order.getFinalAmount());
+
+        // 6. Dọn giỏ, lưu địa chỉ mặc định
+        cartService.removeItems(userId, lines.stream().map(CheckoutLine::cartItemId).toList());
+        if (req.saveAsDefault()) {
+            userService.updateDefaultContact(userId, order.getRecipientPhone(), order.getShippingAddress());
+        }
+
+        // 7. Cổng online: tạo URL thanh toán (lỗi → PAYMENT_GATEWAY_ERROR, rollback cả đơn)
+        String paymentUrl = null;
+        if (paymentService.requiresGateway(order.getPaymentMethod())) {
+            paymentUrl = paymentService.createPaymentUrl(order.getPaymentMethod(), new PaymentRequest(
+                    order.getOrderCode(), order.getFinalAmount(), "Thanh toan don hang " + order.getOrderCode(),
+                    clientIp, now, now.plus(orderProps.paymentTimeout())));
+        }
+        events.publishEvent(new OrderStatusChangedEvent(order.getId(), null, OrderStatus.PENDING, userId));
+        return new CreateOrderResponse(order.getId(), order.getOrderCode(), order.getStatus(), order.getFinalAmount(),
+                order.getPaymentMethod(), paymentUrl);
+    }
+
+    // ------------------------------------------------------------------ khách huỷ đơn
+
+    /**
+     * Khách huỷ đơn của chính mình khi còn PENDING (FR-12): giải phóng giữ chỗ (BR-2). Đơn người khác → NOT_FOUND;
+     * không còn PENDING (vừa được thanh toán/xác nhận) → ORDER_NOT_CANCELLABLE.
+     */
+    @Transactional
+    public void cancelByCustomer(Long userId, Long orderId, String reason) {
+        Order order = orderStateService.lock(orderId);
+        if (!order.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new OutOfStockException("Chỉ có thể hủy đơn khi đang ở trạng thái PENDING");
+            throw new BusinessException(ErrorCode.ORDER_NOT_CANCELLABLE);
         }
-        for (OrderItem item : order.getItems()) {
-            Product product = productRepository.findByIdForUpdate(item.getProductId())
-                    .orElseThrow(() -> new OutOfStockException("Sản phẩm không tồn tại"));
-            product.release(item.getQuantity());
-        }
-        order.transitionTo(OrderStatus.CANCELLED);
-        // TODO: ghi OrderStatusHistory (BR-7).
+        String note = reason == null || reason.isBlank() ? "Khách huỷ đơn" : "Khách huỷ đơn: " + reason.trim();
+        orderStateService.apply(order, OrderStatus.CANCELLED, userId, note);
     }
 
-    private String generateOrderCode() {
-        return "ORD-" + OffsetDateTime.now().toLocalDate().toString().replace("-", "")
-                + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+    // ------------------------------------------------------------------ tính toán
+
+    private StockItems load(List<CheckoutLine> lines, boolean lock) {
+        List<Long> productIds = lines.stream().filter(l -> l.productId() != null).map(CheckoutLine::productId).toList();
+        List<Long> comboIds = lines.stream().filter(l -> l.comboId() != null).map(CheckoutLine::comboId).toList();
+        return lock ? inventoryService.lock(productIds, comboIds) : inventoryService.load(productIds, comboIds);
+    }
+
+    private List<PricedLine> price(List<CheckoutLine> lines, StockItems items) {
+        List<PricedLine> out = new ArrayList<>();
+        for (CheckoutLine l : lines) {
+            if (l.productId() != null) {
+                Product p = items.products().get(l.productId());
+                if (p == null) {
+                    throw new BusinessException(ErrorCode.NOT_FOUND);
+                }
+                out.add(new PricedLine(l, "PRODUCT", p.getId(), p.getName(), p.getPrice(), pricingService.unitPrice(p), p.isActive()));
+            } else {
+                ProductCombo c = items.combos().get(l.comboId());
+                if (c == null) {
+                    throw new BusinessException(ErrorCode.NOT_FOUND);
+                }
+                out.add(new PricedLine(l, "COMBO", c.getId(), c.getName(), c.getComboPrice(), pricingService.unitPrice(c), c.isActive()));
+            }
+        }
+        return out;
+    }
+
+    private Totals totals(List<PricedLine> priced, BigDecimal subtotal, BigDecimal discount, long shippingFee,
+                          boolean shippingCalculated, String voucherCode) {
+        BigDecimal fee = BigDecimal.valueOf(shippingFee);
+        boolean free = shippingCalculated && shippingService.isFree(subtotal.subtract(discount).longValueExact());
+        return new Totals(priced, subtotal, discount, fee, subtotal.subtract(discount).add(fee), shippingCalculated, free,
+                blankToNull(voucherCode));
+    }
+
+    private OrderPreviewResponse toPreview(Totals t) {
+        List<OrderPreviewResponse.Item> items = t.lines().stream()
+                .map(p -> new OrderPreviewResponse.Item(p.source().cartItemId(), p.type(), p.itemId(), p.name(),
+                        p.source().quantity(), p.originalPrice(), p.unitPrice(), p.lineTotal()))
+                .toList();
+        return new OrderPreviewResponse(items, t.subtotal(), t.discount(), t.shippingFee(), t.finalAmount(),
+                t.voucherCode(), t.shippingCalculated(), t.freeShipping(),
+                BigDecimal.valueOf(shippingService.freeThreshold()));
+    }
+
+    private Map<String, String> imageUrls(List<CheckoutLine> lines) {
+        Map<String, String> out = new LinkedHashMap<>();
+        productService.primaryImageUrls(lines.stream().filter(l -> l.productId() != null).map(CheckoutLine::productId).toList())
+                .forEach((id, url) -> out.put("PRODUCT:" + id, url));
+        comboService.coverImageUrls(lines.stream().filter(l -> l.comboId() != null).map(CheckoutLine::comboId).toList())
+                .forEach((id, url) -> out.put("COMBO:" + id, url));
+        return out;
+    }
+
+    private static BigDecimal subtotal(List<PricedLine> priced) {
+        return priced.stream().map(PricedLine::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static int quantity(List<CheckoutLine> lines) {
+        return lines.stream().mapToInt(CheckoutLine::quantity).sum();
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 }

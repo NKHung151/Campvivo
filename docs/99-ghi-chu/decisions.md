@@ -13,6 +13,51 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Đặt hàng – thanh toán – giao hàng (2026-10-26)
+
+### 2026-10-26 — D-28: Xử lý kết quả VNPay dùng chung cho Return URL và IPN; vận đơn GHN sau khi CONFIRMED
+- **Bối cảnh:** BR-12 cũ: chỉ IPN đổi trạng thái, Return URL chỉ đọc. Khi chạy localhost, VNPay không gọi được IPN nên đơn
+  không bao giờ được xác nhận. Người dùng (Người 1) yêu cầu một hàm dùng chung, gọi ở Return URL trước, chuẩn bị sẵn IPN.
+- **Quyết định:**
+  - `PaymentResultService.handlePaymentResult(method, params)` dùng chung cho `GET /api/vnpay/return` và `GET /api/vnpay/ipn`:
+    kiểm chữ ký → tìm và khoá đơn theo `vnp_TxnRef` → số tiền khớp → payment ≠ PENDING thì bỏ qua (idempotent) → thành công
+    (`vnp_ResponseCode` = `vnp_TransactionStatus` = `00`): payment `SUCCESS`, đơn `PENDING → CONFIRMED` (trừ kho); thất bại:
+    payment `FAILED`, đơn `PAYMENT_FAILED`. Không thêm trạng thái "PAID": "đã thanh toán" = `payments.status = SUCCESS`.
+  - Route theo yêu cầu: trang frontend `/payment/vnpay-return` (= `VNP_RETURN_URL`) gửi nguyên query cho
+    `GET /api/vnpay/return`; IPN `GET /api/vnpay/ipn` trả `{RspCode, Message}` (00, 01, 02, 04, 97, 99). Thay
+    `/payments/vnpay/return|ipn` cũ.
+  - Return URL và IPN về cùng lúc: khoá dòng `orders` khiến chúng chạy lần lượt; lần sau nhận `ALREADY_PROCESSED` / `02`.
+  - `vnp_TxnRef` = `orders.order_code` (duy nhất, mỗi đơn thanh toán một lần); `vnp_ExpireDate` = tạo đơn + `app.order.payment-timeout`.
+  - Đơn chuyển `CONFIRMED` (VNPay đã trả / nhân viên xác nhận COD) phát `OrderStatusChangedEvent`; `OrderShipmentListener`
+    (`@Async`, `AFTER_COMMIT`) tạo vận đơn GHN: COD thu hộ `final_amount`, VNPay thu hộ 0. Lỗi GHN không ảnh hưởng đơn — ghi
+    `orders.shipping_order_error`, tạo lại được (`OrderShipmentService.createShipment`). Tắt bằng `app.ghn.auto-create-shipment`.
+  - Cột bổ sung trên `orders`: `shipping_district_id`, `shipping_ward_code`, `shipping_order_code`, `shipping_order_error`.
+- **Khi deploy:** khai báo IPN URL `https://<backend>/api/vnpay/ipn` ở cổng merchant VNPay; IPN là đường xử lý chính, Return URL
+  chỉ là đường dự phòng (cùng hàm, an toàn khi lặp). Khách tự gọi lại Return URL không làm gì được vì phải có chữ ký đúng.
+- **Phương án khác:** chỉ IPN (đúng BR-12 cũ) — không thử được ở localhost nếu không có ngrok.
+
+
+### 2026-10-26 — D-27: Tích hợp GHN (giao hàng nhanh) cho địa chỉ, phí ship và vận đơn
+- **Bối cảnh:** Người dùng (Người 1) yêu cầu tích hợp GHN staging: dropdown Tỉnh/Quận/Phường ở trang thanh toán, phí ship
+  tự tính theo địa chỉ, tạo vận đơn khi đơn đã thanh toán. Thay thế D-17 (phí cố định) và quyết định 2025 "Không tích hợp
+  API vận chuyển thật".
+- **Quyết định:**
+  - Module backend mới `shipping`: `GhnService` (tỉnh, quận, phường, gói dịch vụ, tính phí, tạo vận đơn, chi tiết vận
+    đơn), `ShippingService` (quy tắc phí), API công khai `/api/shipping/*` (`api.md` 4.12). Token/ShopId chỉ ở backend
+    (`app.ghn.*` ← biến `GHN_*` trong `.env`, backend nạp `.env` qua `spring.config.import`), không bao giờ ra frontend.
+  - Danh mục địa chỉ dùng mã GHN (`ProvinceID`, `DistrictID`, `WardCode`); cache trong bộ nhớ `app.ghn.master-data-cache-ttl`.
+  - Phí ship = phí GHN gói `app.ghn.service-type-id` từ kho (`GHN_FROM_DISTRICT_ID`, `GHN_FROM_WARD_CODE`). Sản phẩm chưa
+    có cân nặng → cân kiện = tổng số món × `app.ghn.default-weight` (gram), kích thước kiện cố định `app.ghn.parcel-*`.
+  - Giữ ngưỡng miễn phí của D-17: `subtotal − discount ≥ app.shipping.free-threshold` → khách trả 0, shop vẫn trả GHN.
+    Bỏ `app.shipping.fee` (phí cố định).
+  - Vận đơn GHN: shop trả phí GHN (`payment_type_id = 1`), mã đơn Campvivo làm `client_order_code`; thời điểm tạo vận đơn
+    và các cột lưu trên `orders` chốt ở phần VNPay/đơn hàng (D-28).
+  - Lỗi GHN (mạng, 4xx/5xx, chưa cấu hình, địa chỉ không giao được) → `502 SHIPPING_GATEWAY_ERROR`; chi tiết chỉ ghi log.
+- **Lý do:** Phí ship thật theo vùng, có mã vận đơn để theo dõi — sát thực tế hơn cho demo; GHN có môi trường staging miễn phí.
+- **Hạn chế:** cân nặng ước lượng theo số món; địa chỉ khách lưu ở trình duyệt (`users.address` chỉ có chuỗi, D-02) nên
+  địa chỉ cũ không có mã GHN phải chọn lại.
+- **Phương án khác:** giữ phí cố định (D-17) — đơn giản nhưng người dùng yêu cầu GHN; gọi GHN từ frontend — lộ token.
+
 ## Đồng bộ theo báo cáo Phase1_v4 (2026-10-17)
 
 ### 2026-10-17 — D-00: Báo cáo Phase1 là nguồn yêu cầu gốc
@@ -141,6 +186,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 - **Lý do:** Frontend đã có các trang này; báo cáo không có bảng tương ứng; thêm cột rẻ hơn thêm bảng.
 
 ### 2026-10-17 — D-17: Phí vận chuyển cố định qua cấu hình
+- **Đã bị thay thế bởi D-27 (2026-10-26):** phí ship lấy từ GHN; chỉ giữ ngưỡng miễn phí `app.shipping.free-threshold`.
 - **Quyết định:** `shipping_fee` = phí cố định (`app.shipping.fee`, mặc định 30000); miễn phí khi
   `subtotal − discount_amount ≥ app.shipping.free-threshold` (mặc định 1000000). Không tính theo
   vùng/khối lượng.
@@ -290,6 +336,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   thêm biến thể chỉ tốn effort mà không tăng điểm kỹ thuật tương xứng.
 
 ### 2025 — Không tích hợp API vận chuyển thật
+- **Đã bị thay thế bởi D-27 (2026-10-26): tích hợp GHN staging.**
 - **Quyết định:** Mô phỏng trạng thái vận đơn (nhân viên cập nhật thủ công
   CONFIRMED→SHIPPING→COMPLETED), không gọi API thật của đơn vị vận chuyển.
 - **Lý do:** Tích hợp bên thứ ba rủi ro thời gian cao (cần đăng ký doanh nghiệp, chờ duyệt),

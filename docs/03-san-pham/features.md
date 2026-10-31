@@ -163,11 +163,11 @@ xem BR-xx trong `database.md`.
   `PAYMENT_GATEWAY_ERROR` (rollback toàn bộ, không tạo đơn).
 
 ### FR-11 Thanh toán
-- **VNPay:** khách được chuyển sang cổng; VNPay gọi IPN → xác minh (BR-12) → thành công: đơn
-  `CONFIRMED`, trừ tồn kho thật; thất bại: `PAYMENT_FAILED`, giải phóng giữ chỗ, trả lượt
-  voucher. Trang return chỉ hiển thị kết quả (đọc trạng thái đơn). Đơn VNPay PENDING quá 15 phút
-  → huỷ tự động (BR-3).
-- **COD:** đơn PENDING đến khi Employee/Admin xác nhận → `CONFIRMED`. Không timeout.
+- **VNPay:** khách được chuyển sang cổng; kết quả về qua Return URL (`/payment/vnpay-return`) và IPN — cùng một hàm
+  `handlePaymentResult` (BR-12, D-28) → xác minh chữ ký + số tiền → thành công: đơn `CONFIRMED`, trừ tồn kho thật, tự tạo
+  vận đơn GHN; thất bại: `PAYMENT_FAILED`, giải phóng giữ chỗ, trả lượt voucher. Gọi lặp/đồng thời chỉ xử lý một lần.
+  Đơn VNPay PENDING quá 15 phút → huỷ tự động (BR-3).
+- **COD:** đơn PENDING đến khi Employee/Admin xác nhận → `CONFIRMED` (tự tạo vận đơn GHN, thu hộ tổng đơn). Không timeout.
 - Thanh toán lại cho đơn `PAYMENT_FAILED`: không hỗ trợ — khách đặt đơn mới.
 
 ### FR-12 Đơn cá nhân

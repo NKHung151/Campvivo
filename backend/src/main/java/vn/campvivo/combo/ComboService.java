@@ -19,6 +19,7 @@ import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.common.util.SlugUtil;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -67,6 +68,12 @@ public class ComboService {
         List<Long> ids = result.getContent().stream().map(ProductCombo::getId).toList();
         Map<Long, String> primary = comboRepository.findCoverImageUrls(ids);
         return PageResponse.of(result.map(c -> ComboSummary.from(c, primary.get(c.getId()))));
+    }
+
+    /** Ảnh đại diện của nhiều combo (D-26) — giỏ hàng, đơn hàng dùng. */
+    @Transactional(readOnly = true)
+    public Map<Long, String> coverImageUrls(Collection<Long> comboIds) {
+        return comboRepository.findCoverImageUrls(comboIds);
     }
 
     @Transactional(readOnly = true)

@@ -121,6 +121,27 @@ public class ProductCombo {
         return stockQuantity - reservedQuantity;
     }
 
+    // Vòng đời đơn hàng (BR-2) — PHẢI gọi trong transaction đã khoá dòng (InventoryService).
+
+    /** Tạo đơn: giữ chỗ `quantity` bộ. */
+    public void reserve(int quantity) {
+        if (getAvailableQuantity() < quantity) {
+            throw new IllegalStateException("Không đủ bộ combo khả dụng: " + name);
+        }
+        this.reservedQuantity += quantity;
+    }
+
+    /** Đơn CANCELLED / PAYMENT_FAILED: trả phần giữ chỗ. */
+    public void release(int quantity) {
+        this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
+    }
+
+    /** Đơn CONFIRMED: trừ thật tồn kho và phần giữ chỗ. */
+    public void commit(int quantity) {
+        this.stockQuantity -= quantity;
+        this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
+    }
+
     /** Tổng giá lẻ của các sản phẩm thành phần (giá hiện tại × số lượng) — để so với giá combo. */
     public BigDecimal getItemsTotal() {
         return items.stream()
