@@ -116,6 +116,19 @@ public class ProductCombo {
         this.updatedAt = now;
     }
 
+    /**
+     * Xuất tay bộ combo hỏng/mất (FR-08). Chỉ được giảm — muốn tăng thì đóng gói để trừ hàng lẻ (D-27); không được làm
+     * tồn kho thấp hơn số đang giữ chỗ. Gọi khi đã khoá dòng. Trả về tồn kho sau thay đổi.
+     */
+    public int writeOff(int sets, OffsetDateTime now) {
+        if (sets <= 0 || getAvailableQuantity() < sets) {
+            throw new IllegalStateException("Không đủ bộ combo khả dụng để xuất");
+        }
+        this.stockQuantity -= sets;
+        this.updatedAt = now;
+        return stockQuantity;
+    }
+
     /** Khả dụng = tồn − giữ chỗ (BR-1). */
     public int getAvailableQuantity() {
         return stockQuantity - reservedQuantity;

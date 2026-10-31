@@ -36,6 +36,7 @@ class ComboControllerTest {
 
     @BeforeEach
     void setUp() {
+        jdbc.update("DELETE FROM inventory_logs");
         jdbc.update("DELETE FROM product_combos");
         jdbc.update("DELETE FROM images");
         jdbc.update("DELETE FROM products");

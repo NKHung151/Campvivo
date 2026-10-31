@@ -22,6 +22,8 @@ import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.common.util.HtmlSanitizer;
 import vn.campvivo.common.util.SlugUtil;
+import vn.campvivo.inventory.InventoryLogService;
+import vn.campvivo.inventory.InventoryReason;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -45,6 +47,7 @@ import static vn.campvivo.catalog.ProductSpecifications.isCountQuery;
  *   <li>Combo gồm ≥ 2 sản phẩm khác nhau, mỗi sản phẩm 1..99 cái trong một bộ.</li>
  *   <li>Tồn kho combo theo bộ (D-03): combo mới = 0; "đóng gói" N bộ trừ kho từng sản phẩm × số lượng (D-22) và cộng N vào
  *       combo; "tháo" làm ngược lại (chỉ số bộ chưa bị giữ chỗ). Khách mua combo chỉ trừ kho combo.</li>
+ *   <li>Đóng gói/tháo ghi nhật ký kho cho combo và từng sản phẩm thành phần (D-27).</li>
  *   <li>Combo còn bộ đã đóng gói thì không đổi được thành phần (phải tháo hết trước) — để hàng tháo ra đúng hàng đã lấy.</li>
  *   <li>Không xoá cứng (BR-14): "xoá" = ẩn bằng isActive=false.</li>
  *   <li>Slug/ảnh/mô tả: cùng quy tắc với sản phẩm (slug trống → sinh từ tên; đúng 1 ảnh chính; HTML được làm sạch).</li>
@@ -59,16 +62,18 @@ public class AdminComboService {
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
+    private final InventoryLogService logService;
     private final EntityManager entityManager;
     private final Clock clock;
 
     public AdminComboService(ProductComboRepository comboRepository, ProductRepository productRepository,
                              ProductImageRepository productImageRepository, CategoryRepository categoryRepository,
-                             EntityManager entityManager, Clock clock) {
+                             InventoryLogService logService, EntityManager entityManager, Clock clock) {
         this.comboRepository = comboRepository;
         this.productRepository = productRepository;
         this.productImageRepository = productImageRepository;
         this.categoryRepository = categoryRepository;
+        this.logService = logService;
         this.entityManager = entityManager;
         this.clock = clock;
     }
@@ -191,7 +196,7 @@ public class AdminComboService {
 
     /** Đóng gói `sets` bộ: trừ kho từng sản phẩm (số lượng × sets), cộng `sets` vào kho combo. Thiếu hàng → 409 OUT_OF_STOCK. */
     @Transactional
-    public Detail pack(Long id, int sets) {
+    public Detail pack(Long id, int sets, long userId) {
         ProductCombo combo = lockCombo(id);
         Map<Long, Product> products = lockProducts(combo);
         List<String> shortages = new ArrayList<>();
@@ -208,14 +213,20 @@ public class AdminComboService {
                     Map.of("shortages", shortages));
         }
         OffsetDateTime now = OffsetDateTime.now(clock);
-        combo.getItems().forEach(i -> products.get(i.getProduct().getId()).takeForCombo(i.getQuantity() * sets, now));
+        String note = "Đóng gói " + sets + " bộ combo \"" + combo.getName() + "\"";
+        combo.getItems().forEach(i -> {
+            Product p = products.get(i.getProduct().getId());
+            p.takeForCombo(i.getQuantity() * sets, now);
+            logService.record(p, userId, -i.getQuantity() * sets, InventoryReason.EXPORT, note);
+        });
         combo.addPackedSets(sets, now);
+        logService.record(combo, userId, sets, InventoryReason.IMPORT, note);
         return detail(combo);
     }
 
     /** Tháo `sets` bộ (chưa bị giữ chỗ): trả hàng về kho từng sản phẩm, trừ kho combo. */
     @Transactional
-    public Detail unpack(Long id, int sets) {
+    public Detail unpack(Long id, int sets, long userId) {
         ProductCombo combo = lockCombo(id);
         if (combo.getAvailableQuantity() < sets) {
             throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT, "Chỉ tháo được tối đa "
@@ -223,8 +234,14 @@ public class AdminComboService {
         }
         Map<Long, Product> products = lockProducts(combo);
         OffsetDateTime now = OffsetDateTime.now(clock);
+        String note = "Tháo " + sets + " bộ combo \"" + combo.getName() + "\"";
         combo.removePackedSets(sets, now);
-        combo.getItems().forEach(i -> products.get(i.getProduct().getId()).returnFromCombo(i.getQuantity() * sets, now));
+        logService.record(combo, userId, -sets, InventoryReason.EXPORT, note);
+        combo.getItems().forEach(i -> {
+            Product p = products.get(i.getProduct().getId());
+            p.returnFromCombo(i.getQuantity() * sets, now);
+            logService.record(p, userId, i.getQuantity() * sets, InventoryReason.IMPORT, note);
+        });
         return detail(combo);
     }
 

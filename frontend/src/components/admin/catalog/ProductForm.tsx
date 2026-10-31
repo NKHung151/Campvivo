@@ -255,7 +255,17 @@ export function ProductForm({
           </Card>
 
           {initial && (
-            <Card title="Tồn kho" style={{ marginBottom: 20 }}>
+            <Card
+              title="Tồn kho"
+              style={{ marginBottom: 20 }}
+              extra={
+                <Link href={`/admin/inventory?q=${encodeURIComponent(initial.name)}`}>
+                  <Button size="small" type="link" disabled={false}>
+                    Nhập / xuất kho
+                  </Button>
+                </Link>
+              }
+            >
               <div className="cv-mini-stats">
                 <div>
                   <span>Tồn</span>

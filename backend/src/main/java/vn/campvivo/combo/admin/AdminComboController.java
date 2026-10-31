@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.campvivo.catalog.admin.ProductStatusRequest;
 import vn.campvivo.combo.admin.AdminComboResponses.Detail;
 import vn.campvivo.combo.admin.AdminComboResponses.Summary;
+import vn.campvivo.auth.CurrentUserId;
 import vn.campvivo.common.dto.ApiResponse;
 import vn.campvivo.common.dto.PageResponse;
 
@@ -54,16 +55,21 @@ public class AdminComboController {
         return ApiResponse.of(service.update(id, request));
     }
 
-    /** Đóng gói thêm bộ combo: trừ kho từng sản phẩm thành phần, cộng vào kho combo (D-22). */
+    /**
+     * Đóng gói thêm bộ combo: trừ kho từng sản phẩm thành phần, cộng vào kho combo (D-22), ghi nhật ký kho (D-27).
+     * Việc kho nên EMPLOYEE cũng làm được (trang Tồn kho).
+     */
     @PostMapping("/{id}/pack")
-    public ApiResponse<Detail> pack(@PathVariable Long id, @Valid @RequestBody PackRequest request) {
-        return ApiResponse.of(service.pack(id, request.sets()));
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    public ApiResponse<Detail> pack(@PathVariable Long id, @Valid @RequestBody PackRequest request, @CurrentUserId Long userId) {
+        return ApiResponse.of(service.pack(id, request.sets(), userId));
     }
 
-    /** Tháo bộ combo (chưa bị giữ chỗ): trả hàng về kho từng sản phẩm (D-22). */
+    /** Tháo bộ combo (chưa bị giữ chỗ): trả hàng về kho từng sản phẩm (D-22), ghi nhật ký kho (D-27). */
     @PostMapping("/{id}/unpack")
-    public ApiResponse<Detail> unpack(@PathVariable Long id, @Valid @RequestBody PackRequest request) {
-        return ApiResponse.of(service.unpack(id, request.sets()));
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYEE')")
+    public ApiResponse<Detail> unpack(@PathVariable Long id, @Valid @RequestBody PackRequest request, @CurrentUserId Long userId) {
+        return ApiResponse.of(service.unpack(id, request.sets(), userId));
     }
 
     /** Ẩn/hiện (BR-14 — không xoá cứng). */

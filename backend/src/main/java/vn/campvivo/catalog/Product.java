@@ -140,6 +140,19 @@ public class Product {
         this.updatedAt = now;
     }
 
+    /**
+     * Nhập/xuất/điều chỉnh tay (FR-08, BR-8): stock += change. Gọi khi đã khoá dòng; không được làm tồn kho thấp hơn
+     * số đang giữ chỗ cho đơn hàng. Trả về tồn kho sau thay đổi (ghi vào inventory_logs).
+     */
+    public int adjustStock(int change, OffsetDateTime now) {
+        if (change == 0 || stockQuantity + change < reservedQuantity) {
+            throw new IllegalStateException("Điều chỉnh tồn kho không hợp lệ cho sản phẩm " + name);
+        }
+        this.stockQuantity += change;
+        this.updatedAt = now;
+        return stockQuantity;
+    }
+
     public void changeActive(boolean active, OffsetDateTime now) {
         this.active = active;
         this.updatedAt = now;

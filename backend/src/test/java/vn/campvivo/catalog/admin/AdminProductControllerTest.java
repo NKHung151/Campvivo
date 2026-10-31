@@ -61,6 +61,7 @@ class AdminProductControllerTest {
     @BeforeEach
     void setUp() {
         mvc = AdminMockMvc.admin(context, users, jwt);
+        jdbc.update("DELETE FROM inventory_logs");
         jdbc.update("DELETE FROM product_combos");
         jdbc.update("DELETE FROM images");
         jdbc.update("DELETE FROM products");
