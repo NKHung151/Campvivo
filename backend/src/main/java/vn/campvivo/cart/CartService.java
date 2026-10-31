@@ -52,6 +52,12 @@ public class CartService {
         this.clock = clock;
     }
 
+    /** Tạo giỏ rỗng cho người dùng mới đăng ký (FR-01). Idempotent: đã có giỏ thì không làm gì. */
+    @Transactional
+    public void createForUser(Long userId) {
+        cartRepository.insertIfAbsent(userId);
+    }
+
     @Transactional
     public CartResponse getCart(Long userId) {
         return toResponse(lockCart(userId));

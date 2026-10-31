@@ -30,6 +30,7 @@ public record AppProperties(
         @Valid @DefaultValue Vnpay vnpay,
         @Valid @DefaultValue Ghn ghn,
         @Valid @DefaultValue Cloudinary cloudinary,
+        @Valid @DefaultValue Mail mail,
         @Valid @DefaultValue Cors cors,
         @NotBlank @DefaultValue("http://localhost:3000") String frontendUrl
 ) {
@@ -152,6 +153,12 @@ public record AppProperties(
             return !cloudName.isBlank() && !apiKey.isBlank() && !apiSecret.isBlank();
         }
     }
+
+    /** Người gửi email hệ thống (OTP, thông báo). Máy chủ SMTP cấu hình ở spring.mail.* (biến môi trường SMTP_*). */
+    public record Mail(
+            @NotBlank @DefaultValue("no-reply@campvivo.local") String from,
+            @NotBlank @DefaultValue("Campvivo") String fromName
+    ) {}
 
     public record Cors(
             @NotNull @Size(min = 1) @DefaultValue("http://localhost:3000") List<String> allowedOrigins

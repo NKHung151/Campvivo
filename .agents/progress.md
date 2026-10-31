@@ -17,6 +17,81 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-29 — Người 3 — frontend (giao diện đăng ký + xác thực email, đi kèm N3-02)
+- Đã làm: nhánh `feature/auth-n3-02-register-ui` (tách từ `dev`). Trang `/register` (`RegisterForm`) và `/verify-email?email=` (`VerifyEmailForm`:
+  ô mã 6 số, nút "Gửi lại mã" đếm ngược 60 giây bắt đầu khi vào trang). `authService.register/verifyEmail/resendCode` (đều `skipAuth`);
+  `AuthProvider.verifyEmail` dùng chung đường lưu token với `login` (đúng mã → đăng nhập luôn). `LoginForm`: liên kết "Tạo tài khoản"; gặp
+  `EMAIL_NOT_VERIFIED` → gọi `resend-code` (bỏ qua `OTP_RESEND_TOO_SOON`) rồi chuyển `/verify-email`. Hook dùng chung `useLandingRedirect`;
+  `lib/auth/validation.ts` (luật khớp `RegisterRequest`, đếm byte UTF-8 ≤ 72); `authHref()` giữ `?redirect=` (đã qua `safeRedirectPath`).
+  `components/ui/Input`: prop `revealable` (nút Hiện/Ẩn mật khẩu). Docs: `pages.md`.
+  Kiểm chứng: `npm run lint`, `tsc --noEmit` xanh; script ngoài repo kiểm tra các hàm thuần (mật khẩu, tên, email, OTP, href/redirect chống open
+  redirect); chạy thật backend 8081 + Mailpit: đăng ký → đọc mã trong thư → sai mã `INVALID_OTP` → đúng mã nhận token → email trùng 409 → lỗi theo
+  trường; đăng nhập tài khoản chưa xác thực trả `EMAIL_NOT_VERIFIED`, gửi lại ngay thì `OTP_RESEND_TOO_SOON`; token rác trên `verify-email` bị 401
+  (chứng minh cần `skipAuth`).
+- Còn dang dở / TODO tiếp theo:
+  - CHƯA kiểm chứng giao diện trên trình duyệt thật (agent không có trình duyệt); cần người thử `/register` → `/verify-email` ở mobile/desktop.
+  - `npm run build` trên `dev` (cả khi chưa có thay đổi này) lỗi prerender `NETWORK_ERROR` ở `/`, `/brands`, `/products`... dù backend đang chạy:
+    nghi `serverApi.request` bắt nhầm lỗi `DynamicServerError` của Next (fetch `cache: "no-store"` lúc build) thành `networkError()`. Thuộc phần catalog
+    (Người 2), cần báo/chốt người sửa. `tsc` và bước biên dịch của build vẫn xanh.
+  - `/forgot-password` và liên kết "Quên mật khẩu?" thuộc N3-04. `EMAIL_ALREADY_EXISTS` hiện chỉ gợi ý "Đăng nhập" (chưa có trang quên mật khẩu).
+  - Email nằm trên URL `/verify-email?email=` theo đúng docs.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
+
+### 2026-10-29 — Người 3 — frontend (sửa `next build` lỗi NETWORK_ERROR trên CI)
+- Đã làm: nhánh `fix/frontend-server-api-dynamic-build` (tách từ `dev`). Nguyên nhân (đã chứng minh bằng cách in lỗi gốc): `services/serverApi.ts`
+  (F-14) bọc `fetch` no-store trong `catch` đổi MỌI lỗi thành `NETWORK_ERROR`, nuốt `DYNAMIC_SERVER_USAGE` mà Next ném lúc prerender → `next build`
+  hỏng ở `/`, `/brands`, `/products` khi không có backend (CI) và cả khi có backend. Sửa: để lỗi điều khiển luồng của Next (`digest` =
+  `DYNAMIC_SERVER_USAGE` / `BAILOUT_TO_CLIENT_SIDE_RENDERING`) đi tiếp. Kiểm chứng: `npm run build` không có backend (như CI) exit 0, các trang
+  catalog chuyển sang render động; chạy `next start` với backend tắt thì lỗi mạng thật vẫn được ghi nhận là `NETWORK_ERROR`. Trước khi sửa, `dev` sạch
+  build exit 1. Docs: `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy thật với backend tắt, `/brands` trả HTTP 500 (trang catalog không bắt `ApiError`); roadmap N2-04 yêu cầu "tắt BE → trang báo lỗi thân thiện".
+    Việc này thuộc catalog (Người 2), không nằm trong PR sửa này.
+  - Không xem được CI từ máy này; kết quả CI sau khi sửa cần người mở PR xác nhận.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (F-14, N2-04)
+
+### 2026-10-26 — Người 3 — backend (N3-02: đăng ký, xác thực email, gửi lại mã)
+- Đã làm: nhánh `feature/auth-n3-02-register` (XẾP CHỒNG lên `feature/auth-n3-01-otp`: PR 1 phải merge trước). `POST /auth/register` (201 `{email}`;
+  email chưa xác thực đăng ký lại → ghi đè mật khẩu/họ tên + mã mới; gửi lại < 60 giây → `OTP_RESEND_TOO_SOON`, rollback không ghi đè;
+  gửi mail lỗi → `EMAIL_SEND_FAILED`, không tạo user; email đã xác thực → `EMAIL_ALREADY_EXISTS`; mật khẩu > 72 byte → `VALIDATION_ERROR`),
+  `POST /auth/verify-email` (trả `{accessToken, user}`; email lạ và mã sai cùng `INVALID_OTP`, có băm giả chống dò qua độ trễ; tài khoản
+  khoá → `ACCOUNT_DISABLED`), `POST /auth/resend-code` (200 im lặng với email lạ / tài khoản khoá / đã xác thực). `RegistrationService`,
+  DTO, `UserRepository.markEmailVerified`, giao diện `CartService` + `StubCartService` (module cart, TẠM — bảng `carts` chưa có). Test:
+  `RegistrationIntegrationTest` (25, PostgreSQL thật + GreenMail + đồng hồ chỉnh tay, gồm đăng ký song song cùng email). Kiểm tra "đột biến":
+  cố ý cho đăng ký đè tài khoản đã xác thực và bỏ kiểm tra tài khoản khoá → đúng 2 test đỏ. Chạy thật đầu-cuối trên ứng dụng + Mailpit:
+  đăng ký → đọc mã trong thư → xác thực → `/users/me`. Docs: `api.md` (hành vi đã hiện thực), `local-development.md` (cách thử bằng PowerShell).
+- Còn dang dở / TODO tiếp theo:
+  - Người 1: hiện thực `CartService` thật (tạo dòng `carts`) rồi XOÁ `StubCartService` (có TODO trong code).
+  - RỦI RO đã biết, theo đúng FR-01: đăng ký lại email CHƯA xác thực ghi đè mật khẩu — kẻ biết email người khác có thể ghi đè mật khẩu của tài
+    khoản đang chờ xác thực; nếu người thật sau đó xác thực bằng mã trong hộp thư của họ thì tài khoản mang mật khẩu của kẻ kia.
+    Cân nhắc (cần nhóm quyết định): không ghi đè mật khẩu khi đăng ký lại, hoặc yêu cầu mật khẩu mới chỉ có hiệu lực sau khi xác thực.
+  - Chưa có giới hạn theo IP (chỉ chống gửi lại 60 giây theo từng email) → có thể bị lợi dụng spam thư tới email người khác; nên cân nhắc rate limit
+    trước khi triển khai thật. Độ trễ phản hồi của `register`/`resend-code` khác nhau giữa email có và không có (gửi mail) → vẫn có thể dò email qua thời gian.
+  - Đăng ký song song cùng email: yêu cầu thứ hai nhận `EMAIL_ALREADY_EXISTS` dù người dùng chỉ bấm hai lần.
+  - Frontend (PR 3): trang `/register`, `/verify-email` (đếm ngược 60 giây), liên kết "Tạo tài khoản"; gọi 3 endpoint với `{ skipAuth: true }`.
+  - N3-04 (quên mật khẩu) dùng lại `OtpService`/`MailService`/`resend-code` (đã hỗ trợ purpose RESET_PASSWORD).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
+
+### 2026-10-26 — Người 3 — backend (N3-01: OTP + gửi email)
+- Đã làm: nhánh `feature/auth-n3-01-otp`. `OtpService` (BR-11: mã 6 số `SecureRandom`, chỉ lưu BCrypt, hạn `app.otp.ttl`, tối đa
+  `app.otp.max-attempts` lần thử, gửi lại cách ≥ `app.otp.resend-interval`; `issue(User, purpose)` ghi OTP vào entity, `verify(userId,
+  purpose, code)` chạy giao dịch RIÊNG REQUIRES_NEW: lượt đoán không bị mất khi người gọi rollback, tăng lượt bằng UPDATE nguyên tử nên
+  đoán song song không vượt giới hạn, OTP dùng một lần), `MailService` (gửi đồng bộ, mẫu Thymeleaf `templates/mail/otp.html`, tiêu đề theo
+  mục đích, escape HTML, lỗi → `EMAIL_SEND_FAILED`, không log mã), cấu hình `spring.mail.*` (mặc định Mailpit `localhost:1025`, timeout
+  5/10 giây), `management.health.mail.enabled=false`, `app.mail.from/from-name`, thêm **Mailpit** vào `docker-compose.yml` (đọc thư ở
+  http://localhost:8025). Test: `OtpServiceTest` (14, PostgreSQL thật: gồm đoán song song, rollback người gọi, hết hạn đúng biên),
+  `MailServiceTest` (5, GreenMail). Kiểm tra "đột biến": cố ý làm yếu giới hạn lượt đoán và giao dịch riêng → đúng 4 test đỏ.
+  Đã gửi thử thư thật tới Mailpit và xem lại nội dung. Docs: `tech-stack.md`, `docker.md`, `local-development.md`,
+  `troubleshooting.md`, `.env.example` (SMTP_* để comment: biến rỗng ghi đè mặc định).
+- Còn dang dở / TODO tiếp theo:
+  - N3-02 (PR kế tiếp): `register`, `verify-email`, `resend-code`. Người gọi `issue()` phải lưu user trong giao dịch của mình và gửi mail
+    SAU `issue()` (lỗi mail → rollback, không tạo user/OTP). `verify()` đừng gọi khi giao dịch của người gọi đang giữ thay đổi chưa commit
+    trên chính dòng user đó. Tạo giỏ hàng rỗng khi đăng ký: bảng `carts` chưa có → dùng stub `CartService.createForUser` (F-11), ghi TODO.
+  - `otp_last_sent_at` được GIỮ khi OTP dùng xong (vẫn giới hạn tần suất gửi lại); BR-11 chỉ nói "xoá các cột OTP".
+  - Mặc định SMTP `localhost:1025` ở môi trường thật sẽ gây `EMAIL_SEND_FAILED` nếu quên đặt `SMTP_*`.
+  - Test OTP dùng `MutableTestClock` lồng riêng trong test; khi F-04 (Người 4) có `MutableClock` chung thì gom lại.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-01)
+
 ### 2026-10-26 — Người 1 (Claude Code) — order admin + đơn của khách (Phần 3/3)
 - Đã làm: backend `GET /api/orders` (lọc, phân trang), `POST /api/orders/{id}/cancel` (`OrderService.cancelByCustomer`);
   `order/admin/` (`AdminOrderController`, `AdminOrderService`, `AdminOrderResponses`): `GET /api/admin/orders` (trạng thái, phương thức,

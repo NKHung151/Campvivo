@@ -44,8 +44,25 @@ Profile dev nạp thêm dữ liệu mẫu catalog (`db/seed` — danh mục, s�
 **Windows, đường dẫn có ký tự tiếng Việt (vd. `D:\ĐA`):** `mvn spring-boot:run` báo `ClassNotFoundException` — xem
 `troubleshooting.md` (chạy qua junction ASCII hoặc `java -jar`).
 
-**Email khi dev:** dùng SMTP thật (Gmail App Password) hoặc Mailpit/MailHog (`localhost:1025`, xem
-thư ở `localhost:8025`) để nhận OTP.
+**Email khi dev (OTP):** `docker compose up -d` đã bật **Mailpit** (hộp thư giả, container `campvivo-mailpit`). Backend mặc
+định gửi tới `localhost:1025` nên không cần cấu hình gì thêm; mở **http://localhost:8025** để đọc thư và lấy mã OTP (thư
+không gửi ra ngoài). Muốn dùng SMTP thật (Gmail App Password) thì đặt `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`,
+`SMTP_PASSWORD`, `SMTP_AUTH=true`, `SMTP_STARTTLS=true` (xem `tech-stack.md`). Mã OTP không bao giờ được ghi vào log.
+Nếu chưa bật Mailpit, các chức năng gửi OTP sẽ trả `EMAIL_SEND_FAILED`.
+
+**Thử đăng ký bằng PowerShell** (backend chạy ở 8080, Mailpit đang bật):
+```powershell
+$u = "http://localhost:8080/api"; $j = "application/json"
+# 1. Đăng ký (đổi email tuỳ ý) → 201
+Invoke-RestMethod -Method Post "$u/auth/register" -ContentType $j -Body '{"email":"ban@example.com","password":"Passw0rd1","fullName":"Tên Của Bạn"}'
+# 2. Mở http://localhost:8025, mở thư "Mã xác thực email Campvivo", lấy mã 6 số
+# 3. Xác thực email bằng mã đó → nhận token (đăng nhập luôn)
+Invoke-RestMethod -Method Post "$u/auth/verify-email" -ContentType $j -Body '{"email":"ban@example.com","code":"123456"}'
+# Gửi lại mã (chờ ít nhất 60 giây kể từ thư trước)
+Invoke-RestMethod -Method Post "$u/auth/resend-code" -ContentType $j -Body '{"email":"ban@example.com","purpose":"VERIFY_EMAIL"}'
+```
+Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`. Xoá tài khoản thử:
+`docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 
 **Biến môi trường từ `.env`:** backend tự nạp file `.env` ở gốc repo khi chạy từ thư mục `backend/`
 (`spring.config.import`), nên `GHN_*`, `VNP_*`... không cần khai lại trong `application-dev.yml`.

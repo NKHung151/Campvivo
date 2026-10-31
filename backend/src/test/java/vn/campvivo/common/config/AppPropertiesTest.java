@@ -44,6 +44,8 @@ class AppPropertiesTest {
             assertThat(props.cors().allowedOrigins()).containsExactly("http://localhost:3000");
             assertThat(props.frontendUrl()).isEqualTo("http://localhost:3000");
             assertThat(props.vnpay().payUrl()).contains("sandbox.vnpayment.vn");
+            assertThat(props.mail().from()).isEqualTo("no-reply@campvivo.local");
+            assertThat(props.mail().fromName()).isEqualTo("Campvivo");
         });
     }
 

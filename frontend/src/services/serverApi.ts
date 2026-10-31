@@ -22,6 +22,12 @@ function buildUrl(path: string, params?: ServerRequestOptions["params"]): string
   return url.toString();
 }
 
+/** Lỗi điều khiển luồng của Next (nhận biết qua `digest`), không phải lỗi mạng. */
+function isNextControlFlowError(error: unknown): boolean {
+  const digest = (error as { digest?: unknown } | null)?.digest;
+  return digest === "DYNAMIC_SERVER_USAGE" || digest === "BAILOUT_TO_CLIENT_SIDE_RENDERING";
+}
+
 async function request<T>(path: string, options: ServerRequestOptions): Promise<ApiSuccessBody<T>> {
   let response: Response;
   try {
@@ -31,7 +37,10 @@ async function request<T>(path: string, options: ServerRequestOptions): Promise<
         ? { next: { revalidate: options.revalidate } }
         : { cache: "no-store" as const }),
     });
-  } catch {
+  } catch (error) {
+    // Next dùng lỗi đặc biệt (fetch no-store lúc prerender → chuyển trang sang render động) để điều khiển
+    // luồng; phải để nó đi tiếp, bắt nhầm thành NETWORK_ERROR sẽ làm `next build` hỏng khi không có backend.
+    if (isNextControlFlowError(error)) throw error;
     throw networkError();
   }
 
