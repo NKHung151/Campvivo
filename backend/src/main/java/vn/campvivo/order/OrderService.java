@@ -100,14 +100,21 @@ public class OrderService {
         List<CheckoutLine> lines = cartService.checkoutLines(userId, req.cartItemIds());
         List<PricedLine> priced = price(lines, load(lines, false));
         BigDecimal subtotal = subtotal(priced);
-        BigDecimal discount = voucherService.discountFor(req.voucherCode(), subtotal, userId);
+        VoucherService.Applied voucher = voucherService.quote(req.voucherCode(), subtotal, userId);
         boolean hasAddress = req.shippingDistrictId() != null && req.shippingWardCode() != null
                 && !req.shippingWardCode().isBlank();
-        long orderValue = subtotal.subtract(discount).longValueExact();
+        long orderValue = subtotal.subtract(voucher.discount()).longValueExact();
         long shippingFee = hasAddress
                 ? shippingService.quote(req.shippingDistrictId(), req.shippingWardCode().trim(), quantity(lines), orderValue).fee()
                 : 0;
-        return toPreview(totals(priced, subtotal, discount, shippingFee, hasAddress, req.voucherCode()));
+        return toPreview(totals(priced, subtotal, voucher.discount(), shippingFee, hasAddress, voucher.code()));
+    }
+
+    /** Tạm tính (giá hiện hành, chưa voucher) của các dòng giỏ đang chọn — danh sách mã ở trang thanh toán (D-29). */
+    @Transactional(readOnly = true)
+    public BigDecimal checkoutSubtotal(Long userId, List<Long> cartItemIds) {
+        List<CheckoutLine> lines = cartService.checkoutLines(userId, cartItemIds);
+        return subtotal(price(lines, load(lines, false)));
     }
 
     // ------------------------------------------------------------------ tạo đơn
@@ -119,7 +126,7 @@ public class OrderService {
 
         // 1. Hỏi phí GHN TRƯỚC khi khoá tồn kho (không giữ khoá trong lúc gọi dịch vụ ngoài)
         BigDecimal estimatedSubtotal = subtotal(price(lines, load(lines, false)));
-        BigDecimal estimatedDiscount = voucherService.discountFor(req.voucherCode(), estimatedSubtotal, userId);
+        BigDecimal estimatedDiscount = voucherService.quote(req.voucherCode(), estimatedSubtotal, userId).discount();
         ShippingFeeResponse ship = shippingService.quote(req.shippingDistrictId(), wardCode, quantity(lines),
                 estimatedSubtotal.subtract(estimatedDiscount).longValueExact());
 
@@ -133,10 +140,11 @@ public class OrderService {
                     Map.of("items", inactive));
         }
         BigDecimal subtotal = subtotal(priced);
-        // Voucher: khi có module promotion, khoá voucher (sau products/combos) và trừ lượt ở đây (BR-5)
-        BigDecimal discount = voucherService.discountFor(req.voucherCode(), subtotal, userId);
+        // Voucher: khoá SAU products/combos, kiểm tra lại BR-5 và trừ lượt (rollback cùng đơn nếu lỗi phía sau)
+        VoucherService.Applied voucher = voucherService.consume(req.voucherCode(), subtotal, userId);
+        BigDecimal discount = voucher.discount();
         long shippingFee = shippingService.customerFee(ship.carrierFee(), subtotal.subtract(discount).longValueExact());
-        Totals totals = totals(priced, subtotal, discount, shippingFee, true, req.voucherCode());
+        Totals totals = totals(priced, subtotal, discount, shippingFee, true, voucher.code());
 
         // 3. So với số tiền khách đang thấy (D-04)
         if (totals.finalAmount().compareTo(BigDecimal.valueOf(req.expectedTotal())) != 0) {
@@ -151,7 +159,7 @@ public class OrderService {
 
         // 5. Tạo đơn + dòng (snapshot) + lịch sử, bản ghi thanh toán PENDING
         OffsetDateTime now = OffsetDateTime.now(clock);
-        Order order = new Order(codeGenerator.next(), userId, blankToNull(req.voucherCode()),
+        Order order = new Order(codeGenerator.next(), userId, voucher.voucherId(), voucher.code(),
                 new Order.Amounts(totals.subtotal(), totals.discount(), totals.shippingFee(), totals.finalAmount()),
                 new Order.Recipient(req.recipientName().trim(), req.recipientPhone().trim(), req.shippingAddress().trim(),
                         req.shippingDistrictId(), wardCode),

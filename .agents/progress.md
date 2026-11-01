@@ -17,6 +17,64 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-10-31 — Người 4 (Claude Code) — promotion: lối vào khuyến mãi cho khách (Phần 5b, PM-30 → PM-33)
+- Đã làm (người dùng yêu cầu thêm; vẫn CHƯA add/commit/push): docs (`api.md`: `onSale` ở `GET /products`, `GET /campaigns`;
+  `pages.md`: `/promotions`). Backend: `ProductQuery.onSale` (`salePrice < price`), `GET /campaigns` (`CampaignService.listActive`,
+  `productCount` = sản phẩm đang bán). Frontend: menu "Dọn Kho 70%" → "Khuyến mãi" (`/promotions`, sửa `mocks/data/menu.json`);
+  trang `/promotions` (`getPromotionsListing`: mọi sản phẩm đang giảm, mức giảm lớn nhất; cột trái = chiến dịch đang chạy);
+  `ListingView` thêm prop tuỳ chọn `priceFilter`, `pageSize`, `sideTitle`, `hideSaleFilter` — mặc định tắt nên trang danh mục/
+  thương hiệu không đổi; Flash sale trang chủ lấy `onSale` (giảm nhiều trước, 15 sản phẩm) + nút "Xem tất cả" → `/promotions`;
+  PromoBar xen kẽ slide chiến dịch (tên escape HTML) và voucher (`interleave`, `campaignPromoSlide`).
+- Kiểm chứng: `CampaignPricingIntegrationTest` 7/7 (thêm: `onSale` không trùng dòng khi chồng chiến dịch + lọc giá; `/campaigns` chỉ
+  chiến dịch đang chạy, đếm sản phẩm đang bán), `ProductControllerTest` 6/6; frontend tsc + lint sạch. Chạy thật (DB tạm, đã xoá):
+  menu "Khuyến mãi" → `/promotions` 200, PromoBar xen kẽ đúng, Flash sale 8 sản phẩm thật + nút "Xem tất cả".
+- Lưu ý: KHÔNG chạy dev server thứ hai trong `frontend/` khi người dùng đang chạy `npm run dev` — dùng chung `.next` (lỗi EPERM
+  `.next/trace`, trang trả 404 sai sau hot-reload). Phân trang `/promotions` chưa kiểm được trên trình duyệt vì lý do này.
+- Còn dang dở / TODO tiếp theo: người dùng thử tay (PM-17, PM-27 + trang `/promotions`: lọc giá, sắp xếp, phân trang > 24 sản phẩm);
+  bộ đếm "Chỉ còn hh:mm:ss" của khối Flash sale vẫn là đếm tới nửa đêm (dữ liệu mẫu), không theo hạn chiến dịch.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
+### 2026-10-31 — Người 4 (Claude Code) — promotion: chiến dịch (Phần 4–5 / điểm dừng 2)
+- Đã làm: nhánh `feature/promotion` (vẫn CHƯA add/commit/push). Backend: `Product.salePrice` (`@Formula`, D-30) — nguồn duy nhất
+  của giá bán sản phẩm; `PricingService.unitPrice` = salePrice, `activeCampaigns(ids)` (chiến dịch tốt nhất cho trường `campaign`);
+  `ItemSummary`/`ProductDetail` (+ `campaign`)/`ProductCombo.getItemsTotal` dùng salePrice; `GET /products` lọc `minPrice`/`maxPrice`
+  và `price_asc|desc` theo salePrice; `CampaignService`/`CampaignController` (`GET /campaigns/{slug}`, chỉ đang hiệu lực);
+  `promotion/admin/` CRUD chiến dịch + `GET /admin/campaigns/overlaps`. Frontend: `catalogApi.getCampaign`, `getPromo` đọc API
+  (bỏ mock promos), trang `/promotions/[slug]` (banner, giờ kết thúc), `ProductInfo` nhãn chiến dịch + đếm ngược có số ngày,
+  `adminCampaignService`, `/admin/campaigns` (`CampaignListView`), `/admin/campaigns/new` + `[id]` (`CampaignForm`,
+  `CampaignProductPicker` — giá dự kiến, cảnh báo chồng chiến dịch, banner tải lên/dán link). Không tạo `PriceTag` (đã có sẵn
+  giá gạch + badge % trong `catalogService`) — ghi trong plan.
+- Kiểm chứng: `CampaignPricingIntegrationTest` (5: bảng ca BR-6 + làm tròn khớp `Discounts`, lọc/sắp xếp/chi tiết, đặt hàng dùng giá
+  sau giảm + combo không đổi, trang chiến dịch 404 khi chưa/hết hạn, admin CRUD + overlaps + 403) xanh; cả bộ backend 202/203 (lỗi còn
+  lại là KI-10 có sẵn). Frontend tsc + lint sạch. Chạy thật trên DB tạm (backend 8099 + frontend 3099, đã xoá DB tạm): giá 925.000 →
+  740.000, `/promotions/xa-hang-cuoi-mua` 200 (giờ VN đúng), chiến dịch sắp diễn ra 404, PDP có nhãn chiến dịch, các trang admin 200.
+- Còn dang dở / TODO tiếp theo:
+  - PM-17, PM-27: người dùng thử tay trên trình duyệt (voucher + chiến dịch, mobile 375px).
+  - PM-28 (email chào mừng) chờ người dùng cho phép rebase lên `dev`. PM-29: tick roadmap, chuyển plan sang `completed/` khi xong.
+  - Link `/promotions/...` trong dữ liệu mock (home.json, menu.json) trỏ slug không có trong DB → 404 cho đến khi thay bằng chiến dịch thật.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
+### 2026-10-31 — Người 4 (Claude Code) — promotion: voucher (Phần 1–3 / điểm dừng 1)
+- Đã làm: nhánh `feature/promotion` (tạo từ `origin/feature/order-payment-service`; người dùng chốt: không merge/rebase/đụng nhánh
+  khác, CHƯA add/commit/push). Docs trước: api.md (`/vouchers/available`, `/vouchers/public`, `/admin/campaigns/overlaps`, kiểu admin,
+  mã `VOUCHER_CODE_ALREADY_EXISTS`), database.md (`is_public`, index, seed V7), D-29 (mã công khai + danh sách, không ví cá nhân),
+  D-30 (`Product.salePrice` @Formula — chưa code), features FR-16, pages. Backend: `V6__promotion.sql` (3 bảng + FK `fk_orders_voucher`),
+  `db/seed/V7__seed_promotions.sql`, entity `Voucher`/`DiscountCampaign` (+ `Discounts`, `VoucherRules` thứ tự lỗi BR-5),
+  `VoucherService.quote/consume/release/available/publicList`, nối `OrderService` (preview/ước tính = quote, create = consume sau khoá
+  products/combos, `Order` có `voucherId`) và `OrderStateService` (trả lượt), `VoucherController`, `promotion/admin/*` CRUD voucher.
+  Frontend: `types/api/promotion.ts`, `promotionService`, `adminVoucherService`, `lib/promotion.ts`, `/admin/vouchers`
+  (`VoucherListView` + `VoucherFormModal`), `VoucherList` trong popup `/cart`, PromoBar đọc `/vouchers/public` (SSR, cache 60s).
+- Kiểm chứng: `PromotionSchemaTest` (9), `VoucherRulesTest` (20), `VoucherFlowIntegrationTest` (10: trừ/trả lượt khi huỷ/IPN lỗi/hết hạn,
+  dùng 2 lần, hết lượt, rollback khi PRICE_CHANGED, 20 luồng còn 1 lượt → 1 đơn, 1 khách 2 đơn song song → 1, API khách + admin) xanh.
+  Cả bộ backend: 147/148 xanh — lỗi còn lại có sẵn từ trước (KI-10). Lỗi phát hiện khi test đồng thời: voucher đã đọc lúc ước tính phí
+  ship nên `FOR UPDATE` trả entity cũ → đã thêm `em.refresh` sau khoá. Frontend: tsc + lint sạch. Chạy thật trên DB tạm `campvivo_verify`
+  (backend 8099, frontend 3099): API khách/admin đúng, PromoBar hiện mã thật, `/`, `/cart`, `/admin/vouchers` trả 200.
+- Còn dang dở / TODO tiếp theo:
+  - PM-17: người dùng thử tay trên trình duyệt (popup voucher, trang admin, mobile 375px). DB `campvivo` của người dùng sẽ chạy V6, V7
+    khi khởi động lại backend. DB tạm `campvivo_verify` còn giữ để test Phần 4 — xoá khi xong.
+  - Phần 4–5: chiến dịch (PM-18 → PM-27). PM-28 (email chào mừng) chờ người dùng cho phép rebase lên `dev`.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
 ### 2026-10-26 — Người 1 (Claude Code) — order admin + đơn của khách (Phần 3/3)
 - Đã làm: backend `GET /api/orders` (lọc, phân trang), `POST /api/orders/{id}/cancel` (`OrderService.cancelByCustomer`);
   `order/admin/` (`AdminOrderController`, `AdminOrderService`, `AdminOrderResponses`): `GET /api/admin/orders` (trạng thái, phương thức,

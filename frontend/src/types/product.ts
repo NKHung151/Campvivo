@@ -49,6 +49,8 @@ export interface ProductFull {
   oldPrice: number | null;
   savePct: string | null;
   saleEnds: string | null;
+  /** Chiến dịch đang áp cho giá (FR-17) — link tới /promotions/[slug]. */
+  campaign?: { name: string; slug: string } | null;
   warranty: string | null;
   maxQty: number | null;
   variantLabel: string | null;

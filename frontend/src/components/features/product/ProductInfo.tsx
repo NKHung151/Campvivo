@@ -8,18 +8,16 @@ import type { ProductFull, PdpStatic } from "@/types/product";
 import { vnd } from "@/lib/format";
 import { useShop } from "@/components/features/shop/ShopProvider";
 
+/** Thời gian còn lại tới hết chiến dịch: [ngày, giờ, phút, giây]; đã hết → toàn 0 (tải lại trang sẽ thấy giá gốc). */
 function useCountdown(iso: string | null) {
-  const [left, setLeft] = useState<[string, string, string] | null>(null);
+  const [left, setLeft] = useState<[number, string, string, string] | null>(null);
   useEffect(() => {
     if (!iso) return;
     const end = new Date(iso).getTime();
     const tick = () => {
-      // Sale end dates in the snapshot may already be past; roll forward by days so the timer keeps running.
-      let ms = end - Date.now();
-      while (ms < 0) ms += 86_400_000;
-      const s = Math.floor(ms / 1000);
+      const s = Math.max(0, Math.floor((end - Date.now()) / 1000));
       const pad = (n: number) => String(n).padStart(2, "0");
-      setLeft([pad(Math.floor(s / 3600) % 24), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
+      setLeft([Math.floor(s / 86_400), pad(Math.floor(s / 3600) % 24), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -160,6 +158,11 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               <div className="promotion-price-left">
                 <div className="promotion-desc">
                   Bạn đã tiết kiệm được <b>{p.savePct}</b>
+                  {p.campaign && (
+                    <Link className="ctkm-campaign-tag" href={`/promotions/${p.campaign.slug}`} prefetch={false}>
+                      {p.campaign.name}
+                    </Link>
+                  )}
                 </div>
                 <div className="promotion-detail">
                   <div className="promotion-desc">
@@ -171,16 +174,24 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               <div className="promotion-price-right">
                 <div className="promotion-desc">Kết thúc sau</div>
                 <div className="promotion-countdown">
+                  {left && left[0] > 0 && (
+                    <>
+                      <div className="block">
+                        <span className="remain-days">{left[0]}</span>ngày
+                      </div>
+                      :
+                    </>
+                  )}
                   <div className="block">
-                    <span className="remain-hours">{left?.[0]}</span>giờ
+                    <span className="remain-hours">{left?.[1]}</span>giờ
                   </div>
                   :
                   <div className="block">
-                    <span className="remain-minutes">{left?.[1]}</span>phút
+                    <span className="remain-minutes">{left?.[2]}</span>phút
                   </div>
                   :
                   <div className="block">
-                    <span className="remain-seconds">{left?.[2]}</span>giây
+                    <span className="remain-seconds">{left?.[3]}</span>giây
                   </div>
                 </div>
               </div>

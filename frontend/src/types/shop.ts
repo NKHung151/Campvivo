@@ -50,7 +50,8 @@ export interface HomeData {
   hero: { href: string; img: string; alt: string; hotspots: { left: string; top: string; href: string }[] };
   slogan: { text: string; em: string };
   brandLogos: { name: string; href: string; img: string }[];
-  flashSale: { title: string; href: string; items: ProductCard[] };
+  /** `endsAt`: hạn của chiến dịch đang chạy kết thúc sớm nhất (bộ đếm "Chỉ còn"); null = không hiện bộ đếm. */
+  flashSale: { title: string; href: string; items: ProductCard[]; endsAt?: string | null };
   groups: { title: string; href: string; desc: string; items: ProductCard[] }[];
   topCategories: { title: string; items: { name: string; href: string; img: string }[]; more: { text: string; btn: string; href: string } };
   banners: { col: string; href: string; title: string; img: string }[];

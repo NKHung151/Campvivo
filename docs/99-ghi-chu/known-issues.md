@@ -56,9 +56,15 @@ tránh agent khác tưởng là bug mới và sửa lặp hoặc sửa sai hư�
   (`app.ghn.parcel-*`). Phí ship có thể lệch thực tế với hàng nặng/cồng kềnh (lều, bàn ghế).
 - **Xử lý sau:** thêm cột cân nặng cho sản phẩm (cần cập nhật `database.md`, D-12) rồi đổi `ShippingService.weightOf`.
 
-### KI-08 — Voucher chưa áp dụng được khi đặt hàng (2026-10-26)
+### KI-08 — Voucher chưa áp dụng được khi đặt hàng (2026-10-26) — ĐÃ XỬ LÝ 2026-10-31
 - **Mô tả:** module promotion (F-07, FR-16) chưa có; `VoucherService` trả `INVALID_VOUCHER` cho mọi mã.
-- **Xử lý:** khi làm FR-16, cài BR-5 trong `VoucherService` (+ khoá voucher, trừ/trả lượt ở `OrderService` / `OrderStateService`).
+- **Đã xử lý:** `V6__promotion.sql`; `VoucherService.quote/consume/release` theo BR-5 (khoá voucher sau products/combos,
+  refresh sau khoá), trừ lượt ở `OrderService.create`, trả lượt ở `OrderStateService.apply` (CANCELLED/PAYMENT_FAILED).
+
+### KI-10 — `SecurityIntegrationTest.employeeAndAdminPassAdminPathRule` lỗi (2026-10-31)
+- **Mô tả:** test chờ `GET /api/admin/orders` trả 404 ("chưa có controller") nhưng `AdminOrderController` đã có (nhánh
+  order-payment) nên trả 200. Không liên quan module promotion.
+- **Xử lý:** người phụ trách order/auth đổi test sang một đường dẫn admin chưa có controller (hoặc chờ 200).
 
 ### KI-09 — Địa chỉ giao hàng gần nhất lưu ở trình duyệt (2026-10-26)
 - **Mô tả:** `users.address` chỉ là chuỗi (D-02) nên mã GHN của địa chỉ lần trước lưu ở localStorage; đổi trình duyệt phải chọn

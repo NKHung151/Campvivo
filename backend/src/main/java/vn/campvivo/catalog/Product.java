@@ -1,6 +1,7 @@
 package vn.campvivo.catalog;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
@@ -47,6 +48,20 @@ public class Product {
     /** NUMERIC(19,0) — VND, không có phần lẻ. */
     @Column(nullable = false, precision = 19, scale = 0)
     private BigDecimal price;
+
+    /**
+     * Giá sau chiến dịch (BR-6, D-30) — chỉ đọc, tính bằng subquery mỗi lần nạp entity: mức thấp nhất trên các chiến dịch
+     * đang hiệu lực (theo `now()` của DB) chứa sản phẩm, không có thì = `price`. Là nguồn DUY NHẤT của giá bán sản phẩm
+     * (PricingService, lọc/sắp xếp GET /products); công thức Java tương ứng ở promotion.Discounts (chỉ để test/xem trước).
+     */
+    @Formula("""
+            (SELECT COALESCE(MIN(CASE WHEN c.discount_type = 'PERCENTAGE'
+                                      THEN ROUND(price * (100 - c.discount_value) / 100.0)
+                                      ELSE GREATEST(price - c.discount_value, 0) END), price)
+               FROM discount_campaign_products cp JOIN discount_campaigns c ON c.id = cp.campaign_id
+              WHERE cp.product_id = id AND c.is_active AND c.start_date <= now() AND c.end_date > now())
+            """)
+    private BigDecimal salePrice;
 
     // BR-1 (docs/02-ky-thuat/database.md): availableQuantity = stockQuantity - reservedQuantity
     @Column(name = "stock_quantity", nullable = false)
@@ -158,6 +173,8 @@ public class Product {
     public String getBrand() { return brand; }
     public List<ProductSpec> getSpecs() { return specs; }
     public BigDecimal getPrice() { return price; }
+    /** Giá sau chiến dịch (D-30); entity mới tạo chưa nạp lại từ DB → bằng `price`. */
+    public BigDecimal getSalePrice() { return salePrice != null ? salePrice : price; }
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }

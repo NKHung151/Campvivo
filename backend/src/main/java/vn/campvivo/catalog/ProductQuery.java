@@ -7,7 +7,8 @@ import java.util.List;
 
 /**
  * Tham số GET /products (public). `category` là slug (gồm danh mục con); `slugs` lấy đúng các sản phẩm
- * theo slug (dùng cho khối sản phẩm chọn sẵn ở trang chủ, đã xem, so sánh).
+ * theo slug (dùng cho khối sản phẩm chọn sẵn ở trang chủ, đã xem, so sánh). `onSale` = chỉ sản phẩm đang được giảm
+ * (giá sau chiến dịch < giá gốc — trang /promotions, khối Flash sale).
  */
 public record ProductQuery(
         String category,
@@ -16,6 +17,7 @@ public record ProductQuery(
         List<String> slugs,
         BigDecimal minPrice,
         BigDecimal maxPrice,
+        boolean onSale,
         SortBy sortBy,
         int page,
         int limit
@@ -23,8 +25,9 @@ public record ProductQuery(
     /** Giá trị trên query viết thường: ?sortBy=price_asc (sai giá trị → 400). */
     public enum SortBy {
         newest(Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))),
-        price_asc(Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"))),
-        price_desc(Sort.by(Sort.Order.desc("price"), Sort.Order.asc("id"))),
+        // Theo giá sau chiến dịch (Product.salePrice — D-30)
+        price_asc(Sort.by(Sort.Order.asc("salePrice"), Sort.Order.asc("id"))),
+        price_desc(Sort.by(Sort.Order.desc("salePrice"), Sort.Order.asc("id"))),
         name_asc(Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id")));
 
         private final Sort sort;

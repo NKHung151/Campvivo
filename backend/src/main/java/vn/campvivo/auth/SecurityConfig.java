@@ -56,7 +56,8 @@ public class SecurityConfig {
                         // Nội dung công khai (chỉ GET)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories", "/api/brands", "/api/search",
-                                "/api/products/**", "/api/combos/**", "/api/articles/**", "/api/campaigns/**")
+                                "/api/products/**", "/api/combos/**", "/api/articles/**", "/api/campaigns/**",
+                                "/api/vouchers/public")
                         .permitAll()
                         // Nhân viên: EMPLOYEE hoặc ADMIN
                         .requestMatchers("/api/admin/**").hasAnyRole("EMPLOYEE", "ADMIN")

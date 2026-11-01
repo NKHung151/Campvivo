@@ -41,6 +41,7 @@ const BACKEND_MESSAGES: Record<string, string> = {
   VOUCHER_EXHAUSTED: "Mã giảm giá đã hết lượt sử dụng.",
   VOUCHER_ALREADY_USED: "Bạn đã sử dụng mã giảm giá này.",
   VOUCHER_IN_USE: "Không thể xoá mã giảm giá đã có đơn hàng sử dụng. Hãy tắt mã thay vì xoá.",
+  VOUCHER_CODE_ALREADY_EXISTS: "Mã giảm giá này đã tồn tại. Vui lòng chọn mã khác.",
   ORDER_NOT_CANCELLABLE: "Chỉ có thể huỷ đơn hàng khi đơn đang chờ xử lý.",
   INVALID_STATUS_TRANSITION: "Không thể chuyển sang trạng thái này từ trạng thái hiện tại.",
   PAYMENT_GATEWAY_ERROR: "Không tạo được liên kết thanh toán. Vui lòng thử lại sau.",

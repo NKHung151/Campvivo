@@ -10,6 +10,7 @@ import type {
   ProductQuery,
 } from "@/types/api/catalog";
 import type { Page } from "@/types/api/common";
+import type { CampaignDetail, CampaignSummary } from "@/types/api/promotion";
 import { isApiError } from "@/services/apiError";
 import { serverGet, serverGetPage, type ServerRequestOptions } from "@/services/serverApi";
 
@@ -33,8 +34,10 @@ async function orNull<T>(request: Promise<T>): Promise<T | null> {
 }
 
 export async function listProducts(query: ProductQuery): Promise<Page<ItemSummary>> {
-  const { slugs, ...rest } = query;
-  return serverGetPage<ItemSummary>("/products", { params: params({ ...rest, slugs: slugs?.join(",") }) });
+  const { slugs, onSale, ...rest } = query;
+  return serverGetPage<ItemSummary>("/products", {
+    params: params({ ...rest, slugs: slugs?.join(","), onSale: onSale ? "true" : undefined }),
+  });
 }
 
 /** Toàn bộ sản phẩm khớp bộ lọc (trang danh mục/thương hiệu lọc và phân trang phía client). */
@@ -82,6 +85,17 @@ export async function listAllCombos(query: Omit<ComboQuery, "page" | "limit"> = 
 export const getComboDetail = cache(async (slug: string): Promise<ComboDetail | null> => {
   if (!/^[a-z0-9-]+$/.test(slug)) return null;
   return orNull(serverGet<ComboDetail>(`/combos/${slug}`));
+});
+
+/** Chiến dịch đang hiệu lực, sắp kết thúc trước (trang /promotions, PromoBar). */
+export const listCampaigns = cache(async (): Promise<CampaignSummary[]> => {
+  return serverGet<CampaignSummary[]>("/campaigns");
+});
+
+/** Chiến dịch đang hiệu lực (FR-17); chưa bắt đầu/đã kết thúc/tắt/không tồn tại → null. */
+export const getCampaign = cache(async (slug: string): Promise<CampaignDetail | null> => {
+  if (!/^[a-z0-9-]+$/.test(slug)) return null;
+  return orNull(serverGet<CampaignDetail>(`/campaigns/${slug}`));
 });
 
 export const getCategoryTree = cache(async (): Promise<CategoryNode[]> => {
