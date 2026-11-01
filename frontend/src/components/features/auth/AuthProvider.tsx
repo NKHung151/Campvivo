@@ -5,6 +5,7 @@ import { clearToken, getToken, setToken, TOKEN_KEY } from "@/lib/authToken";
 import { setUnauthorizedHandler } from "@/services/apiClient";
 import { isApiError } from "@/services/apiError";
 import { authService } from "@/services/authService";
+import type { LoginResponse } from "@/types/api/auth";
 import type { UserProfile } from "@/types/api/common";
 
 /**
@@ -21,6 +22,8 @@ interface AuthContextValue {
   user: UserProfile | null;
   /** Đăng nhập; lỗi (ApiError) được ném lại cho form hiển thị. */
   login: (email: string, password: string) => Promise<UserProfile>;
+  /** Xác thực email bằng OTP; đúng mã thì đăng nhập luôn. Lỗi (ApiError) được ném lại cho form. */
+  verifyEmail: (email: string, code: string) => Promise<UserProfile>;
   /** Đăng xuất: gọi API (đăng xuất mọi thiết bị), luôn xoá token phía client dù API lỗi. */
   logout: () => Promise<void>;
   /** Thử khôi phục phiên lại (khi status = "error"). */
@@ -80,13 +83,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [restore]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const result = await authService.login({ email: email.trim(), password });
+  const completeSignIn = useCallback((result: LoginResponse) => {
     setToken(result.accessToken);
     setUser(result.user);
     setStatus("authenticated");
     return result.user;
   }, []);
+
+  const login = useCallback(
+    async (email: string, password: string) =>
+      completeSignIn(await authService.login({ email: email.trim(), password })),
+    [completeSignIn],
+  );
+
+  const verifyEmail = useCallback(
+    async (email: string, code: string) => completeSignIn(await authService.verifyEmail({ email, code })),
+    [completeSignIn],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -103,8 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const retry = useCallback(() => void restore(), [restore]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, logout, retry }),
-    [status, user, login, logout, retry],
+    () => ({ status, user, login, verifyEmail, logout, retry }),
+    [status, user, login, verifyEmail, logout, retry],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -13,5 +13,14 @@ services:
     volumes:
       - campvivo_pgdata:/var/lib/postgresql/data
 
+  # Hộp thư giả cho dev: backend gửi OTP/email tới localhost:1025, xem thư ở http://localhost:8025 (không gửi ra ngoài).
+  mailpit:
+    image: axllent/mailpit:v1.31
+    container_name: campvivo-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   campvivo_pgdata:

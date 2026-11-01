@@ -10,6 +10,13 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### `catch` chung nuốt lỗi điều khiển luồng của framework
+- **Bài học:** `serverApi.request` bọc `fetch(..., { cache: "no-store" })` trong `catch` rồi đổi mọi lỗi thành `NETWORK_ERROR`. Lúc `next build`
+  Next ném `DYNAMIC_SERVER_USAGE` (để chuyển trang sang render động) và `catch` đã nuốt nó, nên build lỗi `NETWORK_ERROR` ở `/`, `/brands`, `/products`
+  dù backend vẫn chạy; CI không có backend nên đỏ. Chỉ lộ khi in lỗi gốc, không lộ khi chỉ đọc thông báo "Không kết nối được máy chủ".
+- **Áp dụng lại lần sau:** `catch` rộng quanh lời gọi của framework phải cho lỗi điều khiển luồng (có `digest`) đi tiếp. Gặp thông báo lỗi chung chung
+  thì in lỗi gốc trước khi kết luận nguyên nhân. Chạy `npm run build` KHÔNG có backend (như CI) trước khi mở PR.
+
 ### PR mở nhầm base `master` thay vì `dev`
 - **Bài học:** GitHub chọn mặc định base là nhánh mặc định của kho (`master`), nên PR dễ vào nhầm. Khi đó cả lịch sử
   `dev` bị kéo vào `master`. Ngoài ra workflow CI (`backend-ci.yml`, `frontend-ci.yml`) chỉ kích hoạt cho PR vào `dev`

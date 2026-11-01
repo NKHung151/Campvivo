@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/components/features/auth/AuthProvider";
+import { useLandingRedirect } from "@/components/features/auth/useLandingRedirect";
 import { getErrorMessage } from "@/lib/errorMessages";
-import { resolveLanding } from "@/lib/auth/redirect";
+import { authHref } from "@/lib/auth/redirect";
+import { validateEmail } from "@/lib/auth/validation";
 import { isApiError } from "@/services/apiError";
-
-const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
+import { authService } from "@/services/authService";
 
 interface FieldErrors {
   email?: string;
@@ -19,7 +21,8 @@ interface FieldErrors {
 
 /**
  * Đăng nhập bằng email + mật khẩu (POST /auth/login). Thành công → AuthProvider có `user` → điều hướng theo role
- * (`resolveLanding`). `redirect` là giá trị thô của ?redirect=; được kiểm tra an toàn trước khi dùng.
+ * (`useLandingRedirect`). `redirect` là giá trị thô của ?redirect=; được kiểm tra an toàn trước khi dùng.
+ * Chưa xác thực email (EMAIL_NOT_VERIFIED) → gửi lại mã rồi chuyển /verify-email (user-flows.md mục 2).
  */
 export function LoginForm({ redirect }: { redirect: string | null }) {
   const router = useRouter();
@@ -29,25 +32,16 @@ export function LoginForm({ redirect }: { redirect: string | null }) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const navigated = useRef(false);
 
-  // Đã có phiên (vừa đăng nhập hoặc vào /login khi đang đăng nhập) → về trang đích theo role. Chỉ một lần.
-  useEffect(() => {
-    if (status !== "authenticated" || !user || navigated.current) return;
-    navigated.current = true;
-    const destination = resolveLanding(user.role, redirect);
-    // Vào /admin là rời root layout storefront → tải lại trang để nạp đúng CSS/layout.
-    if (destination === "/admin" || destination.startsWith("/admin/")) window.location.assign(destination);
-    else router.replace(destination);
-  }, [status, user, redirect, router]);
+  useLandingRedirect(redirect);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
 
     const errors: FieldErrors = {};
-    if (!email.trim()) errors.email = "Vui lòng nhập email.";
-    else if (!EMAIL_PATTERN.test(email.trim())) errors.email = "Email không hợp lệ.";
+    const emailError = validateEmail(email);
+    if (emailError) errors.email = emailError;
     if (!password) errors.password = "Vui lòng nhập mật khẩu.";
     setFieldErrors(errors);
     setFormError(null);
@@ -56,16 +50,34 @@ export function LoginForm({ redirect }: { redirect: string | null }) {
     setSubmitting(true);
     try {
       await login(email, password);
-      // Điều hướng do effect phía trên thực hiện khi AuthProvider cập nhật user.
+      // Điều hướng do useLandingRedirect thực hiện khi AuthProvider cập nhật user.
     } catch (error) {
+      if (isApiError(error) && error.errorCode === "EMAIL_NOT_VERIFIED") {
+        await goToVerifyEmail(email.trim());
+        return;
+      }
       if (isApiError(error) && error.errorCode === "VALIDATION_ERROR") {
         const server = error.fieldErrors;
         setFieldErrors({ email: server.email, password: server.password });
       }
-      // TODO(N3-02): EMAIL_NOT_VERIFIED → tự gọi POST /auth/resend-code rồi chuyển /verify-email?email=...
       setFormError(getErrorMessage(error));
       setSubmitting(false);
     }
+  }
+
+  /** Gửi mã mới rồi sang màn nhập mã. Lỗi gửi không chặn: màn nhập mã có nút "Gửi lại mã" và báo lỗi ở đó. */
+  async function goToVerifyEmail(address: string) {
+    try {
+      await authService.resendCode({ email: address, purpose: "VERIFY_EMAIL" });
+    } catch (resendError) {
+      // OTP_RESEND_TOO_SOON: mã vừa gửi vẫn còn dùng được. Lỗi mạng/gửi mail: người dùng thử lại ở màn kế tiếp.
+      if (isApiError(resendError) && resendError.errorCode === "ACCOUNT_DISABLED") {
+        setFormError(getErrorMessage(resendError));
+        setSubmitting(false);
+        return;
+      }
+    }
+    router.push(authHref("/verify-email", { email: address }, redirect));
   }
 
   if (status === "loading" || (status === "authenticated" && user)) {
@@ -112,15 +124,19 @@ export function LoginForm({ redirect }: { redirect: string | null }) {
         type="password"
         name="password"
         autoComplete="current-password"
+        revealable
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         error={fieldErrors.password}
       />
 
       <Button type="submit" fullWidth loading={submitting}>
-        {submitting ? "Đang đăng nhập…" : "Đăng nhập"}
+        {submitting ? "Đang xử lý…" : "Đăng nhập"}
       </Button>
-      {/* TODO(N3-02, N3-04): thêm liên kết "Tạo tài khoản" (/register) và "Quên mật khẩu?" (/forgot-password) khi các trang đó có */}
+      <p className="cv-auth__switch">
+        Chưa có tài khoản? <Link href={authHref("/register", {}, redirect)}>Tạo tài khoản</Link>
+      </p>
+      {/* TODO(N3-04): thêm liên kết "Quên mật khẩu?" (/forgot-password) khi trang đó có */}
     </form>
   );
 }

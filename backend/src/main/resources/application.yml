@@ -16,6 +16,20 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  # Máy chủ SMTP gửi OTP/email (docs/02-ky-thuat/tech-stack.md). Mặc định trỏ Mailpit chạy bằng docker compose
+  # (localhost:1025, không xác thực). Môi trường thật đặt SMTP_* (vd. Gmail: smtp.gmail.com:587, SMTP_AUTH và SMTP_STARTTLS = true).
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+      # Không treo request đăng ký khi SMTP không phản hồi (mili giây)
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
 logging:
   pattern:
     # Thêm mã request (RequestIdFilter) vào mỗi dòng log
@@ -29,6 +43,10 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    # Không để /actuator/health báo DOWN chỉ vì chưa bật máy chủ SMTP (Mailpit) khi dev.
+    mail:
+      enabled: false
 
 # Tham số nghiệp vụ (docs/02-ky-thuat/tech-stack.md). Map vào vn.campvivo.common.config.AppProperties.
 # Secret chỉ lấy từ biến môi trường / application-dev.yml, KHÔNG ghi giá trị thật ở đây.

@@ -74,8 +74,17 @@ export function resolveLanding(role: Role, redirect: string | null | undefined):
   return safe && canAccessPath(role, safe) ? safe : landingFor(role);
 }
 
+/** Đường dẫn một trang xác thực kèm `?redirect=` (nếu hợp lệ) và các tham số khác (vd. email). */
+export function authHref(page: string, params: Record<string, string | null | undefined> = {}, returnTo?: string | null): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) if (value) query.set(key, value);
+  const safe = safeRedirectPath(returnTo);
+  if (safe) query.set("redirect", safe);
+  const qs = query.toString();
+  return qs ? `${page}?${qs}` : page;
+}
+
 /** Đường dẫn trang đăng nhập kèm trang cần quay lại. */
 export function loginHref(returnTo?: string): string {
-  const safe = safeRedirectPath(returnTo);
-  return safe ? `/login?redirect=${encodeURIComponent(safe)}` : "/login";
+  return authHref("/login", {}, returnTo);
 }

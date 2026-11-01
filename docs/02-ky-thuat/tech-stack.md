@@ -36,6 +36,8 @@
 | `app.vnpay.locale` / `order-type` | `vn` / `other` | Tham số `vnp_Locale`, `vnp_OrderType` |
 | `app.order.timeout-job-delay` | `60s` | Chu kỳ job huỷ đơn quá hạn (BR-3) |
 | `app.ghn.auto-create-shipment` | env `GHN_AUTO_CREATE_SHIPMENT`, mặc định `true` | Tự tạo vận đơn GHN khi đơn CONFIRMED (D-28) |
+| `app.mail.from` / `app.mail.from-name` | `no-reply@campvivo.local` / `Campvivo` | Người gửi email OTP/thông báo |
+| `spring.mail.*` (env `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`) | `localhost`, `1025`, rỗng, rỗng, `false`, `false` | Mặc định trỏ Mailpit (docker compose). Gmail: `smtp.gmail.com`, `587`, `SMTP_AUTH` và `SMTP_STARTTLS` = `true`. Timeout kết nối 5 giây, đọc/ghi 10 giây |
 | `app.cors.allowed-origins` | env `APP_CORS_ALLOWED_ORIGINS`, mặc định `http://localhost:3000` | Nhiều origin cách nhau dấu phẩy |
 | `app.frontend-url` | env `APP_FRONTEND_URL`, mặc định `http://localhost:3000` | Link trong email |
 | `server.port` / `server.forward-headers-strategy` | env `PORT` (8080) / `framework` | Sau reverse proxy lấy IP thật (vnp_IpAddr) |
