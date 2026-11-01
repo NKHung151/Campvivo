@@ -9,6 +9,7 @@ import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.inventory.InventoryService;
 import vn.campvivo.order.event.OrderStatusChangedEvent;
 import vn.campvivo.payment.PaymentService;
+import vn.campvivo.promotion.VoucherService;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -25,14 +26,17 @@ public class OrderStateService {
     private final OrderRepository orderRepository;
     private final InventoryService inventoryService;
     private final PaymentService paymentService;
+    private final VoucherService voucherService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public OrderStateService(OrderRepository orderRepository, InventoryService inventoryService,
-                             PaymentService paymentService, ApplicationEventPublisher events, Clock clock) {
+                             PaymentService paymentService, VoucherService voucherService,
+                             ApplicationEventPublisher events, Clock clock) {
         this.orderRepository = orderRepository;
         this.inventoryService = inventoryService;
         this.paymentService = paymentService;
+        this.voucherService = voucherService;
         this.events = events;
         this.clock = clock;
     }
@@ -56,7 +60,8 @@ public class OrderStateService {
 
     /**
      * Chuyển trạng thái cho đơn ĐÃ khoá trong transaction hiện tại. Sai máy trạng thái → INVALID_STATUS_TRANSITION.
-     * Hiệu ứng (BR-2): CONFIRMED trừ kho; CANCELLED/PAYMENT_FAILED trả giữ chỗ; COMPLETED gán completed_at, COD đã thu.
+     * Hiệu ứng (BR-2): CONFIRMED trừ kho; CANCELLED/PAYMENT_FAILED trả giữ chỗ + trả lượt voucher (BR-5); COMPLETED gán
+ * completed_at, COD đã thu.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Order apply(Order order, OrderStatus to, Long actorId, String note) {
@@ -66,8 +71,10 @@ public class OrderStateService {
         }
         switch (to) {
             case CONFIRMED -> inventoryService.commit(order.stockLines());
-            // Trả lượt voucher (BR-5) thêm ở đây khi có module promotion
-            case CANCELLED, PAYMENT_FAILED -> inventoryService.release(order.stockLines());
+            case CANCELLED, PAYMENT_FAILED -> {
+                inventoryService.release(order.stockLines());
+                voucherService.release(order.getVoucherId());   // BR-5: trả lượt (khoá voucher sau products/combos)
+            }
             case COMPLETED -> paymentService.markCodCollected(order.getId());
             default -> { }
         }

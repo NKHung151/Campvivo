@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { HomeData, ProductCard } from "@/types/shop";
 import { productHref } from "@/lib/format";
 import { OwlCarousel } from "@/components/ui/OwlCarousel";
@@ -51,27 +51,36 @@ export function BrandStrip({ logos }: { logos: HomeData["brandLogos"] }) {
   );
 }
 
-function useMidnightCountdown() {
-  const [left, setLeft] = useState<[string, string, string] | null>(null);
+/**
+ * Đếm ngược tới `iso` (hạn chiến dịch kết thúc sớm nhất): [ngày, giờ, phút, giây]. Hết giờ → tải lại dữ liệu trang
+ * (sản phẩm của chiến dịch vừa hết trở về giá gốc, bộ đếm chuyển sang chiến dịch kế tiếp).
+ */
+function useCampaignCountdown(iso: string | null | undefined, onEnd: () => void) {
+  const [left, setLeft] = useState<[number, string, string, string] | null>(null);
   useEffect(() => {
+    if (!iso) return;
+    const end = new Date(iso).getTime();
+    let ended = false;
     const tick = () => {
-      const now = new Date();
-      const end = new Date(now);
-      end.setHours(24, 0, 0, 0);
-      const s = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 1000));
+      const s = Math.max(0, Math.floor((end - Date.now()) / 1000));
       const pad = (n: number) => String(n).padStart(2, "0");
-      setLeft([pad(Math.floor(s / 3600)), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
+      setLeft([Math.floor(s / 86_400), pad(Math.floor(s / 3600) % 24), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
+      if (s === 0 && !ended) {
+        ended = true;
+        onEnd();
+      }
     };
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [iso, onEnd]);
   return left;
 }
 
 export function FlashSale({ data }: { data: HomeData["flashSale"] }) {
-  const left = useMidnightCountdown();
   const router = useRouter();
+  const refresh = useCallback(() => router.refresh(), [router]);
+  const left = useCampaignCountdown(data.endsAt, refresh);
   const buy = (p: ProductCard) => router.push(productHref(p.slug));
   return (
     <div className="ChuongTrinhGiamGiaTrangChu">
@@ -80,12 +89,18 @@ export function FlashSale({ data }: { data: HomeData["flashSale"] }) {
           {data.title}{" "}
         </SmartLink>
       </h2>
-      <div className="promotion-time">
-        <div className="promotion-time-remain">
-          Chỉ còn: <span className="remain-hours">{left?.[0] ?? "--"}</span>:<span className="remain-minutes">{left?.[1] ?? "--"}</span>:
-          <span className="remain-seconds">{left?.[2] ?? "--"}</span>
+      <SmartLink className="cvFlashMore" href={data.href}>
+        Xem tất cả »
+      </SmartLink>
+      {data.endsAt && (
+        <div className="promotion-time">
+          <div className="promotion-time-remain">
+            Chỉ còn: {left && left[0] > 0 && <span className="remain-days">{left[0]} ngày</span>}
+            <span className="remain-hours">{left?.[1] ?? "--"}</span>:<span className="remain-minutes">{left?.[2] ?? "--"}</span>:
+            <span className="remain-seconds">{left?.[3] ?? "--"}</span>
+          </div>
         </div>
-      </div>
+      )}
       <OwlCarousel className="list" items={5} margin={15} nav dots responsive={{ 0: 2, 768: 3, 1024: 5 }}>
         {data.items.map((p) => (
           <FlashCard key={p.slug} p={p} onBuy={buy} />

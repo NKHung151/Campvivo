@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 
 /**
  * Sản phẩm/combo trong danh sách public — kiểu `ItemSummary` (docs/02-ky-thuat/api.md mục 3).
- * `price` = giá sau chiến dịch (BR-6); chưa có module khuyến mãi nên bằng `originalPrice`.
+ * `price` = giá sau chiến dịch (BR-6, `Product.salePrice` — D-30), `originalPrice` = giá gốc.
  * Đánh giá chưa có (module review) → averageRating null, reviewCount 0.
  */
 public record ItemSummary(
@@ -24,6 +24,6 @@ public record ItemSummary(
 ) {
     public static ItemSummary from(Product p, String primaryImageUrl) {
         return new ItemSummary("PRODUCT", p.getId(), p.getName(), p.getSlug(), primaryImageUrl,
-                p.getPrice(), p.getPrice(), p.getAvailableQuantity(), null, 0, p.getBrand());
+                p.getPrice(), p.getSalePrice(), p.getAvailableQuantity(), null, 0, p.getBrand());
     }
 }

@@ -16,6 +16,7 @@ import { Chevron, PinIcon } from "@/components/features/cart/cartIcons";
 import { CartLines, lineProblem } from "@/components/features/cart/CartLines";
 import { DeliveryInfoModal, EMPTY_CUSTOMER, fullAddress, hasGhnAddress } from "@/components/features/cart/DeliveryInfoModal";
 import { useOrderPreview, type OrderPreviewState } from "@/components/features/cart/useOrderPreview";
+import { VoucherList } from "@/components/features/cart/VoucherList";
 
 const PAYMENTS: { id: PaymentMethod; label: string; desc: string }[] = [
   { id: "COD", label: "Thanh toán khi nhận hàng (COD)", desc: "Nhân viên gọi xác nhận, bạn trả tiền mặt cho người giao hàng." },
@@ -56,13 +57,14 @@ export function CartPage({ csvcHtml, pvcHtml }: { csvcHtml: string; pvcHtml: str
   // Điền sẵn form: địa chỉ lần trước, không có thì tên + SĐT từ hồ sơ
   const initialForm: Customer = customer ?? { ...EMPTY_CUSTOMER, name: user?.name ?? "", phone: user?.phone ?? "" };
 
+  const cartVersion = lines.map((l) => `${l.id}:${l.quantity}:${l.item.price}`).join("|");
   const { state: previewState, retry: retryPreview } = useOrderPreview({
     enabled: ready && canBuy,
     cartItemIds: selected.map((l) => l.id),
     districtId: deliverTo?.districtId,
     wardCode: deliverTo?.wardCode,
     voucherCode,
-    cartVersion: lines.map((l) => `${l.id}:${l.quantity}:${l.item.price}`).join("|"),
+    cartVersion,
   });
 
   // Mã giảm giá không dùng được → báo ở ô mã và bỏ mã để vẫn tính được tổng
@@ -129,11 +131,16 @@ export function CartPage({ csvcHtml, pvcHtml }: { csvcHtml: string; pvcHtml: str
     );
   }
 
+  const applyCode = (v: string) => {
+    setCode(v);
+    setVoucherMsg("Đang kiểm tra mã...");
+    setVoucherCode(v);
+  };
+
   const applyVoucher = () => {
     const v = code.trim().toUpperCase();
     if (!v) return setVoucherMsg("Vui lòng nhập mã giảm giá.");
-    setVoucherMsg("Đang kiểm tra mã...");
-    setVoucherCode(v);
+    applyCode(v);
   };
 
   const confirmInfo = (c: Customer) => {
@@ -278,6 +285,13 @@ export function CartPage({ csvcHtml, pvcHtml }: { csvcHtml: string; pvcHtml: str
                     </>
                   )}
                 </div>
+                <VoucherList
+                  open={voucherOpen}
+                  cartItemIds={selected.map((l) => l.id)}
+                  cartVersion={cartVersion}
+                  appliedCode={voucherCode}
+                  onApply={applyCode}
+                />
               </div>
               <div className="cb h20" />
               <button type="button" className="btn-aplly-voucher" onClick={() => setVoucherOpen(false)}>

@@ -4447,8 +4447,8 @@
   "rightHtml": "<img loading=\"lazy\" alt=\"Thương hiệu \" width=\"200\" class=\"\" src=\"/assets/pic/Menu/9e6bada0-f5c1-45c7-8e51-0ba9bb4dfe95-w.200-q.80.jpg\"><div class=\"sub-explore\"><a class=\"explore-item\" title=\"Xem tất cả Thương hiệu \" href=\"/brands\">Xem tất cả Thương hiệu </a></div>"
  },
  {
-  "name": "Dọn Kho 70%",
-  "href": "/promotions/don-kho-70",
+  "name": "Khuyến mãi",
+  "href": "/promotions",
   "special": true,
   "groups": [],
   "rightHtml": null

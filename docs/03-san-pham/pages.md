@@ -15,7 +15,8 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả, chọn số lượng + Mua ngay/Thêm vào giỏ; chưa có yêu thích, đánh giá, gợi ý) |
 | `/brands`, `/brands/[slug]` | Thương hiệu (từ `products.brand`, slug = slugify(brand)) | `GET /brands`, `GET /products?brand=` | ✅ |
 | `/search?q=&type=` | Kết quả tìm kiếm: tab Sản phẩm / Combo / Bài viết | `GET /search` | ✅ (thiếu tab Combo) |
-| `/promotions/[slug]` | Trang chiến dịch giảm giá | `GET /campaigns/{slug}` | ✅ |
+| `/promotions` | Khuyến mãi (mục "Khuyến mãi" trên menu chính, "Xem tất cả" của khối Flash sale): mọi sản phẩm đang giảm giá — gộp các chiến dịch, mỗi sản phẩm lấy mức giảm lớn nhất; lọc thương hiệu, khoảng giá, sắp xếp, phân trang; cột trái liệt kê các chiến dịch đang chạy | `GET /products?onSale=true`, `GET /campaigns` | ✅ |
+| `/promotions/[slug]` | Trang chiến dịch giảm giá: banner, tên, thời gian kết thúc, mô tả, lưới sản phẩm (giá sau giảm + giá gốc + % giảm). Chưa bắt đầu/đã kết thúc/tắt → 404 | `GET /campaigns/{slug}` | ✅ (API thật) |
 | `/blog`, `/blog/page/[n]`, `/blog/[slug]` | Bài viết `category = BLOG` | `GET /articles?category=BLOG`, `/articles/{slug}` | ✅ |
 | `/journal`, `/journal/page/[n]`, `/journal/[slug]` | Outdoor Journal `category = JOURNAL` | `GET /articles?category=JOURNAL` | ✅ |
 | `/guides` | Kiến thức outdoor `category = GUIDE` | `GET /articles?category=GUIDE` | ✅ |
@@ -34,7 +35,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 ## Customer (role CUSTOMER) — `src/app/(store)/(shop)/cart`, `src/app/(store)/account/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
-| `/cart` | Giỏ hàng + thanh toán trên **một trang** (quyết định có chủ đích): danh sách dòng (giá hiện hành, cảnh báo hết hàng/ngừng bán), form người nhận (Tỉnh/Quận/Phường GHN, tick "lưu vào hồ sơ"), voucher, phương thức VNPay/COD, tóm tắt tiền do server tính (phí ship GHN) | `/cart`, `/orders/preview`, `/shipping/*`, `POST /orders` | ✅ (API thật; chưa đăng nhập → mời đăng nhập; voucher báo `INVALID_VOUCHER` đến khi có module promotion) |
+| `/cart` | Giỏ hàng + thanh toán trên **một trang** (quyết định có chủ đích): danh sách dòng (giá hiện hành, cảnh báo hết hàng/ngừng bán), form người nhận (Tỉnh/Quận/Phường GHN, tick "lưu vào hồ sơ"), voucher (popup: nhập mã hoặc chọn từ danh sách mã công khai, mã chưa dùng được hiện mờ kèm lý do — D-29), phương thức VNPay/COD, tóm tắt tiền do server tính (phí ship GHN) | `/cart`, `/orders/preview`, `/vouchers/available`, `/shipping/*`, `POST /orders` | ✅ (API thật; chưa đăng nhập → mời đăng nhập; voucher thật — nhập mã hoặc chọn từ danh sách) |
 | `/checkout` | Chuyển hướng về `/cart` | — | ✅ |
 | `/checkout/success?orderId=` | Kết quả đặt hàng theo trạng thái đơn thật: COD chờ xác nhận / VNPay thành công / thất bại / đang chờ (hỏi lại 5 lần × 2s); mã vận đơn GHN nếu có | `GET /orders/{id}` | ✅ |
 | `/payment/vnpay-return` | Return URL của VNPay (`VNP_RETURN_URL`, D-28): gửi query `vnp_*` cho backend ghi nhận rồi chuyển `/checkout/success?orderId=` | `GET /vnpay/return` | ✅ |
@@ -63,8 +64,8 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
 | `/admin/combos`, `/admin/combos/new`, `/admin/combos/[id]` | Combo | Admin | `/admin/combos` |
-| `/admin/vouchers` | Voucher: danh sách, thêm/sửa (modal), xoá/tắt | Admin | `/admin/vouchers` |
-| `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]` | Chiến dịch giảm giá + chọn sản phẩm | Admin | `/admin/campaigns` |
+| `/admin/vouchers` | Voucher: danh sách (lọc trạng thái, tìm mã), thêm/sửa (modal, có "Hiển thị công khai"), xoá/tắt (đã có đơn dùng → chỉ tắt) | Admin | `/admin/vouchers` |
+| `/admin/campaigns`, `/admin/campaigns/new`, `/admin/campaigns/[id]` | Chiến dịch giảm giá + chọn sản phẩm (cảnh báo sản phẩm đã thuộc chiến dịch khác trùng thời gian) | Admin | `/admin/campaigns`, `/admin/campaigns/overlaps`, `/admin/uploads/images` |
 | `/admin/articles`, `/admin/articles/new`, `/admin/articles/[id]` | Bài viết: danh sách, soạn (rich text), xuất bản | Admin | `/admin/articles` |
 
 Khung admin đã có (`AdminShell`): sidebar theo quyền khai báo ở `src/lib/admin/nav.ts`; trang có trong

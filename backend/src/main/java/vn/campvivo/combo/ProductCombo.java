@@ -142,10 +142,10 @@ public class ProductCombo {
         this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
     }
 
-    /** Tổng giá lẻ của các sản phẩm thành phần (giá hiện tại × số lượng) — để so với giá combo. */
+    /** Tổng giá lẻ của các sản phẩm thành phần (giá bán hiện tại — sau chiến dịch, D-30 — × số lượng) — để so với giá combo. */
     public BigDecimal getItemsTotal() {
         return items.stream()
-                .map(i -> i.getProduct().getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .map(i -> i.getProduct().getSalePrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

@@ -73,6 +73,7 @@ Danh sách có phân trang:
 | 409 | VOUCHER_EXHAUSTED | Hết lượt |
 | 409 | VOUCHER_ALREADY_USED | User đã dùng mã |
 | 409 | VOUCHER_IN_USE | Xoá voucher đã có đơn dùng |
+| 409 | VOUCHER_CODE_ALREADY_EXISTS | Admin tạo/sửa voucher trùng mã (không phân biệt hoa thường) |
 | 409 | ORDER_NOT_CANCELLABLE | Huỷ khi không PENDING |
 | 409 | INVALID_STATUS_TRANSITION | Sai máy trạng thái (đơn hoặc yêu cầu trả hàng) |
 | 502 | PAYMENT_GATEWAY_ERROR | Không tạo được URL thanh toán |
@@ -150,7 +151,7 @@ Hành vi đã hiện thực (N3-02, khớp `features.md` FR-01 và BR-11):
 | Method | Path | Quyền | Query / Response |
 |---|---|---|---|
 | GET | `/categories` | Public | → cây `[{id, name, slug, children: [...]}]` |
-| GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
+| GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `onSale=true` (chỉ sản phẩm đang được giảm: giá sau chiến dịch < giá gốc, mức giảm lớn nhất nếu thuộc nhiều chiến dịch — trang `/promotions`, khối Flash sale), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
 | GET | `/products/{slug}` | Public | → `ProductDetail` |
 | GET | `/products/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` (FR-25) |
 | GET | `/products/{id}/reviews` | Public | `?page&limit` → `{averageRating, reviewCount, items: [Review]}` |
@@ -160,6 +161,7 @@ Hành vi đã hiện thực (N3-02, khớp `features.md` FR-01 và BR-11):
 | GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
 | GET | `/combos/{id}/reviews` | Public | như sản phẩm |
 | GET | `/search` | Public | `q` (bắt buộc, ≥ 2 ký tự), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` → `{products: [...], combos: [...], articles: [...]}` (+ `pagination` khi có `type`) |
+| GET | `/campaigns` | Public | → `[{id, name, slug, bannerUrl, discountType, discountValue, endDate, productCount}]` chiến dịch đang hiệu lực, sắp kết thúc trước (PromoBar, trang `/promotions`); `productCount` = số sản phẩm đang bán |
 | GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
 | GET | `/articles` | Public | `category`, `page`, `limit` → `[ArticleSummary]` (chỉ đã xuất bản, mới nhất trước) |
 | GET | `/articles/{slug}` | Public | → `ArticleDetail` |
@@ -215,7 +217,9 @@ Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`, `VALIDATION_ERROR` (số
 ### 4.5 order / payment — FR-10, FR-11, FR-12, FR-19a
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| POST | `/vouchers/validate` | Customer | `{code}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
+| POST | `/vouchers/validate` | Customer | `{code, cartItemIds?}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
+| GET | `/vouchers/available` | Customer | `?cartItemIds=1,2` (bỏ trống = cả giỏ) → `[AvailableVoucher]`: voucher công khai (`is_public`) đang hiệu lực, còn lượt, tính trên giỏ hiện tại (D-29). Mã dùng được trước (giảm nhiều trước), rồi mã chưa dùng được |
+| GET | `/vouchers/public` | Public | → `[PublicVoucher]` tối đa 5 voucher công khai đang hiệu lực, còn lượt, sắp hết hạn trước — thanh PromoBar (D-29) |
 | POST | `/orders/preview` | Customer | `{voucherCode?, cartItemIds?, shippingDistrictId?, shippingWardCode?}` → `OrderPreview` (hiển thị trang thanh toán, lấy `expectedTotal`; có địa chỉ GHN thì tính phí ship — D-27; `cartItemIds` rỗng = cả giỏ) |
 | POST | `/orders` | Customer | `CreateOrderRequest` → 201 `{orderId, orderCode, status, finalAmount, paymentMethod, paymentUrl: string \| null}` |
 | GET | `/orders` | Customer | `?status&page&limit` (limit mặc định 10) → `[OrderSummary]` (của chính mình, mới nhất trước) |
@@ -263,6 +267,16 @@ interface OrderDetail extends OrderSummary {
 }
 interface ReturnRequestDto { id: number; orderId: number; reason: string; status: ReturnStatus;
   note: string | null; processedAt: string | null; createdAt: string; }
+interface PublicVoucher { code: string; discountType: DiscountType; discountValue: Money; maxDiscount: Money | null;
+  minOrderValue: Money; expiryDate: string; }
+interface AvailableVoucher extends PublicVoucher {
+  remaining: number;                                  // quantity − used_count
+  usable: boolean;
+  reason: "VOUCHER_MIN_ORDER_NOT_MET" | "VOUCHER_ALREADY_USED" | null;  // vì sao chưa dùng được
+  missingAmount: Money | null;                        // còn thiếu bao nhiêu để đạt minOrderValue
+  estimatedDiscount: Money;                           // mức giảm trên giỏ hiện tại; 0 khi !usable
+  best: boolean;                                      // mã dùng được giảm nhiều nhất (tối đa 1 mã)
+}
 ```
 Ví dụ `POST /orders` VNPay:
 ```json
@@ -278,7 +292,8 @@ Ví dụ `POST /orders` VNPay:
 ```
 Lỗi `POST /orders`: `CART_EMPTY`, `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `PRICE_CHANGED`, các lỗi
 voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `SHIPPING_GATEWAY_ERROR`, `VALIDATION_ERROR`, `NOT_FOUND` (cartItemIds không thuộc giỏ).
-Chưa có module promotion: mọi `voucherCode` khác rỗng → `INVALID_VOUCHER` (`VoucherService` là điểm cắm khi làm FR-16).
+Voucher: `/orders/preview` và `/vouchers/validate` chỉ tính thử; `POST /orders` khoá voucher, kiểm tra lại BR-5 và trừ 1 lượt.
+Đơn chuyển CANCELLED/PAYMENT_FAILED → trả lại lượt. Mã nhập không phân biệt hoa thường.
 
 ### 4.6 review / favorite — FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
@@ -350,10 +365,13 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | GET | `/admin/returns` | Staff | `?status&page&limit` |
 | GET | `/admin/returns/{id}` | Staff | + `OrderDetail` |
 | PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT" \| "COMPLETE", note?}` (REJECT bắt buộc note) |
-| GET/POST | `/admin/vouchers` | Admin | POST `{code, discountType, discountValue, maxDiscount?, minOrderValue, quantity, startDate, expiryDate, isActive}` |
-| GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | DELETE → `VOUCHER_IN_USE` nếu đã dùng |
-| GET/POST | `/admin/campaigns` | Admin | POST `{name, slug?, description?, bannerUrl?, discountType, discountValue, startDate, endDate, isActive, productIds: number[]}` |
-| GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | |
+| GET | `/admin/vouchers` | Admin | `?q` (mã, chứa chuỗi), `status=UPCOMING\|ACTIVE\|EXPIRED\|EXHAUSTED\|INACTIVE`, `page`, `limit` → `[AdminVoucher]`, mới tạo trước |
+| POST | `/admin/vouchers` | Admin | `VoucherRequest` → 201 `AdminVoucher`. Mã lưu IN HOA; trùng → `VOUCHER_CODE_ALREADY_EXISTS` |
+| GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | PUT như POST; `quantity < usedCount` → 400 `fieldErrors.quantity`. DELETE → `VOUCHER_IN_USE` nếu đã có đơn dùng (chỉ được tắt) |
+| GET | `/admin/campaigns` | Admin | `?q` (tên/slug), `status=UPCOMING\|RUNNING\|ENDED\|INACTIVE`, `page`, `limit` → `[AdminCampaignSummary]`, mới tạo trước |
+| POST | `/admin/campaigns` | Admin | `CampaignRequest` → 201 `AdminCampaignDetail`. Slug trống → sinh từ tên (thêm `-2`… nếu trùng); tự nhập mà trùng → `SLUG_ALREADY_EXISTS`; `productIds` có id không tồn tại → `NOT_FOUND` |
+| GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | PUT như POST (thay toàn bộ danh sách sản phẩm; slug trống = giữ slug cũ). DELETE luôn được (đơn cũ đã lưu giá) |
+| GET | `/admin/campaigns/overlaps` | Admin | `?productIds=1,2&startDate&endDate&excludeId` → `[{productId, campaignId, campaignName}]`: sản phẩm đã thuộc chiến dịch khác **đang bật** có thời gian giao nhau — chỉ để cảnh báo, không chặn lưu (BR-6 lấy mức giảm lớn nhất) |
 | GET/POST | `/admin/articles` | Admin | `?category&isPublished&q`; POST `{title, slug?, summary?, content, thumbnailUrl?, category, isPublished}` |
 | GET/PUT/DELETE | `/admin/articles/{id}` | Admin | |
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
@@ -371,6 +389,31 @@ interface AdminOrderDetail { order: OrderDetail; customer: AdminOrderCustomer | 
 interface ShipmentTracking { carrier: "GHN"; trackingCode: string; status: string;   // mã trạng thái GHN (ready_to_pick, delivering...)
   expectedDeliveryTime: string | null; updatedAt: string | null; log: { status: string; updatedAt: string | null }[]; }
 ```
+
+Kiểu dữ liệu khuyến mãi admin (FR-16, FR-17; định nghĩa đầy đủ ở `frontend/src/types/api/promotion.ts`):
+```ts
+type VoucherStatus = "UPCOMING" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "INACTIVE";   // tính từ dữ liệu, không lưu
+type CampaignStatus = "UPCOMING" | "RUNNING" | "ENDED" | "INACTIVE";
+interface VoucherRequest { code: string;              // 3–50 ký tự A-Z 0-9 _ - (chữ thường được đổi IN HOA)
+  discountType: DiscountType; discountValue: Money;   // PERCENTAGE 1–100, FIXED_AMOUNT > 0
+  maxDiscount?: Money | null;                         // chỉ PERCENTAGE, > 0
+  minOrderValue: Money; quantity: number;             // minOrderValue ≥ 0, quantity ≥ 1
+  startDate: string; expiryDate: string;              // expiryDate > startDate
+  isActive: boolean; isPublic: boolean; }             // isPublic: hiện trong danh sách mã (D-29)
+interface AdminVoucher extends Omit<VoucherRequest, "maxDiscount"> { id: number; maxDiscount: Money | null;
+  usedCount: number; status: VoucherStatus; createdAt: string; updatedAt: string; }
+interface CampaignRequest { name: string; slug?: string | null; description?: string | null; bannerUrl?: string | null;
+  discountType: DiscountType; discountValue: Money; startDate: string; endDate: string; isActive: boolean;
+  productIds: number[]; }                             // chỉ sản phẩm (không combo)
+interface AdminCampaignSummary { id: number; name: string; slug: string; bannerUrl: string | null;
+  discountType: DiscountType; discountValue: Money; startDate: string; endDate: string; isActive: boolean;
+  status: CampaignStatus; productCount: number; createdAt: string; updatedAt: string; }
+interface AdminCampaignDetail extends AdminCampaignSummary { description: string | null;
+  products: { id: number; name: string; slug: string; primaryImageUrl: string | null; isActive: boolean;
+              price: Money; campaignPrice: Money }[]; }   // campaignPrice: giá nếu chỉ áp chiến dịch này
+```
+Lỗi validate (`VALIDATION_ERROR`, `fieldErrors`): `expiryDate`/`endDate` ≤ ngày bắt đầu; giá trị giảm sai miền theo loại;
+`maxDiscount` khi FIXED_AMOUNT.
 
 ### 4.11 Kiểu dữ liệu admin catalog
 Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:

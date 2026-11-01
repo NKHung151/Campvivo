@@ -191,8 +191,8 @@ Unique `(combo_id, product_id)`.
 | created_at, updated_at | timestamptz | |
 
 `CHECK (subtotal >= 0 AND discount_amount >= 0 AND discount_amount <= subtotal AND shipping_fee >= 0 AND
-final_amount = subtotal − discount_amount + shipping_fee)`. `voucher_id` chưa có FK cho tới khi migration promotion (F-07) tạo
-bảng `vouchers` (migration đó thêm FK).
+final_amount = subtotal − discount_amount + shipping_fee)`. FK `fk_orders_voucher` (`voucher_id` → `vouchers`) thêm ở
+`V6__promotion.sql`.
 
 ### 3.10 `order_items`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -262,9 +262,11 @@ Tạo cùng lúc với đơn (`PENDING`). COD chuyển `SUCCESS` khi đơn COMPL
 | start_date | timestamptz | (+) |
 | expiry_date | timestamptz | `CHECK (expiry_date > start_date)` |
 | is_active | BOOLEAN | (+) mặc định true |
+| is_public | BOOLEAN | (+) mặc định true — hiện trong danh sách mã ở trang thanh toán và PromoBar (D-29); false = mã ẩn, chỉ nhập tay |
 | created_at, updated_at | timestamptz | |
 
-`CHECK (used_count >= 0 AND used_count <= quantity)`.
+`CHECK (used_count >= 0 AND used_count <= quantity)`, `CHECK (code = upper(code))`, `CHECK (expiry_date > start_date)`;
+PERCENTAGE: `discount_value` 1–100; FIXED_AMOUNT: `discount_value > 0` và `max_discount IS NULL`. Migration: `V6__promotion.sql`.
 
 ### 3.15 `discount_campaigns`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -287,7 +289,8 @@ Tạo cùng lúc với đơn (`PENDING`). COD chuyển `SUCCESS` khi đơn COMPL
 | campaign_id | BIGINT | FK → discount_campaigns(id) `ON DELETE CASCADE` |
 | product_id | BIGINT | FK → products(id) `ON DELETE CASCADE` |
 
-PK `(campaign_id, product_id)`. Chiến dịch chỉ áp cho sản phẩm, không áp cho combo.
+PK `(campaign_id, product_id)`. Chiến dịch chỉ áp cho sản phẩm, không áp cho combo. Giá sau chiến dịch đọc qua
+`Product.salePrice` (D-30).
 
 ### 3.17 `reviews`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -382,6 +385,7 @@ trạng thái đã đọc.
 - `idx_notifications_user_id_is_read (user_id, is_read, created_at DESC)`.
 - `idx_support_messages_user_id_created_at (user_id, created_at)`.
 - `idx_discount_campaigns_active_dates (is_active, start_date, end_date)`.
+- `idx_discount_campaign_products_product_id` — subquery giá sau chiến dịch theo sản phẩm (D-30).
 
 ## 4. Quy tắc nghiệp vụ bắt buộc
 
@@ -441,7 +445,8 @@ cùng khoảng thời gian. Đơn COD không có timeout.
   PERCENTAGE → `price × (100 − value) / 100`; FIXED_AMOUNT → `max(price − value, 0)`. Không cộng
   dồn nhiều chiến dịch. Không có chiến dịch → bằng `price`.
 - Cùng một hàm tính giá dùng cho: hiển thị (danh sách, chi tiết, giỏ) và tạo đơn
-  (`PricingService` trong module `promotion`).
+  (`PricingService` trong module `promotion`, đọc `Product.salePrice` — D-30). Lọc/sắp xếp theo giá ở `GET /products`
+  cũng dùng `salePrice`.
 
 **BR-7 — Lịch sử trạng thái.** Mọi lần đổi `orders.status` (kể cả tạo đơn) ghi 1 dòng
 `order_status_history` trong cùng transaction. `changed_by = NULL` khi do System.
@@ -596,5 +601,8 @@ sau khi khoá, rồi khoá products/combos/voucher theo thứ tự trên nếu c
   demo/bảo vệ.
 - Sinh lại: `pg_dump --data-only --column-inserts --rows-per-insert=50 -t categories -t products -t images`,
   chỉ giữ các lệnh INSERT + `setval` (bỏ phần `SET`/`set_config` đầu file).
+- `db/seed/V7__seed_promotions.sql`: voucher `CAMPVIVO10` (10%, tối đa 50.000đ, đơn từ 500.000đ), `GIAM50K` (50.000đ, đơn
+  từ 1.500.000đ) công khai, `WELCOME50K` ẩn; 1 chiến dịch đang chạy (giảm 20%, hết hạn 30 ngày sau khi chạy seed) và 1 chiến
+  dịch sắp diễn ra. Thời gian tính theo lúc chạy seed nên DB cũ sẽ thấy chiến dịch hết hạn — sửa ngày ở trang admin.
 - Còn thiếu (thêm khi có module): 1 Admin, 1 Employee, 1 Customer (mật khẩu ghi trong
-  `local-development.md`), combo, voucher, chiến dịch, bài viết.
+  `local-development.md`), bài viết.

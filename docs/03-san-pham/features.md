@@ -199,7 +199,9 @@ xem BR-xx trong `database.md`.
 
 ### FR-16 Voucher
 - **Chính:** mã (in hoa, duy nhất), loại `PERCENTAGE`/`FIXED_AMOUNT`, giá trị, giảm tối đa (cho
-  PERCENTAGE), đơn tối thiểu, số lượng phát hành, ngày bắt đầu/hết hạn, bật/tắt. Áp dụng theo BR-5.
+  PERCENTAGE), đơn tối thiểu, số lượng phát hành, ngày bắt đầu/hết hạn, bật/tắt, hiển thị công khai. Áp dụng theo BR-5.
+  Khách nhập mã hoặc chọn từ danh sách mã công khai ở trang thanh toán (kèm lý do mã chưa dùng được, mã giảm nhiều nhất
+  được đánh dấu); thanh PromoBar hiện các mã công khai đang có (D-29).
 - **Ngoại lệ:** xoá voucher đã có đơn sử dụng → `VOUCHER_IN_USE` (chỉ được tắt); `quantity` nhỏ
   hơn `used_count` → `VALIDATION_ERROR`.
 

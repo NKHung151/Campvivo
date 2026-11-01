@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- catalogue imagery is served as-is */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Filter, LinkItem, ProductCard } from "@/types/shop";
 import { GridCard } from "@/components/features/catalog/ProductCard";
 import { SmartLink } from "@/components/ui/SmartLink";
@@ -33,6 +33,15 @@ const fold = (s: string) =>
     .replace(/đ/g, "d");
 
 const discountPct = (p: ProductCard) => (p.oldPrice && p.price ? 1 - p.price / p.oldPrice : 0);
+
+/** Khoảng giá (giá đang bán — sau chiến dịch), bật bằng prop `priceFilter`. `max` không tính. */
+const PRICE_RANGES = [
+  { label: "Dưới 500.000đ", min: 0, max: 500_000 },
+  { label: "500.000đ – 1 triệu", min: 500_000, max: 1_000_000 },
+  { label: "1 – 3 triệu", min: 1_000_000, max: 3_000_000 },
+  { label: "3 – 5 triệu", min: 3_000_000, max: 5_000_000 },
+  { label: "Trên 5 triệu", min: 5_000_000, max: Infinity },
+];
 
 /**
  * Filters are evaluated against what the mock data knows about a product (brand, name, price).
@@ -73,20 +82,35 @@ export interface ListingProps {
   enableCompare?: boolean;
   /** Brand pages render the grid in #BrandCategory instead of #ProductCategory. */
   gridId?: string;
+  /** Tiêu đề khối liên kết bên trái (mặc định "Danh mục"). */
+  sideTitle?: string;
+  /** Hiện bộ lọc khoảng giá (trang /promotions). */
+  priceFilter?: boolean;
+  /** Số sản phẩm mỗi trang; bỏ trống = hiện tất cả (giữ nguyên trang danh mục/thương hiệu). */
+  pageSize?: number;
+  /** Ẩn bộ lọc "Đang giảm giá" khi mọi sản phẩm đều đang giảm (trang /promotions). */
+  hideSaleFilter?: boolean;
 }
 
 export function ListingView(props: ListingProps) {
   const { title, breadcrumbs, intro, sideCats, subCats, filters, guide, products, bottomHtml } = props;
   const [sort, setSort] = useState("");
   const [onSale, setOnSale] = useState(false);
+  const [priceRange, setPriceRange] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [swatchImg, setSwatchImg] = useState<Record<string, string>>({});
   const compare = useCompare();
   const subRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const list = useMemo(() => {
     let l = products.filter((p) => !onSale || discountPct(p) > 0);
+    if (priceRange !== null) {
+      const r = PRICE_RANGES[priceRange];
+      l = l.filter((p) => (p.price ?? 0) >= r.min && (p.price ?? 0) < r.max);
+    }
     for (const [group, opts] of Object.entries(selected)) {
       if (opts.length) l = l.filter((p) => opts.some((o) => matches(p, group.replace(/^\d+:/, ""), o)));
     }
@@ -96,7 +120,16 @@ export function ListingView(props: ListingProps) {
     if (sort === "new") by.reverse();
     if (sort === "discount") by.sort((a, b) => discountPct(b) - discountPct(a));
     return by;
-  }, [products, onSale, selected, sort]);
+  }, [products, onSale, priceRange, selected, sort]);
+
+  // Đổi bộ lọc/sắp xếp → về trang 1
+  useEffect(() => setPage(1), [onSale, priceRange, selected, sort]);
+  const pages = props.pageSize ? Math.max(1, Math.ceil(list.length / props.pageSize)) : 1;
+  const shown = props.pageSize ? list.slice((page - 1) * props.pageSize, page * props.pageSize) : list;
+  const goTo = (n: number) => {
+    setPage(n);
+    gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const toggle = (group: string, opt: string) =>
     setSelected((s) => {
@@ -107,7 +140,7 @@ export function ListingView(props: ListingProps) {
   const scrollSub = (dir: number) => subRef.current?.scrollBy({ left: dir * 400, behavior: "smooth" });
   const sortLabel = SORTS.find((s) => s.key === sort && sort)?.label ?? "Lựa chọn tiêu chí";
 
-  const cards = list.map((p) => (
+  const cards = shown.map((p) => (
     <GridCard
       key={p.slug}
       p={p}
@@ -173,7 +206,7 @@ export function ListingView(props: ListingProps) {
         <div id="ProductCategoryLeft">
           {sideCats.length > 0 && (
             <div id="SubProductLeftCategory">
-              <div className="TopBar">Danh mục</div>
+              <div className="TopBar">{props.sideTitle ?? "Danh mục"}</div>
               <div id="smoothmenu2" className="ddsmoothmenu-v">
                 <ul>
                   {sideCats.map((c) => (
@@ -190,7 +223,33 @@ export function ListingView(props: ListingProps) {
               </div>
             </div>
           )}
-          <div id="promotion-option" className="filter-wrap">
+          {props.priceFilter && (
+            <div id="price-option" className="filter-wrap">
+              <div className="filter">
+                <div className={`title${open.__price === false ? "" : " active"}`} onClick={() => setOpen((o) => ({ ...o, __price: o.__price === false }))}>
+                  Khoảng giá
+                </div>
+                {open.__price !== false && (
+                  <div className="filterFrame">
+                    {PRICE_RANGES.map((r, i) => (
+                      <a
+                        key={r.label}
+                        className={`sub-filter nm${priceRange === i ? " current" : ""}`}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPriceRange((cur) => (cur === i ? null : i));
+                        }}
+                      >
+                        {r.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <div id="promotion-option" className="filter-wrap" hidden={props.hideSaleFilter}>
             <div className="filter">
               <div className={`title${open.__promo === false ? "" : " active"}`} onClick={() => setOpen((o) => ({ ...o, __promo: o.__promo === false }))}>
                 Khuyến mại
@@ -273,13 +332,24 @@ export function ListingView(props: ListingProps) {
               </div>
             </nav>
           )}
-          <div id={props.gridId ?? "ProductCategory"}>
+          <div id={props.gridId ?? "ProductCategory"} ref={gridRef}>
             {cards.length ? (
               <div className="group_items">{cards}</div>
             ) : (
               <div className="cv-empty">{props.emptyText ?? "Không tìm thấy sản phẩm phù hợp với tiêu chí đã chọn."}</div>
             )}
           </div>
+          {pages > 1 && (
+            <div className="SplitPages cv-listing-pages">
+              {page > 1 && <a className="prev" href="#" aria-label="Trang trước" onClick={(e) => (e.preventDefault(), goTo(page - 1))} />}
+              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+                <a key={n} href="#" className={n === page ? "current" : "other"} onClick={(e) => (e.preventDefault(), goTo(n))}>
+                  {n}
+                </a>
+              ))}
+              {page < pages && <a className="next" href="#" aria-label="Trang sau" onClick={(e) => (e.preventDefault(), goTo(page + 1))} />}
+            </div>
+          )}
         </div>
         <div className="cb h20" />
         {bottomHtml && <div className="motaThuonghieu" dangerouslySetInnerHTML={{ __html: bottomHtml }} />}

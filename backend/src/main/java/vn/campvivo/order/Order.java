@@ -120,10 +120,11 @@ public class Order {
     }
 
     /** Đơn mới ở PENDING, ghi luôn dòng lịch sử đầu tiên (BR-7). */
-    public Order(String orderCode, Long userId, String voucherCode, Amounts amounts, Recipient recipient,
+    public Order(String orderCode, Long userId, Long voucherId, String voucherCode, Amounts amounts, Recipient recipient,
                  PaymentMethod paymentMethod, String note, OffsetDateTime now) {
         this.orderCode = orderCode;
         this.userId = userId;
+        this.voucherId = voucherId;
         this.voucherCode = voucherCode;
         this.subtotal = amounts.subtotal();
         this.discountAmount = amounts.discountAmount();

@@ -13,6 +13,33 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Khuyến mãi — voucher và chiến dịch (2026-10-31)
+
+### 2026-10-31 — D-30: Giá sau chiến dịch tính bằng một biểu thức SQL (`Product.salePrice`)
+- **Bối cảnh:** BR-6 yêu cầu một hàm tính giá dùng cho hiển thị và đặt hàng; N2-14 yêu cầu `GET /products` lọc `minPrice`/`maxPrice`
+  và sắp xếp theo **giá sau chiến dịch**. Danh sách sản phẩm đang dùng JPA `Specification` + `Sort` trên cột `price`.
+- **Quyết định:**
+  - Entity `Product` có thuộc tính chỉ đọc `salePrice` (`@Formula`): subquery lấy `MIN` giá sau giảm trên các chiến dịch hiệu lực chứa
+    sản phẩm (PERCENTAGE → `ROUND(price × (100 − value) / 100)`, FIXED_AMOUNT → `GREATEST(price − value, 0)`), không có thì `price`.
+  - `PricingService.unitPrice(Product)` trả `salePrice`; lọc/sắp xếp dùng thuộc tính `salePrice` trong `Specification`/`Sort`.
+    Chỉ có một công thức (SQL) nên danh sách, chi tiết, giỏ, đặt hàng không thể lệch nhau.
+  - "Hiệu lực" theo giờ của PostgreSQL (`now()`), không theo `Clock` của ứng dụng.
+- **Lý do:** lọc/sắp xếp đúng khi có phân trang mà không viết lại query thành native; giá luôn đúng thời gian thực, không cần job.
+- **Đánh đổi:** entity của `catalog` chứa SQL đọc bảng của `promotion`; mỗi lần đọc sản phẩm chạy thêm một subquery có index
+  (`idx_discount_campaign_products_product_id`). Test liên quan thời gian đặt mốc tương đối với giờ DB.
+- **Phương án khác:** cột `products.sale_price` tính sẵn + job (trễ, dễ lệch giá); tính trong Java sau khi lấy trang (sai khi lọc/sắp xếp).
+
+### 2026-10-31 — D-29: Voucher công khai — khách nhập mã hoặc chọn từ danh sách; không có ví voucher cá nhân
+- **Bối cảnh:** báo cáo chỉ có "Apply promotion code" (khách tự nhập). Không có kênh nào cho khách biết mã đang có.
+- **Quyết định:**
+  - Cột mới `vouchers.is_public` (mặc định `true`). Mã công khai hiện ở popup voucher trang `/cart` (`GET /vouchers/available`,
+    tính trên giỏ hiện tại, kèm lý do chưa dùng được) và thanh PromoBar (`GET /vouchers/public`). Mã ẩn chỉ dùng được khi
+    khách tự nhập (mã gửi riêng qua email, kênh ngoài).
+  - Vẫn giữ ô nhập mã; luật áp dụng giữ nguyên BR-5 (ai có mã đều dùng được, mỗi khách 1 lần).
+  - Không làm ví voucher cá nhân (`user_vouchers`), voucher tặng theo sự kiện, admin tặng mã cho từng khách — ghi vào hướng phát triển.
+- **Lý do:** trải nghiệm gần với sàn TMĐT thật, chỉ thêm 1 cột + 2 endpoint, không đổi luật BR-5.
+- **Phương án khác:** chỉ nhập mã (đúng báo cáo, nhưng khách không biết có mã nào); ví voucher cá nhân (thêm bảng, đổi BR-5, vượt Tier 2).
+
 ## Đặt hàng – thanh toán – giao hàng (2026-10-26)
 
 ### 2026-10-26 — D-28: Xử lý kết quả VNPay dùng chung cho Return URL và IPN; vận đơn GHN sau khi CONFIRMED

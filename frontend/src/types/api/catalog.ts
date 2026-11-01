@@ -67,6 +67,8 @@ export interface ProductQuery extends PageQuery {
   slugs?: string[];
   minPrice?: Money;
   maxPrice?: Money;
+  /** Chỉ sản phẩm đang được giảm (giá sau chiến dịch < giá gốc). */
+  onSale?: boolean;
   sortBy?: ProductSort;
 }
 
