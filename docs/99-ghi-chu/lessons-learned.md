@@ -10,6 +10,15 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Bộ test tích hợp cạn kết nối PostgreSQL khi thêm lớp test mới
+- **Bài học:** Mỗi lớp test tích hợp có Spring context riêng và được giữ trong cache tới hết lần chạy; mỗi context mở khoảng 10 kết nối (mặc định
+  Hikari) tới PostgreSQL Testcontainers dùng chung (`max_connections` = 100). Khi số lớp test tăng, một lớp mới thêm vào làm `UserRepositoryTest`
+  (không liên quan) lỗi `FATAL: sorry, too many clients already`. Cùng lúc đó một test giả định "đường dẫn này chưa có controller" (nên mong 404) hỏng khi
+  module khác thêm controller thật: test nên dùng đường dẫn thăm dò không bao giờ có controller thay vì đường dẫn thật của tính năng sắp làm.
+- **Áp dụng lại lần sau:** Test dùng DB dùng chung phải giới hạn pool (`spring.datasource.hikari.maximum-pool-size=5` trong `PostgresTestContainerConfig`).
+  Test lỗi ở chỗ không liên quan tới thay đổi vừa làm thì xem log tìm nguyên nhân gốc (`Caused by`) trước khi đoán. Chạy `mvn clean test` toàn bộ
+  trên `dev` mới trước khi bắt đầu việc mới để có mốc.
+
 ### `catch` chung nuốt lỗi điều khiển luồng của framework
 - **Bài học:** `serverApi.request` bọc `fetch(..., { cache: "no-store" })` trong `catch` rồi đổi mọi lỗi thành `NETWORK_ERROR`. Lúc `next build`
   Next ném `DYNAMIC_SERVER_USAGE` (để chuyển trang sang render động) và `catch` đã nuốt nó, nên build lỗi `NETWORK_ERROR` ở `/`, `/brands`, `/products`
