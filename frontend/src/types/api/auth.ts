@@ -37,3 +37,15 @@ export interface ResendCodeRequest {
   email: string;
   purpose: OtpPurpose;
 }
+
+/** Body `POST /auth/forgot-password`. Server luôn trả 200 (không lộ email nào đã đăng ký). */
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+/** Body `POST /auth/reset-password`. Thành công không trả token: người dùng đăng nhập lại. */
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+}

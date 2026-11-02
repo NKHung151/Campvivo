@@ -95,6 +95,22 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-11-04 — Người 3 — frontend (giao diện quên / đặt lại mật khẩu, đi kèm N3-04)
+- Đã làm: nhánh `feature/auth-n3-04-reset-password-ui` (tách từ `dev`). Trang `/forgot-password` (`ForgotPasswordForm`: nhập email → luôn sang bước sau khi server
+  trả 200, không báo email có tồn tại hay không) và `/reset-password?email=` (`ResetPasswordForm`: mã 6 số + mật khẩu mới có nút Hiện/Ẩn, "Gửi lại mã" đếm ngược 60 giây
+  qua `resend-code` purpose `RESET_PASSWORD`; thành công về `/login?reset=1` kèm thông báo xanh, KHÔNG đăng nhập luôn). `authService.forgotPassword/resetPassword` (đều
+  `skipAuth`). Hook `useResendCountdown` tách ra dùng chung với `VerifyEmailForm`. `LoginForm`: liên kết "Quên mật khẩu?" + thông báo `?reset=1`; `RegisterForm`: gợi ý "Quên mật khẩu?"
+  khi email đã tồn tại. `authHref` giữ `?redirect=` xuyên suốt. Docs: `pages.md`.
+  Kiểm chứng: `npm run lint`, `tsc --noEmit` xanh; `npm run build` KHÔNG backend (như CI) exit 0; script ngoài repo kiểm tra `authHref`/luật mật khẩu/OTP; chạy thật backend 8081 + Mailpit:
+  email lạ → 200; email thật → mã trong thư; xin lại ngay vẫn 200 nhưng không có thư thứ hai; mật khẩu yếu → `VALIDATION_ERROR` ở `newPassword`; mã sai → `INVALID_OTP`; mã đúng → 200;
+  dùng lại mã → `INVALID_OTP`; đăng nhập mật khẩu mới 200, mật khẩu cũ `INVALID_CREDENTIALS`, token cũ 401; token cũ gửi kèm `forgot-password` bị 401 (lý do cần `skipAuth`).
+- Còn dang dở / TODO tiếp theo:
+  - Giao diện trên trình duyệt thật cần người thử (agent không có trình duyệt); mobile/tablet chưa xem.
+  - Gửi thư tới hộp thư thật (Gmail...) vẫn chưa kiểm chứng (mới thử qua Mailpit).
+  - Xin lại mã reset bằng `resend-code` vẫn báo `OTP_RESEND_TOO_SOON` cho email thật (lộ email có tồn tại, có từ N3-02); chưa có rate limit theo IP.
+  - Việc kế tiếp của Người 3: N3-05 (hồ sơ, đổi mật khẩu), N3-08 (WebSocket, Người 4 đang chờ).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-04)
+
 ### 2026-11-02 — Người 3 — backend (N3-04: quên và đặt lại mật khẩu)
 - Đã làm: nhánh `feature/auth-n3-04-reset-password` (tách từ `dev`). `POST /auth/forgot-password` (luôn 200: email lạ / tài khoản khoá / gửi lại < 60 giây
   đều im lặng không gửi thư; chỉ `EMAIL_SEND_FAILED` vẫn báo; tài khoản chưa xác thực email vẫn được gửi mã) và `POST /auth/reset-password`

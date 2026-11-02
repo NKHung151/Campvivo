@@ -24,7 +24,7 @@ interface FieldErrors {
  * (`useLandingRedirect`). `redirect` là giá trị thô của ?redirect=; được kiểm tra an toàn trước khi dùng.
  * Chưa xác thực email (EMAIL_NOT_VERIFIED) → gửi lại mã rồi chuyển /verify-email (user-flows.md mục 2).
  */
-export function LoginForm({ redirect }: { redirect: string | null }) {
+export function LoginForm({ redirect, justReset = false }: { redirect: string | null; justReset?: boolean }) {
   const router = useRouter();
   const { status, user, login, retry } = useAuth();
   const [email, setEmail] = useState("");
@@ -102,6 +102,11 @@ export function LoginForm({ redirect }: { redirect: string | null }) {
           </button>
         </div>
       )}
+      {justReset && !formError && (
+        <div className="cv-auth__notice" role="status">
+          Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.
+        </div>
+      )}
       {formError && (
         <div className="cv-auth__alert" role="alert">
           {formError}
@@ -134,9 +139,11 @@ export function LoginForm({ redirect }: { redirect: string | null }) {
         {submitting ? "Đang xử lý…" : "Đăng nhập"}
       </Button>
       <p className="cv-auth__switch">
+        <Link href={authHref("/forgot-password", {}, redirect)}>Quên mật khẩu?</Link>
+      </p>
+      <p className="cv-auth__switch">
         Chưa có tài khoản? <Link href={authHref("/register", {}, redirect)}>Tạo tài khoản</Link>
       </p>
-      {/* TODO(N3-04): thêm liên kết "Quên mật khẩu?" (/forgot-password) khi trang đó có */}
     </form>
   );
 }

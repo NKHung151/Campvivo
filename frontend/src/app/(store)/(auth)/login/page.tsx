@@ -7,7 +7,13 @@ export const metadata: Metadata = {
 };
 
 /** /login?redirect=<đường dẫn nội bộ> — docs/03-san-pham/pages.md (nhóm Auth). */
-export default function LoginPage({ searchParams }: { searchParams: { redirect?: string | string[] } }) {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { redirect?: string | string[]; reset?: string | string[] };
+}) {
   const raw = Array.isArray(searchParams.redirect) ? searchParams.redirect[0] : searchParams.redirect;
-  return <LoginForm redirect={raw ?? null} />;
+  const reset = Array.isArray(searchParams.reset) ? searchParams.reset[0] : searchParams.reset;
+  // ?reset=1: vừa đặt lại mật khẩu xong (từ /reset-password) → hiện thông báo thành công.
+  return <LoginForm redirect={raw ?? null} justReset={reset === "1"} />;
 }
