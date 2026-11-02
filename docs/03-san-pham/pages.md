@@ -26,11 +26,11 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 ## Auth — nhóm `src/app/(store)/(auth)/`
 | Route | Trang | API | Trạng thái |
 |---|---|---|---|
-| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ✅ (email + mật khẩu; sau đăng nhập về `?redirect=` nếu role được vào, không thì ADMIN → `/admin`, EMPLOYEE → `/admin/orders`, CUSTOMER → `/`; popup OTP giả đã bỏ). Có liên kết "Tạo tài khoản" (`/register`); `EMAIL_NOT_VERIFIED` → tự gọi `resend-code` rồi chuyển `/verify-email`. Chưa có liên kết tới `/forgot-password` (trang chưa làm) |
+| `/login` | Đăng nhập (email + mật khẩu). Có thể mở dạng popup trên trang hiện tại, nhưng route là nguồn chuẩn; `?redirect=` để quay lại | `POST /auth/login` | ✅ (email + mật khẩu; sau đăng nhập về `?redirect=` nếu role được vào, không thì ADMIN → `/admin`, EMPLOYEE → `/admin/orders`, CUSTOMER → `/`; popup OTP giả đã bỏ). Có liên kết "Tạo tài khoản" (`/register`) và "Quên mật khẩu?" (`/forgot-password`); `EMAIL_NOT_VERIFIED` → tự gọi `resend-code` rồi chuyển `/verify-email`; `?reset=1` hiện thông báo "Đã đặt lại mật khẩu" |
 | `/register` | Đăng ký (họ tên, email, mật khẩu; có nút Hiện/Ẩn mật khẩu). Giữ `?redirect=` sang `/verify-email` | `POST /auth/register` | ✅ |
 | `/verify-email?email=` | Nhập OTP xác thực email, gửi lại mã (đếm ngược 60s, bắt đầu khi vào trang). Đúng mã → đăng nhập luôn, về `?redirect=` hoặc trang mặc định của role | `/auth/verify-email`, `/auth/resend-code` | ✅ |
-| `/forgot-password` | Nhập email nhận mã | `POST /auth/forgot-password` | ⬜ |
-| `/reset-password?email=` | Nhập OTP + mật khẩu mới | `POST /auth/reset-password` | ⬜ |
+| `/forgot-password` | Nhập email nhận mã. Luôn sang bước sau khi server trả 200 (không báo email có tồn tại hay không) | `POST /auth/forgot-password` | ✅ |
+| `/reset-password?email=` | Nhập OTP + mật khẩu mới (nút Hiện/Ẩn, gửi lại mã đếm ngược 60s). Thành công không đăng nhập luôn: về `/login?reset=1` kèm thông báo; mọi thiết bị đang đăng nhập bị đăng xuất | `POST /auth/reset-password`, `/auth/resend-code` | ✅ |
 
 ## Customer (role CUSTOMER) — `src/app/(store)/(shop)/cart`, `src/app/(store)/account/`
 | Route | Trang | API | Trạng thái |

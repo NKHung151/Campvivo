@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/components/features/auth/AuthProvider";
 import { useLandingRedirect } from "@/components/features/auth/useLandingRedirect";
+import {
+  RESEND_RETRY_SECONDS,
+  RESEND_SECONDS,
+  useResendCountdown,
+} from "@/components/features/auth/useResendCountdown";
 import { getErrorMessage } from "@/lib/errorMessages";
 import { authHref } from "@/lib/auth/redirect";
 import { normalizeOtpInput, OTP_LENGTH, validateEmail, validateOtp } from "@/lib/auth/validation";
 import { isApiError } from "@/services/apiError";
 import { authService } from "@/services/authService";
-
-/** Giãn cách gửi lại mã của server (app.otp.resend-interval = 60 giây, BR-11). */
-const RESEND_SECONDS = 60;
-/** Server báo gửi quá sớm mà ta không biết còn bao lâu → chờ ngắn rồi cho thử lại. */
-const RESEND_RETRY_SECONDS = 10;
 
 /**
  * Nhập mã OTP xác thực email (POST /auth/verify-email) và gửi lại mã (POST /auth/resend-code) có đếm ngược.
@@ -31,17 +31,9 @@ export function VerifyEmailForm({ email, redirect }: { email: string | null; red
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
-  const [resendAt, setResendAt] = useState(() => Date.now() + RESEND_SECONDS * 1000);
-  const [now, setNow] = useState(() => Date.now());
+  const { secondsLeft, restart } = useResendCountdown();
 
   useLandingRedirect(redirect);
-
-  const secondsLeft = Math.max(0, Math.ceil((resendAt - now) / 1000));
-  useEffect(() => {
-    if (secondsLeft <= 0) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 500);
-    return () => window.clearInterval(timer);
-  }, [secondsLeft]);
 
   const emailInvalid = email === null || validateEmail(email) !== undefined;
 
@@ -78,14 +70,13 @@ export function VerifyEmailForm({ email, redirect }: { email: string | null; red
       await authService.resendCode({ email, purpose: "VERIFY_EMAIL" });
       setNotice("Đã gửi mã mới. Mã cũ không còn dùng được.");
       setCode("");
-      setResendAt(Date.now() + RESEND_SECONDS * 1000);
+      restart(RESEND_SECONDS);
     } catch (err) {
       setFormError(getErrorMessage(err));
       if (isApiError(err) && err.errorCode === "OTP_RESEND_TOO_SOON") {
-        setResendAt(Date.now() + RESEND_RETRY_SECONDS * 1000);
+        restart(RESEND_RETRY_SECONDS);
       }
     } finally {
-      setNow(Date.now());
       setResending(false);
     }
   }
