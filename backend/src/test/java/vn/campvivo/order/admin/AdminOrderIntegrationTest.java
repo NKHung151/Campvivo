@@ -1,5 +1,6 @@
 package vn.campvivo.order.admin;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +67,16 @@ class AdminOrderIntegrationTest {
     private MockMvc customer;
     private Long customerId;
     private long productId;
+
+    /**
+     * Dọn dữ liệu đã tạo: test catalog/combo xoá `products` ở đầu mỗi test nên không được để lại dòng nào tham chiếu tới
+     * sản phẩm/combo (cart_items, order_items, combo_items, campaign_products, images). Nếu không, kết quả phụ thuộc thứ tự
+     * chạy các lớp test (xanh ở máy này, đỏ ở CI).
+     */
+    @AfterEach
+    void cleanUp() {
+        jdbc.execute("TRUNCATE TABLE products, product_combos CASCADE");
+    }
 
     @BeforeEach
     void setUp() {

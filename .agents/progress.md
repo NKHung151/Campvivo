@@ -107,6 +107,10 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   CÙNG PR có sửa hạ tầng test (phát hiện khi chạy mốc trên `dev`): `SecurityIntegrationTest` mong `/api/admin/orders` là 404 nhưng Người 1 đã thêm
   controller thật (200) → đổi sang đường dẫn thăm dò không có controller; mỗi context test giữ ~10 kết nối nên cả bộ test cạn `max_connections` (100) của
   PostgreSQL dùng chung (`too many clients already`) → giới hạn Hikari pool = 5 trong `PostgresTestContainerConfig`.
+  CI GitHub báo thêm 41 lỗi: test đơn hàng/khuyến mãi (`OrderPaymentFlowIntegrationTest`, `AdminOrderIntegrationTest`, `CampaignPricingIntegrationTest`,
+  `VoucherFlowIntegrationTest`) không dọn giỏ/đơn nên test catalog/combo (`DELETE FROM products`) lỗi `cart_items_product_id_fkey` khi chạy sau chúng
+  (Windows chạy catalog trước nên không thấy). Đã tái hiện bằng `-Dsurefire.runOrder=reversealphabetical` và sửa bằng `@AfterEach` `TRUNCATE ... CASCADE`
+  trong 4 lớp test đó (chạm test của Người 1 và promotion, chỉ thêm hàm dọn).
 - Còn dang dở / TODO tiếp theo:
   - Frontend `/forgot-password`, `/reset-password` + liên kết "Quên mật khẩu?" (PR riêng sau PR này).
   - `dev` (b145ae3) trước PR này có 1 test đỏ (`SecurityIntegrationTest.employeeAndAdminPassAdminPathRule`) nên CI backend của các PR khác có thể đỏ cho

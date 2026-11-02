@@ -10,6 +10,13 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Test xanh ở máy này, đỏ ở CI vì phụ thuộc thứ tự chạy
+- **Bài học:** Các lớp test tích hợp dùng chung một PostgreSQL. Test đơn hàng và khuyến mãi tạo giỏ/đơn rồi không dọn, còn test catalog/combo xoá
+  `products` ở đầu mỗi test nên lỗi `cart_items_product_id_fkey` nếu chạy SAU chúng (41 lỗi trên CI). Windows chạy các lớp theo thứ tự tên nên
+  catalog chạy trước và luôn xanh; Linux (CI) chạy theo thứ tự khác. Chỉ tái hiện được khi ép đảo thứ tự (`-Dsurefire.runOrder=reversealphabetical`).
+- **Áp dụng lại lần sau:** Test tạo dữ liệu thì tự dọn khi kết thúc (`@AfterEach`, ví dụ `TRUNCATE TABLE products, product_combos CASCADE` dọn mọi bảng
+  tham chiếu); không được giả định thứ tự chạy. Trước khi mở PR chạy thêm bộ test với `-Dsurefire.runOrder=reversealphabetical`.
+
 ### Bộ test tích hợp cạn kết nối PostgreSQL khi thêm lớp test mới
 - **Bài học:** Mỗi lớp test tích hợp có Spring context riêng và được giữ trong cache tới hết lần chạy; mỗi context mở khoảng 10 kết nối (mặc định
   Hikari) tới PostgreSQL Testcontainers dùng chung (`max_connections` = 100). Khi số lớp test tăng, một lớp mới thêm vào làm `UserRepositoryTest`
