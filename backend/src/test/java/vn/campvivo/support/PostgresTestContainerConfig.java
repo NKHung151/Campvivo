@@ -29,7 +29,10 @@ public class PostgresTestContainerConfig
         TestPropertyValues.of(
                 "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
                 "spring.datasource.username=" + POSTGRES.getUsername(),
-                "spring.datasource.password=" + POSTGRES.getPassword()
+                "spring.datasource.password=" + POSTGRES.getPassword(),
+                // Mỗi lớp test tích hợp có Spring context riêng và được giữ trong cache tới hết lần chạy; mặc định mỗi context
+                // giữ 10 kết nối nên cả bộ test vượt max_connections (100) của PostgreSQL ("too many clients already").
+                "spring.datasource.hikari.maximum-pool-size=5"
         ).applyTo(context.getEnvironment());
     }
 }

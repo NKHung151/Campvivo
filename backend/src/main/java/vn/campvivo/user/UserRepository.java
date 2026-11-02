@@ -44,6 +44,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.otpCodeHash is not null")
     int clearOtp(@Param("id") Long id);
 
+    /**
+     * Đặt lại mật khẩu bằng một câu UPDATE nguyên tử: đổi hash, tăng token_version (mọi token cũ hết hiệu lực, D-11) và
+     * đánh dấu email đã xác thực (người nhận được mã đã chứng minh sở hữu email). Chỉ áp dụng cho tài khoản còn hoạt động:
+     * trả 0 nếu bị khoá (kể cả khi vừa bị khoá giữa chừng).
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update User u set u.passwordHash = :hash, u.tokenVersion = u.tokenVersion + 1, u.emailVerified = true, "
+            + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.active = true")
+    int resetPassword(@Param("id") Long id, @Param("hash") String hash);
+
     /** Đánh dấu email đã xác thực (một câu UPDATE nguyên tử). */
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
