@@ -7,11 +7,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import vn.campvivo.auth.dto.ForgotPasswordRequest;
 import vn.campvivo.auth.dto.LoginRequest;
 import vn.campvivo.auth.dto.LoginResponse;
 import vn.campvivo.auth.dto.RegisterRequest;
 import vn.campvivo.auth.dto.RegisterResponse;
 import vn.campvivo.auth.dto.ResendCodeRequest;
+import vn.campvivo.auth.dto.ResetPasswordRequest;
 import vn.campvivo.auth.dto.VerifyEmailRequest;
 import vn.campvivo.common.dto.ApiResponse;
 
@@ -22,10 +24,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final RegistrationService registrationService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService, RegistrationService registrationService) {
+    public AuthController(AuthService authService, RegistrationService registrationService,
+                          PasswordResetService passwordResetService) {
         this.authService = authService;
         this.registrationService = registrationService;
+        this.passwordResetService = passwordResetService;
     }
 
     /** Đăng ký: tạo tài khoản CUSTOMER chưa xác thực và gửi OTP qua email (201). */
@@ -45,6 +50,20 @@ public class AuthController {
     @PostMapping("/resend-code")
     public ApiResponse<Void> resendCode(@Valid @RequestBody ResendCodeRequest request) {
         registrationService.resendCode(request);
+        return ApiResponse.of(null);
+    }
+
+    /** Gửi mã đặt lại mật khẩu; luôn 200 (kể cả email không tồn tại) để không lộ email nào đã đăng ký. */
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.forgotPassword(request);
+        return ApiResponse.of(null);
+    }
+
+    /** Đặt lại mật khẩu bằng mã OTP; thành công thì mọi token cũ hết hiệu lực (không đăng nhập luôn). */
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request);
         return ApiResponse.of(null);
     }
 

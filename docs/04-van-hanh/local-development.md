@@ -61,7 +61,20 @@ Invoke-RestMethod -Method Post "$u/auth/verify-email" -ContentType $j -Body '{"e
 # Gửi lại mã (chờ ít nhất 60 giây kể từ thư trước)
 Invoke-RestMethod -Method Post "$u/auth/resend-code" -ContentType $j -Body '{"email":"ban@example.com","purpose":"VERIFY_EMAIL"}'
 ```
-Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`. Xoá tài khoản thử:
+Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`.
+
+**Thử quên mật khẩu bằng PowerShell** (tài khoản đã đăng ký ở trên, Mailpit đang bật):
+```powershell
+# 1. Xin mã (luôn 200, kể cả email không tồn tại) → thư "Mã đặt lại mật khẩu Campvivo" ở http://localhost:8025
+Invoke-RestMethod -Method Post "$u/auth/forgot-password" -ContentType $j -Body '{"email":"ban@example.com"}'
+# 2. Đặt mật khẩu mới bằng mã trong thư → 200 (không trả token)
+Invoke-RestMethod -Method Post "$u/auth/reset-password" -ContentType $j -Body '{"email":"ban@example.com","code":"123456","newPassword":"MatKhauMoi9"}'
+# 3. Đăng nhập bằng mật khẩu mới (mật khẩu cũ và token cũ không còn dùng được)
+Invoke-RestMethod -Method Post "$u/auth/login" -ContentType $j -Body '{"email":"ban@example.com","password":"MatKhauMoi9"}'
+```
+Xin mã lần hai trong vòng 60 giây vẫn trả 200 nhưng **không** có thư mới (chủ ý, chống dò email): chờ đủ 60 giây.
+
+Xoá tài khoản thử:
 `docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 
 **Biến môi trường từ `.env`:** backend tự nạp file `.env` ở gốc repo khi chạy từ thư mục `backend/`

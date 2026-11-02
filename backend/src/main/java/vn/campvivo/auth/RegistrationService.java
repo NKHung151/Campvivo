@@ -18,7 +18,6 @@ import vn.campvivo.user.User;
 import vn.campvivo.user.UserRepository;
 import vn.campvivo.user.dto.UserProfileResponse;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -29,9 +28,6 @@ import java.util.Optional;
  */
 @Service
 public class RegistrationService {
-
-    /** BCrypt chỉ dùng 72 byte đầu của mật khẩu; chặn mật khẩu dài hơn thay vì cắt âm thầm (ký tự tiếng Việt chiếm 2–3 byte). */
-    private static final int BCRYPT_MAX_BYTES = 72;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -63,7 +59,7 @@ public class RegistrationService {
      */
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-        validatePasswordLength(request.password());
+        PasswordPolicy.requireBcryptSafe(request.password(), "password");
         String fullName = request.fullName().trim();
         if (fullName.length() < 2) {
             throw validationError("fullName", "Họ tên phải từ 2 đến 100 ký tự");
@@ -138,12 +134,6 @@ public class RegistrationService {
         }
         String code = otpService.issue(user, request.purpose());
         mailService.sendOtp(user.getEmail(), user.getFullName(), code, request.purpose(), otpTtl);
-    }
-
-    private static void validatePasswordLength(String password) {
-        if (password.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
-            throw validationError("password", "Mật khẩu quá dài");
-        }
     }
 
     private static BusinessException validationError(String field, String message) {

@@ -138,6 +138,18 @@ Hành vi đã hiện thực (N3-02, khớp `features.md` FR-01 và BR-11):
 - Ba endpoint này công khai nhưng backend vẫn từ chối request mang token sai/hết hạn (401); frontend phải gọi với
   `skipAuth` (xem `authentication.md` mục 3).
 
+Hành vi đã hiện thực (N3-04, khớp `features.md` FR-03 và BR-11):
+- `forgot-password`: luôn 200 với email không tồn tại hoặc tài khoản bị khoá (không gửi gì). Gửi lại khi mã trước mới gửi
+  < 60 giây cũng trả 200 im lặng (không gửi thư mới, mã cũ vẫn dùng được) để không lộ email nào đã đăng ký. Gửi email lỗi
+  vẫn trả `EMAIL_SEND_FAILED` để người dùng biết thử lại. Tài khoản **chưa xác thực email** vẫn được gửi mã. Mỗi user chỉ có
+  một ô OTP: xin mã đặt lại mật khẩu sẽ ghi đè mã xác thực email đang chờ (và ngược lại).
+- `reset-password`: `newPassword` theo cùng luật mật khẩu của `register` (kể cả giới hạn 72 byte UTF-8); mật khẩu sai định dạng
+  bị từ chối **trước khi** đụng tới mã nên không làm mất lượt thử. Email không tồn tại và mã sai đều trả `INVALID_OTP`; mã
+  của mục đích khác (vd. mã xác thực email) cũng là `INVALID_OTP`; hết hạn `OTP_EXPIRED`; sai quá 5 lần `OTP_TOO_MANY_ATTEMPTS`;
+  tài khoản bị khoá `ACCOUNT_DISABLED`. Mã dùng một lần (nhiều yêu cầu song song cùng mã chỉ một yêu cầu thành công). Thành công:
+  đổi mật khẩu, tăng `token_version` (mọi thiết bị đang đăng nhập bị đăng xuất), đặt `email_verified = true`; **không** trả
+  token — người dùng đăng nhập lại.
+
 ### 4.2 user — FR-04, FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
