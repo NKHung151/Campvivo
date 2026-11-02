@@ -95,6 +95,28 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-11-02 — Người 3 — backend (N3-04: quên và đặt lại mật khẩu)
+- Đã làm: nhánh `feature/auth-n3-04-reset-password` (tách từ `dev`). `POST /auth/forgot-password` (luôn 200: email lạ / tài khoản khoá / gửi lại < 60 giây
+  đều im lặng không gửi thư; chỉ `EMAIL_SEND_FAILED` vẫn báo; tài khoản chưa xác thực email vẫn được gửi mã) và `POST /auth/reset-password`
+  (`PasswordResetService`: mật khẩu > 72 byte bị từ chối TRƯỚC khi đụng tới mã; email lạ và mã sai cùng `INVALID_OTP`; một câu UPDATE nguyên tử
+  `UserRepository.resetPassword` đổi hash + tăng `token_version` + đặt `email_verified = true`, chỉ với tài khoản còn hoạt động; không trả token).
+  `PasswordPolicy` gom luật mật khẩu dùng chung với đăng ký. Test: `PasswordResetIntegrationTest` (20, PostgreSQL thật + GreenMail + đồng hồ chỉnh tay,
+  gồm reset song song cùng mã chỉ một yêu cầu thắng, token cũ → 401, mã `VERIFY_EMAIL` không dùng để reset). Kiểm tra "đột biến": cố ý bỏ tăng
+  `token_version`, bỏ `email_verified`, bỏ điều kiện tài khoản hoạt động, ném lỗi gửi-quá-sớm, bỏ kiểm 72 byte → đúng 6 test đỏ, rồi hoàn lại.
+  Docs: `api.md` (hành vi đã hiện thực), `local-development.md` (thử bằng PowerShell), `lessons-learned.md`. `mvn clean test` toàn bộ: 269 test xanh.
+  CÙNG PR có sửa hạ tầng test (phát hiện khi chạy mốc trên `dev`): `SecurityIntegrationTest` mong `/api/admin/orders` là 404 nhưng Người 1 đã thêm
+  controller thật (200) → đổi sang đường dẫn thăm dò không có controller; mỗi context test giữ ~10 kết nối nên cả bộ test cạn `max_connections` (100) của
+  PostgreSQL dùng chung (`too many clients already`) → giới hạn Hikari pool = 5 trong `PostgresTestContainerConfig`.
+- Còn dang dở / TODO tiếp theo:
+  - Frontend `/forgot-password`, `/reset-password` + liên kết "Quên mật khẩu?" (PR riêng sau PR này).
+  - `dev` (b145ae3) trước PR này có 1 test đỏ (`SecurityIntegrationTest.employeeAndAdminPassAdminPathRule`) nên CI backend của các PR khác có thể đỏ cho
+    tới khi PR này merge; ai thêm lớp test tích hợp mới cũng sẽ gặp cạn kết nối nếu thiếu giới hạn pool.
+  - Dò email: `resend-code` với purpose `RESET_PASSWORD` vẫn lộ `OTP_RESEND_TOO_SOON`/`EMAIL_SEND_FAILED` cho email thật (có từ N3-02); độ trễ
+    `forgot-password` khác nhau giữa email có và không có (gửi mail). Chưa có rate limit theo IP.
+  - Mỗi user chỉ một ô OTP: xin mã đặt lại mật khẩu ghi đè mã xác thực email đang chờ (và ngược lại).
+  - `CartService`: Người 1 đã hiện thực `createForUser` và xoá `StubCartService` (PR #19) — mục nợ cũ đã đóng.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-04)
+
 ### 2026-10-29 — Người 3 — frontend (sửa `next build` lỗi NETWORK_ERROR trên CI)
 - Đã làm: nhánh `fix/frontend-server-api-dynamic-build` (tách từ `dev`). Nguyên nhân (đã chứng minh bằng cách in lỗi gốc): `services/serverApi.ts`
   (F-14) bọc `fetch` no-store trong `catch` đổi MỌI lỗi thành `NETWORK_ERROR`, nuốt `DYNAMIC_SERVER_USAGE` mà Next ném lúc prerender → `next build`
