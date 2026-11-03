@@ -10,6 +10,13 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Test "bị từ chối" xanh vì mọi thứ đều hỏng
+- **Bài học:** Test kiểm tra kết nối WebSocket bị từ chối ban đầu chỉ khẳng định "không kết nối được". Khi cố ý làm hỏng cấu hình để kiểm tra
+  đột biến, bắt tay trả HTTP 500 cho MỌI kết nối nên các test từ chối vẫn xanh dù cơ chế xác thực đã bị gỡ. Test chỉ đáng tin khi khẳng định
+  đúng LÝ DO thất bại (ở đây: server trả khung `ERROR` của STOMP sau bắt tay thành công, còn origin lạ bị chặn 403 ở bước bắt tay).
+- **Áp dụng lại lần sau:** Với test "phải bị từ chối", khẳng định kiểu từ chối chứ không chỉ "thất bại"; kèm một test ngược "đúng thì vào được"
+  để chứng minh hạ tầng vẫn hoạt động. Khi phá một cơ chế để kiểm tra đột biến, phá sao cho phần còn lại vẫn chạy được.
+
 ### Test xanh ở máy này, đỏ ở CI vì phụ thuộc thứ tự chạy
 - **Bài học:** Các lớp test tích hợp dùng chung một PostgreSQL. Test đơn hàng và khuyến mãi tạo giỏ/đơn rồi không dọn, còn test catalog/combo xoá
   `products` ở đầu mỗi test nên lỗi `cart_items_product_id_fkey` nếu chạy SAU chúng (41 lỗi trên CI). Windows chạy các lớp theo thứ tự tên nên

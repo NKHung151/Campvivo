@@ -344,6 +344,17 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
   - `/user/queue/support` → `SupportMessage` (khách nhận tin của nhân viên; nhân viên nhận tin của mọi khách)
 - Client chỉ gửi qua REST (POST ở 4.8); WebSocket chỉ để nhận. Mất kết nối → client gọi lại REST để đồng bộ.
 
+Hành vi đã hiện thực (N3-08):
+- Bắt tay WebSocket/SockJS là công khai (trình duyệt không đặt được header ở bước này); **xác thực nằm ở khung CONNECT**. Thiếu header,
+  token sai chữ ký / hết hạn, `tv` cũ hay tài khoản bị khoá → server trả khung `ERROR` rồi đóng kết nối (nội dung lỗi chỉ là câu chung của
+  Spring, KHÔNG phải mã lỗi `errorCode`). Phía client: `ERROR` trước khi nhận `CONNECTED` = xác thực thất bại, nên lấy token mới / về `/login`.
+- Chỉ SUBSCRIBE được `/user/queue/notifications` và `/user/queue/support`; đăng ký kênh khác, hoặc gửi bất kỳ khung `SEND` nào, đều bị `ERROR`
+  và đóng kết nối. Mỗi người chỉ nhận tin gửi tới `userId` của mình (principal = userId).
+- Origin phải nằm trong `app.cors.allowed-origins` (được kiểm ở cả CORS lẫn bắt tay WebSocket). Kích thước khung tối đa 8 KB.
+- Token chỉ được kiểm lúc CONNECT: kết nối đang mở **không tự đóng** khi token hết hạn (24 giờ), người dùng đăng xuất hay bị khoá; tin vẫn
+  tới tới khi client ngắt hoặc tải lại trang. Muốn chặt hơn phải chủ động ngắt kết nối khi `token_version` đổi (chưa làm).
+- Broker nằm trong bộ nhớ: chỉ đúng khi chạy **một** instance backend.
+
 ### 4.10 admin
 | Method | Path | Quyền | Ghi chú |
 |---|---|---|---|
