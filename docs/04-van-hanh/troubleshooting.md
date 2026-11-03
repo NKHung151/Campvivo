@@ -11,6 +11,12 @@ từ đầu mỗi lần gặp.
 
 ---
 
+### PowerShell 5.1: tiếng Việt trong body bị mất dấu (`Nguy?n Van An`) và lỗi 4xx không hiện nội dung
+- **Triệu chứng:** `Invoke-RestMethod -Body '{"fullName":"Nguyễn Văn An"}'` lưu ra `Nguy?n Van An` (hoặc server báo 400); khi API trả 400/401, `$_.ErrorDetails.Message` rỗng nên không thấy `errorCode`.
+- **Nguyên nhân:** Windows PowerShell 5.1 mã hoá chuỗi `-Body` bằng bảng mã hệ thống chứ không phải UTF-8 và đọc thân lỗi không ổn định. PowerShell 7 không bị.
+- **Cách xử lý:** gửi UTF-8 rõ ràng: `-ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($json))`, và đọc thân lỗi từ `$_.Exception.Response.GetResponseStream()`.
+  Hàm `Call` mẫu nằm ở `local-development.md` (mục thử sửa hồ sơ). Hoặc dùng PowerShell 7 / chỉ gửi chữ không dấu khi thử nhanh.
+
 ### Backend không kết nối được PostgreSQL: `invalid value for parameter "TimeZone": "Asia/Saigon"`
 - **Triệu chứng:** App dừng lúc khởi động, lỗi `FATAL: invalid value for parameter "TimeZone"` (thường từ Flyway).
 - **Nguyên nhân:** JVM trên Windows báo múi giờ cũ `Asia/Saigon`; PostgreSQL 16 từ chối tên này.

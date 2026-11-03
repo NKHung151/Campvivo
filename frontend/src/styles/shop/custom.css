@@ -114,6 +114,9 @@ body {
   font-size: 22px;
   margin: 0 0 18px;
 }
+.cv-account__form {
+  max-width: 460px;
+}
 .cv-order {
   border: 1px solid #e2e2e2;
   border-radius: 6px;

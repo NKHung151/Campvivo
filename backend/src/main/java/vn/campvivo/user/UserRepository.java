@@ -56,6 +56,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.active = true")
     int resetPassword(@Param("id") Long id, @Param("hash") String hash);
 
+    /**
+     * Đổi mật khẩu khi người dùng tự đổi (FR-04): một câu UPDATE nguyên tử đổi hash VÀ tăng token_version (mọi token cũ, kể cả của
+     * thiết bị đang đổi, hết hiệu lực — D-11). Chỉ áp dụng khi mật khẩu trong DB vẫn là bản cũ `oldHash` mà người dùng vừa xác
+     * nhận: nếu lúc đó có lần đổi / đặt lại mật khẩu khác chen vào thì trả 0 thay vì ghi đè âm thầm.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update User u set u.passwordHash = :newHash, u.tokenVersion = u.tokenVersion + 1, "
+            + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.passwordHash = :oldHash and u.active = true")
+    int changePassword(@Param("id") Long id, @Param("oldHash") String oldHash, @Param("newHash") String newHash);
+
     /** Id các tài khoản còn hoạt động có một trong các role đã cho — dùng để đẩy tin realtime tới mọi nhân viên. */
     @Query("select u.id from User u where u.role in :roles and u.active = true order by u.id")
     List<Long> findActiveIdsByRoleIn(@Param("roles") Collection<Role> roles);
