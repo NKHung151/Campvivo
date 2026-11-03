@@ -15,7 +15,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import vn.campvivo.common.config.AppProperties;
-import vn.campvivo.user.UserRepository;
 
 import java.util.List;
 
@@ -30,8 +29,8 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService,
-                                            UserRepository userRepository, ObjectMapper objectMapper)
+    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenAuthenticator tokenAuthenticator,
+                                            ObjectMapper objectMapper)
             throws Exception {
         JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
 
@@ -67,7 +66,7 @@ public class SecurityConfig {
                                 "/api/users/me/reviews", "/api/users/me/favorites").hasRole("CUSTOMER")
                         // Còn lại (vd. /api/users/me, /api/notifications, /api/auth/logout): mọi role đã đăng nhập
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService, userRepository, errorHandler),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenAuthenticator, errorHandler),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -103,7 +103,9 @@ npm install
 npm run dev
 ```
 Mặc định chạy ở `http://localhost:3000`, gọi API tại `NEXT_PUBLIC_API_URL`
-(`http://localhost:8080/api`), WebSocket tại `NEXT_PUBLIC_WS_URL` (`http://localhost:8080/ws`).
+(`http://localhost:8080/api`), WebSocket tại `NEXT_PUBLIC_WS_URL` (`http://localhost:8080/ws`). Kiểm tra nhanh WebSocket mà không cần giao diện:
+chạy test `mvn test -Dtest=RealtimeIntegrationTest` (client STOMP thật, PostgreSQL qua Testcontainers). Origin của trình duyệt phải nằm trong
+`app.cors.allowed-origins` (mặc định `http://localhost:3000`); chạy frontend ở cổng khác thì đặt `APP_CORS_ALLOWED_ORIGINS` cho backend.
 
 ## Tài khoản mẫu (seed profile dev — `database.md` mục 7, khi đã có; hiện chèn tay, xem bên dưới)
 | Role | Email | Mật khẩu |

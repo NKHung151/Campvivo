@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +55,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("update User u set u.passwordHash = :hash, u.tokenVersion = u.tokenVersion + 1, u.emailVerified = true, "
             + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.active = true")
     int resetPassword(@Param("id") Long id, @Param("hash") String hash);
+
+    /** Id các tài khoản còn hoạt động có một trong các role đã cho — dùng để đẩy tin realtime tới mọi nhân viên. */
+    @Query("select u.id from User u where u.role in :roles and u.active = true order by u.id")
+    List<Long> findActiveIdsByRoleIn(@Param("roles") Collection<Role> roles);
 
     /** Đánh dấu email đã xác thực (một câu UPDATE nguyên tử). */
     @Transactional

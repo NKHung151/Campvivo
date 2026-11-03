@@ -95,6 +95,24 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-11-03 — Người 3 — backend (N3-08: WebSocket STOMP + RealtimeSender)
+- Đã làm: nhánh `feature/realtime-n3-08-websocket` (tách từ `dev`). `WebSocketConfig` (endpoint `/ws` có SockJS, simple broker `/queue`, tiền tố `/user`, origin lấy từ
+  `app.cors.allowed-origins`, khung tối đa 8 KB), `StompAuthChannelInterceptor` (xác thực JWT ở khung CONNECT; SUBSCRIBE chỉ `/user/queue/notifications` và `/user/queue/support`;
+  mọi khung SEND bị từ chối — client chỉ nhận), `TokenAuthenticator` (tách từ `JwtAuthenticationFilter`, dùng chung HTTP và WebSocket nên hai nơi không lệch nhau),
+  `RealtimeSender` (`toUser`, `toStaff`: chỉ nhân viên EMPLOYEE/ADMIN còn hoạt động VÀ đang kết nối; gửi lỗi chỉ ghi log, kênh sai là `IllegalArgumentException`) và
+  `StompRealtimeSender`, `UserRepository.findActiveIdsByRoleIn`. Test: `RealtimeIntegrationTest` (12, client STOMP thật qua SockJS + PostgreSQL thật: token hợp lệ nhận tin,
+  không token / token rác / sai chữ ký / thiếu Bearer / `token_version` cũ / tài khoản khoá bị `ERROR`, A không nhận tin của B, `toStaff` tới EMPLOYEE và ADMIN không tới CUSTOMER,
+  SUBSCRIBE kênh lạ và client SEND bị chặn, origin) và `StompRealtimeSenderTest` (5, Mockito). Kiểm tra "đột biến": gỡ xác thực CONNECT, bỏ kiểm `token_version`, cho SUBSCRIBE mọi kênh,
+  cho client SEND, gộp khách vào `toStaff`, đặt origin cho phép sai → đúng các test tương ứng đỏ. Chạy thật `spring-boot:run` cổng 8081 + kịch bản Node gửi khung STOMP bằng tay:
+  token hợp lệ nhận CONNECTED, các ca vi phạm đều nhận ERROR rồi bị đóng. Docs: `api.md` mục 4.9, `architecture.md` (mục Realtime), `local-development.md`, `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Người 4 (N4-04 thông báo, N4-06 chat) gọi `RealtimeSender` qua `RealtimeDestinations.NOTIFICATIONS` / `SUPPORT`; chưa có module nào gọi nên chưa thấy tin thật trên giao diện.
+  - Kết nối đang mở KHÔNG tự đóng khi token hết hạn (24 giờ), đăng xuất hay tài khoản bị khoá — chỉ kiểm lúc CONNECT (đã ghi trong `api.md`); muốn chặt hơn phải ngắt chủ động khi `token_version` đổi.
+  - Broker trong bộ nhớ: chỉ đúng khi chạy MỘT instance backend.
+  - Thư viện STOMP phía trình duyệt (`@stomp/stompjs`, `sockjs-client`) và trang chat `/account/support`, `/admin/support` chưa làm; cần chốt ai làm giao diện chat (AGENTS.md §9 và roadmap chưa khớp).
+  - Chưa thử trên trình duyệt thật.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-08)
+
 ### 2026-11-04 — Người 3 — frontend (giao diện quên / đặt lại mật khẩu, đi kèm N3-04)
 - Đã làm: nhánh `feature/auth-n3-04-reset-password-ui` (tách từ `dev`). Trang `/forgot-password` (`ForgotPasswordForm`: nhập email → luôn sang bước sau khi server
   trả 200, không báo email có tồn tại hay không) và `/reset-password?email=` (`ResetPasswordForm`: mã 6 số + mật khẩu mới có nút Hiện/Ẩn, "Gửi lại mã" đếm ngược 60 giây
