@@ -41,6 +41,20 @@ export function validateFullName(fullName: string): string | undefined {
   return undefined;
 }
 
+/** Số điện thoại tuỳ chọn; có thì phải đúng 10 số bắt đầu bằng 0 (cùng luật với địa chỉ nhận hàng khi đặt đơn). */
+export function validatePhone(phone: string): string | undefined {
+  const value = phone.trim();
+  if (value === "") return undefined;
+  if (!/^0\d{9}$/.test(value)) return "Số điện thoại phải gồm 10 số, bắt đầu bằng 0.";
+  return undefined;
+}
+
+/** Địa chỉ mặc định tuỳ chọn, tối đa 500 ký tự. */
+export function validateAddress(address: string): string | undefined {
+  if (address.trim().length > 500) return "Địa chỉ tối đa 500 ký tự.";
+  return undefined;
+}
+
 export function validateRegister(fields: RegisterFields): RegisterFieldErrors {
   const errors: RegisterFieldErrors = {
     fullName: validateFullName(fields.fullName),

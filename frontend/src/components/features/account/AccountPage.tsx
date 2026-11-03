@@ -5,17 +5,21 @@ import type { ProductCard } from "@/types/shop";
 import { GridCard } from "@/components/features/catalog/ProductCard";
 import { useShop } from "@/components/features/shop/ShopProvider";
 import { MyOrders } from "@/components/features/account/MyOrders";
+import { ProfileForm } from "@/components/features/account/ProfileForm";
+import { ChangePasswordForm } from "@/components/features/account/ChangePasswordForm";
 
-type Tab = "orders" | "wishlist" | "address";
+type Tab = "orders" | "wishlist" | "address" | "profile" | "password";
 const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Đơn hàng của tôi" },
   { id: "wishlist", label: "Danh sách yêu thích" },
   { id: "address", label: "Địa chỉ nhận hàng" },
+  { id: "profile", label: "Hồ sơ" },
+  { id: "password", label: "Đổi mật khẩu" },
 ];
 
 /**
- * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); yêu thích và địa chỉ giao gần nhất còn lưu ở trình duyệt
- * (chưa có API favorites — Tier 2).
+ * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); hồ sơ và đổi mật khẩu gọi API thật (FR-04); yêu thích và địa chỉ
+ * giao gần nhất còn lưu ở trình duyệt (chưa có API favorites — Tier 2).
  */
 export function AccountPage() {
   const { ready, user, wishlist, customer, openLogin, logout } = useShop();
@@ -63,6 +67,8 @@ export function AccountPage() {
         <section>
           <h1>{TABS.find((t) => t.id === tab)!.label}</h1>
           {tab === "orders" && <MyOrders />}
+          {tab === "profile" && <ProfileForm />}
+          {tab === "password" && <ChangePasswordForm />}
           {tab === "wishlist" &&
             (wishlist.length ? (
               <div id="ProductCategory" style={{ width: "100%" }}>

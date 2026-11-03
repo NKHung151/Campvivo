@@ -39,7 +39,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/checkout` | Chuyển hướng về `/cart` | — | ✅ |
 | `/checkout/success?orderId=` | Kết quả đặt hàng theo trạng thái đơn thật: COD chờ xác nhận / VNPay thành công / thất bại / đang chờ (hỏi lại 5 lần × 2s); mã vận đơn GHN nếu có | `GET /orders/{id}` | ✅ |
 | `/payment/vnpay-return` | Return URL của VNPay (`VNP_RETURN_URL`, D-28): gửi query `vnp_*` cho backend ghi nhận rồi chuyển `/checkout/success?orderId=` | `GET /vnpay/return` | ✅ |
-| `/account` | Hồ sơ: họ tên, SĐT, địa chỉ mặc định; đổi mật khẩu | `/users/me`, `/users/me/password` | ✅ (hiện là trang tab — tách thành route con) |
+| `/account` | Hồ sơ: họ tên, SĐT, địa chỉ mặc định; đổi mật khẩu | `/users/me`, `/users/me/password` | ✅ (hiện là trang tab — tách thành route con). Tab "Hồ sơ" (email chỉ đọc; SĐT/địa chỉ để trống = xoá) và tab "Đổi mật khẩu" dùng API thật; đổi mật khẩu xong đăng xuất cục bộ và về `/login?changed=1` kèm thông báo. Nhân viên (EMPLOYEE/ADMIN) chưa có giao diện này (`/account` chỉ dành cho khách) |
 | `/account/orders` | Lịch sử đơn, lọc theo trạng thái | `GET /orders` | ✅ (tab "Đơn hàng của tôi" trong `/account`, API thật, "Xem thêm") |
 | `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, mã vận đơn GHN, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn), Viết đánh giá từng dòng | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `POST /reviews` | 🟡 (đã có chi tiết + huỷ; trả hàng, đánh giá chờ module tương ứng) |
 | `/account/reviews` | Đánh giá của tôi: sửa, xoá | `/users/me/reviews`, `PUT/DELETE /reviews/{id}` | ⬜ |

@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { redirect?: string | string[]; reset?: string | string[] };
+  searchParams: { redirect?: string | string[]; reset?: string | string[]; changed?: string | string[] };
 }) {
-  const raw = Array.isArray(searchParams.redirect) ? searchParams.redirect[0] : searchParams.redirect;
-  const reset = Array.isArray(searchParams.reset) ? searchParams.reset[0] : searchParams.reset;
-  // ?reset=1: vừa đặt lại mật khẩu xong (từ /reset-password) → hiện thông báo thành công.
-  return <LoginForm redirect={raw ?? null} justReset={reset === "1"} />;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  // ?reset=1: vừa đặt lại mật khẩu (từ /reset-password); ?changed=1: vừa đổi mật khẩu (từ /account) → hiện thông báo thành công.
+  const notice = first(searchParams.reset) === "1" ? "reset" : first(searchParams.changed) === "1" ? "changed" : null;
+  return <LoginForm redirect={first(searchParams.redirect) ?? null} notice={notice} />;
 }

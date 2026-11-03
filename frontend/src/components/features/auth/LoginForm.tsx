@@ -24,7 +24,14 @@ interface FieldErrors {
  * (`useLandingRedirect`). `redirect` là giá trị thô của ?redirect=; được kiểm tra an toàn trước khi dùng.
  * Chưa xác thực email (EMAIL_NOT_VERIFIED) → gửi lại mã rồi chuyển /verify-email (user-flows.md mục 2).
  */
-export function LoginForm({ redirect, justReset = false }: { redirect: string | null; justReset?: boolean }) {
+export function LoginForm({
+  redirect,
+  notice = null,
+}: {
+  redirect: string | null;
+  /** Thông báo thành công khi vừa quay lại từ đặt lại / đổi mật khẩu. */
+  notice?: "reset" | "changed" | null;
+}) {
   const router = useRouter();
   const { status, user, login, retry } = useAuth();
   const [email, setEmail] = useState("");
@@ -102,9 +109,11 @@ export function LoginForm({ redirect, justReset = false }: { redirect: string | 
           </button>
         </div>
       )}
-      {justReset && !formError && (
+      {notice && !formError && (
         <div className="cv-auth__notice" role="status">
-          Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới.
+          {notice === "reset"
+            ? "Đã đặt lại mật khẩu. Hãy đăng nhập bằng mật khẩu mới."
+            : "Đổi mật khẩu thành công. Hãy đăng nhập lại bằng mật khẩu mới."}
         </div>
       )}
       {formError && (
