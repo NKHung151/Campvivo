@@ -159,6 +159,15 @@ Hành vi đã hiện thực (N3-04, khớp `features.md` FR-03 và BR-11):
 | GET | `/users/me/reviews` | Customer | `?page&limit` → `[ReviewMine]` |
 | GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ArticleSummary, createdAt}]` |
 
+Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
+- `PUT /users/me` thay thế đúng ba trường `fullName`, `phone`, `address`; **email và role không sửa được** — gửi kèm trong body (cũng như `isActive`, `tokenVersion`...) bị bỏ qua.
+  `fullName` 2–100 ký tự sau khi `trim`; `phone` tuỳ chọn, đúng `^0\d{9}$` (cùng luật với số điện thoại khi đặt hàng); `address` tuỳ chọn, tối đa 500 ký tự.
+  `phone`/`address` bỏ trống, rỗng hoặc toàn khoảng trắng nghĩa là xoá giá trị đã lưu (không phải "giữ nguyên"). Mọi role đã đăng nhập đều dùng được. Sửa hồ sơ KHÔNG làm token hết hiệu lực.
+- `PUT /users/me/password`: sai mật khẩu hiện tại → `INVALID_CURRENT_PASSWORD` (400), không đổi gì. Mật khẩu mới theo cùng luật với đăng ký (8–64 ký tự, có chữ và số, ≤ 72 byte UTF-8) và
+  được kiểm TRƯỚC khi so mật khẩu cũ (sai định dạng → `VALIDATION_ERROR` ở `newPassword`). Mật khẩu mới được phép trùng mật khẩu hiện tại. Thành công: đổi mật khẩu và tăng `token_version`
+  trong một câu UPDATE nguyên tử, nên **mọi token đã cấp, kể cả của thiết bị đang đổi, hết hiệu lực** — client phải đăng nhập lại; không trả token mới. Nếu có lần đổi / đặt lại mật khẩu khác chen vào
+  giữa lúc xác nhận và lúc ghi thì trả `INVALID_CURRENT_PASSWORD` (nhiều yêu cầu đổi song song cùng mật khẩu cũ chỉ một yêu cầu thành công). Chưa có giới hạn số lần thử mật khẩu hiện tại.
+
 ### 4.3 catalog / combo / article (public) — FR-07, FR-21a, FR-25
 | Method | Path | Quyền | Query / Response |
 |---|---|---|---|

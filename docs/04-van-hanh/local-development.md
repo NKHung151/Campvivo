@@ -74,6 +74,31 @@ Invoke-RestMethod -Method Post "$u/auth/login" -ContentType $j -Body '{"email":"
 ```
 Xin mã lần hai trong vòng 60 giây vẫn trả 200 nhưng **không** có thư mới (chủ ý, chống dò email): chờ đủ 60 giây.
 
+**Thử sửa hồ sơ và đổi mật khẩu bằng PowerShell** (tài khoản ĐÃ xác thực; dùng tài khoản thử vì mật khẩu sẽ bị đổi). PowerShell 5.1 gửi chuỗi
+tiếng Việt bằng bảng mã không phải UTF-8 (tên bị lưu thành `Nguy?n Van An`) và không hiện nội dung lỗi 4xx, nên dùng hàm `Call` dưới đây (gửi UTF-8, in đủ thân lỗi):
+```powershell
+$u = "http://localhost:8080/api"
+function Call($method, $path, $json, $headers) {
+  $p = @{ Method = $method; Uri = "$u$path"; ContentType = "application/json; charset=utf-8"; UseBasicParsing = $true }
+  if ($json) { $p.Body = [System.Text.Encoding]::UTF8.GetBytes($json) }
+  if ($headers) { $p.Headers = $headers }
+  try { $r = Invoke-WebRequest @p; return @{ status = [int]$r.StatusCode; body = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) } }
+  catch { $resp = $_.Exception.Response; $ms = New-Object IO.MemoryStream; $resp.GetResponseStream().CopyTo($ms)
+          return @{ status = [int]$resp.StatusCode; body = [System.Text.Encoding]::UTF8.GetString($ms.ToArray()) } }
+}
+function Show($label, $r) { "$label -> $($r.status) $($r.body)" }
+$login = Call Post "/auth/login" '{"email":"ban@example.com","password":"MatKhauMoi9"}'
+$h = @{ Authorization = "Bearer " + ($login.body | ConvertFrom-Json).data.accessToken }
+# Sửa hồ sơ: thay thế fullName, phone, address (phone/address rỗng = xoá). Email và role trong body bị bỏ qua
+Show "PUT hồ sơ" (Call Put "/users/me" '{"fullName":"Nguyễn Văn An","phone":"0912345678","address":"12 Lê Lợi, Quận 1"}' $h)
+Show "GET hồ sơ" (Call Get "/users/me" $null $h)
+# Sai mật khẩu hiện tại → 400 INVALID_CURRENT_PASSWORD; mật khẩu mới yếu → 400 VALIDATION_ERROR
+Show "Sai mật khẩu cũ" (Call Put "/users/me/password" '{"currentPassword":"SaiRoi99","newPassword":"MatKhauCuoi7"}' $h)
+# Đổi đúng → 200; sau đó token $h hết hiệu lực (GET /users/me trả 401), phải đăng nhập lại bằng mật khẩu mới
+Show "Đổi mật khẩu" (Call Put "/users/me/password" '{"currentPassword":"MatKhauMoi9","newPassword":"MatKhauCuoi7"}' $h)
+Show "Token cũ" (Call Get "/users/me" $null $h)
+```
+
 Xoá tài khoản thử:
 `docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 

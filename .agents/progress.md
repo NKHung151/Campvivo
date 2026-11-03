@@ -95,6 +95,22 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-11-05 — Người 3 — backend (N3-05: sửa hồ sơ, đổi mật khẩu)
+- Đã làm: nhánh `feature/user-n3-05-profile` (tách từ `dev`). `PUT /users/me` (`UpdateProfileRequest`: CHỈ `fullName` 2–100 sau `trim`, `phone` tuỳ chọn `^0\d{9}$` — cùng luật với SĐT khi đặt hàng,
+  `address` ≤ 500; phone/address rỗng = xoá; email, role và mọi trường khác trong body bị bỏ qua, mọi role đã đăng nhập dùng được; không làm token hết hiệu lực) và
+  `PUT /users/me/password` (`ChangePasswordRequest`; mật khẩu mới theo `PasswordPolicy` và được kiểm TRƯỚC khi so mật khẩu cũ; sai mật khẩu hiện tại → `INVALID_CURRENT_PASSWORD`;
+  được phép trùng mật khẩu cũ). `UserRepository.changePassword`: một câu UPDATE nguyên tử đổi hash + tăng `token_version`, chỉ ghi khi hash trong DB vẫn là bản vừa xác nhận
+  (compare-and-set) và tài khoản còn hoạt động → lần đổi / đặt lại khác chen vào thì `INVALID_CURRENT_PASSWORD`, không ghi đè. Thành công thì MỌI token cũ (kể cả của thiết bị đang đổi)
+  hết hiệu lực, không trả token mới. `UserService` nhận thêm `PasswordEncoder`. Test: `ProfileIntegrationTest` (17, PostgreSQL thật: sửa đúng, trim, rỗng thành null, `fieldErrors`,
+  email/role/isActive/tokenVersion trong body bị bỏ qua, không đụng user khác, 401 khi chưa đăng nhập, nhân viên cũng sửa được, đổi mật khẩu đúng/sai/yếu/quá 72 byte, token cũ 401,
+  mật khẩu mới đăng nhập được, đổi song song chỉ một yêu cầu thắng, và một test xác định cho compare-and-set). Kiểm tra "đột biến": bỏ tăng `token_version`, bỏ kiểm mật khẩu cũ, bỏ kiểm 72 byte,
+  không đổi rỗng thành null → đúng 6 test đỏ; bỏ riêng compare-and-set → đúng 2 test đỏ (test xác định và test song song). Docs: `api.md` (hành vi đã hiện thực), `local-development.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Frontend (PR riêng sau PR này): tab "Hồ sơ" và "Đổi mật khẩu" trong `/account`, hàm cập nhật `user` trong `AuthProvider`; đổi mật khẩu xong phải đăng xuất cục bộ và về `/login`.
+  - Nhân viên (EMPLOYEE/ADMIN) chưa có giao diện sửa hồ sơ / đổi mật khẩu của mình (`/account` chỉ dành cho khách); backend đã cho phép. Hoãn tới phần giao diện admin user (N3-07).
+  - Chưa có giới hạn số lần thử mật khẩu hiện tại: ai có token đánh cắp có thể đoán mật khẩu không giới hạn (nợ rate limit chung của auth).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-05)
+
 ### 2026-11-03 — Người 3 — backend (N3-08: WebSocket STOMP + RealtimeSender)
 - Đã làm: nhánh `feature/realtime-n3-08-websocket` (tách từ `dev`). `WebSocketConfig` (endpoint `/ws` có SockJS, simple broker `/queue`, tiền tố `/user`, origin lấy từ
   `app.cors.allowed-origins`, khung tối đa 8 KB), `StompAuthChannelInterceptor` (xác thực JWT ở khung CONNECT; SUBSCRIBE chỉ `/user/queue/notifications` và `/user/queue/support`;
