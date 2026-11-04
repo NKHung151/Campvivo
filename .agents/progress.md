@@ -95,6 +95,19 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
 
+### 2026-11-04 — Người 3 — backend (N3-06: danh sách người dùng của Admin)
+- Đã làm: nhánh `feature/user-n3-06-admin-user-list` (tách từ `dev`). `GET /api/admin/users` (`user/admin/`: `AdminUserController` `@PreAuthorize("hasRole('ADMIN')")` — `SecurityConfig` cho `/api/admin/**` qua cả EMPLOYEE nên phải chặn ở endpoint;
+  `AdminUserService`, `AdminUserQuery`, `AdminUserResponses.Summary`) và `UserSpecifications` + `UserRepository extends JpaSpecificationExecutor` theo mẫu `ProductSpecifications` của Người 2. Tham số: `q` (email HOẶC họ tên chứa từ khoá,
+  không phân biệt hoa thường kể cả chữ hoa có dấu; `trim`; rỗng = không lọc; ≤ 100 ký tự; `%`, `_`, `\` là chữ thường — thoát bằng `ESCAPE`, khác `UserService.findIdsByKeyword` vốn xoá các ký tự này), `role`, `isActive`, `page` ≥ 1,
+  `limit` 1–100 (mặc định 12). Mới nhất trước (`createdAt` rồi `id` giảm dần). Mỗi dòng: `id, email, fullName, phone, role, isActive, emailVerified, createdAt` (+07:00); KHÔNG có `address`, mật khẩu, OTP, `token_version`.
+  Giữ nguyên `UserService.findIdsByKeyword` vì `AdminOrderService` của Người 1 đang dùng. Test: `AdminUserIntegrationTest` (11, PostgreSQL thật; cô lập bằng nhãn riêng mỗi test). Kiểm tra "đột biến": bỏ chặn ADMIN, đảo sắp xếp, bỏ lọc role và
+  `isActive`, bỏ `trim`, bỏ thoát ký tự đại diện → đúng các test tương ứng đỏ; bỏ riêng nhánh tìm theo họ tên / theo email → đúng các test tìm kiếm đỏ. (Bỏ `lower()` trên cột email KHÔNG làm test nào đỏ vì email luôn lưu chữ thường — đột biến tương đương.)
+  Docs: `api.md` (kiểu `AdminUserSummary` + hành vi), `local-development.md`.
+- Còn dang dở / TODO tiếp theo:
+  - N3-07 (`GET/PATCH /admin/users/{id}`: số đơn, tổng chi tiêu qua `OrderQueryService` — đã có trên `dev`; đổi role / khoá phải tăng `token_version`, chặn `CANNOT_MODIFY_SELF`) và giao diện `/admin/users` (danh sách + chi tiết + sửa, làm cùng N3-07). Trang hiện là "đang xây dựng".
+  - Chưa tìm không dấu ("nguyen" không ra "Nguyễn"): cần `unaccent` của PostgreSQL (migration `CREATE EXTENSION`); `pg_trgm` nếu bảng lớn và chậm (`database.md` dòng 384). Không dùng Elasticsearch (quá nặng, phải đồng bộ chỉ mục).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-06)
+
 ### 2026-11-05 — Người 3 — backend (N3-05: sửa hồ sơ, đổi mật khẩu)
 - Đã làm: nhánh `feature/user-n3-05-profile` (tách từ `dev`). `PUT /users/me` (`UpdateProfileRequest`: CHỈ `fullName` 2–100 sau `trim`, `phone` tuỳ chọn `^0\d{9}$` — cùng luật với SĐT khi đặt hàng,
   `address` ≤ 500; phone/address rỗng = xoá; email, role và mọi trường khác trong body bị bỏ qua, mọi role đã đăng nhập dùng được; không làm token hết hiệu lực) và

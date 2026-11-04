@@ -99,6 +99,17 @@ Show "Đổi mật khẩu" (Call Put "/users/me/password" '{"currentPassword":"M
 Show "Token cũ" (Call Get "/users/me" $null $h)
 ```
 
+**Thử danh sách người dùng của Admin bằng PowerShell** (cần tài khoản ADMIN: bảng "Tài khoản mẫu" bên dưới; dùng lại hàm `Call` / `Show` ở mục trên):
+```powershell
+$login = Call Post "/auth/login" '{"email":"admin@campvivo.local","password":"Admin@123"}'
+$h = @{ Authorization = "Bearer " + ($login.body | ConvertFrom-Json).data.accessToken }
+Show "Tất cả (trang 1)" (Call Get "/admin/users" $null $h)
+Show "Tìm 'admin' không phân biệt hoa thường" (Call Get "/admin/users?q=ADMIN" $null $h)
+Show "Chỉ khách hàng đang bị khoá" (Call Get "/admin/users?role=CUSTOMER&isActive=false" $null $h)
+Show "Trang 2, 5 dòng" (Call Get "/admin/users?limit=5&page=2" $null $h)
+```
+Token của EMPLOYEE hoặc CUSTOMER gọi endpoint này nhận 403 `FORBIDDEN`. `q` có khoảng trắng hoặc chữ có dấu thì để hàm `Call` gửi UTF-8 (xem bẫy PowerShell 5.1 ở `troubleshooting.md`); gõ thẳng vào URL cần mã hoá `%20`.
+
 Xoá tài khoản thử:
 `docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 

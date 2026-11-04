@@ -410,6 +410,17 @@ Hành vi đã hiện thực (N3-08):
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
 
+Kiểu dữ liệu và hành vi đã hiện thực của danh sách người dùng admin (N3-06, FR-14):
+```ts
+interface AdminUserSummary { id: number; email: string; fullName: string; phone: string | null; role: "CUSTOMER" | "EMPLOYEE" | "ADMIN";
+  isActive: boolean; emailVerified: boolean; createdAt: string; }   // KHÔNG có address, mật khẩu, OTP, token_version
+```
+- `GET /admin/users` chỉ **ADMIN** (EMPLOYEE và CUSTOMER → 403 `FORBIDDEN`, chưa đăng nhập → 401). Trả `{success, data: AdminUserSummary[], pagination}`.
+- `q`: email HOẶC họ tên **chứa** từ khoá, **không phân biệt hoa thường** (kể cả chữ hoa có dấu). Từ khoá được `trim`; rỗng / toàn khoảng trắng = không lọc; tối đa 100 ký tự
+  (quá → 400 `VALIDATION_ERROR`). `%`, `_`, `\` trong `q` là chữ thường, không phải ký tự đại diện. **Chưa tìm không dấu** ("nguyen" không ra "Nguyễn"; cần `unaccent` của PostgreSQL).
+- `role` (`CUSTOMER`/`EMPLOYEE`/`ADMIN`, viết hoa) và `isActive` (`true`/`false`) là bộ lọc tuỳ chọn; không truyền `isActive` thì thấy cả tài khoản đang bị khoá. Sai giá trị → 400 `VALIDATION_ERROR`.
+- `page` ≥ 1 (mặc định 1), `limit` 1–100 (mặc định 12), ngoài khoảng → 400 `VALIDATION_ERROR`. Sắp xếp cố định **mới nhất trước** (`createdAt` giảm dần, rồi `id` giảm dần) nên phân trang không nhảy dòng.
+
 Kiểu dữ liệu đơn hàng admin (định nghĩa đầy đủ ở `frontend/src/types/api/order.ts`):
 ```ts
 interface AdminOrderCustomer { id: number; email: string; fullName: string; phone: string | null; }
