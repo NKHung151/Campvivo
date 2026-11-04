@@ -410,6 +410,32 @@ Hành vi đã hiện thực (N3-08):
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
 
+Kiểu dữ liệu và hành vi đã hiện thực của danh sách người dùng admin (N3-06, FR-14):
+```ts
+interface AdminUserSummary { id: number; email: string; fullName: string; phone: string | null; role: "CUSTOMER" | "EMPLOYEE" | "ADMIN";
+  isActive: boolean; emailVerified: boolean; createdAt: string; }   // KHÔNG có address, mật khẩu, OTP, token_version
+```
+- `GET /admin/users` chỉ **ADMIN** (EMPLOYEE và CUSTOMER → 403 `FORBIDDEN`, chưa đăng nhập → 401). Trả `{success, data: AdminUserSummary[], pagination}`.
+- `q`: email HOẶC họ tên **chứa** từ khoá, **không phân biệt hoa thường** (kể cả chữ hoa có dấu). Từ khoá được `trim`; rỗng / toàn khoảng trắng = không lọc; tối đa 100 ký tự
+  (quá → 400 `VALIDATION_ERROR`). `%`, `_`, `\` trong `q` là chữ thường, không phải ký tự đại diện. **Chưa tìm không dấu** ("nguyen" không ra "Nguyễn"; cần `unaccent` của PostgreSQL).
+- `role` (`CUSTOMER`/`EMPLOYEE`/`ADMIN`, viết hoa) và `isActive` (`true`/`false`) là bộ lọc tuỳ chọn; không truyền `isActive` thì thấy cả tài khoản đang bị khoá. Sai giá trị → 400 `VALIDATION_ERROR`.
+- `page` ≥ 1 (mặc định 1), `limit` 1–100 (mặc định 12), ngoài khoảng → 400 `VALIDATION_ERROR`. Sắp xếp cố định **mới nhất trước** (`createdAt` giảm dần, rồi `id` giảm dần) nên phân trang không nhảy dòng.
+
+Chi tiết và sửa người dùng admin (N3-07, FR-14):
+```ts
+interface AdminUserDetail extends AdminUserSummary { address: string | null;
+  orderCount: number;            // mọi đơn của người này, mọi trạng thái
+  completedOrderCount: number;   // số đơn COMPLETED
+  totalSpent: number; }          // tổng tiền các đơn COMPLETED (VND); đơn RETURNED/CANCELLED không tính
+```
+- `GET /admin/users/{id}` chỉ **ADMIN**; không tồn tại → 404 `NOT_FOUND`. `PATCH /admin/users/{id}` trả `AdminUserDetail` mới.
+- `PATCH` sửa **từng phần**: trường vắng hoặc `null` = giữ nguyên; `phone` là chuỗi rỗng = xoá. `fullName` 2–100 ký tự sau `trim`; `phone` đúng `^0\d{9}$`; sai → 400 `VALIDATION_ERROR` và không đổi gì.
+  Chỉ bốn trường `fullName`, `phone`, `role`, `isActive` sửa được; `email`, mật khẩu, `address`, `emailVerified`, `tokenVersion`... gửi kèm bị bỏ qua.
+- Đổi `role` hoặc `isActive` **thật sự đổi giá trị** thì tăng `token_version` trong cùng một câu UPDATE nguyên tử: mọi token của người đó hết hiệu lực ngay (khoá còn chặn đăng nhập bằng `ACCOUNT_DISABLED`).
+  Gửi lại đúng giá trị hiện tại, hoặc chỉ sửa tên / SĐT, thì KHÔNG tăng. Mở khoá cũng là một lần đổi. Phiên của chính admin đang thao tác không bị ảnh hưởng khi sửa người khác.
+- Admin **tự khoá mình hoặc tự đổi role của mình** → 400 `CANNOT_MODIFY_SELF`, cả yêu cầu bị từ chối (tên / SĐT gửi kèm cũng không đổi); vẫn tự sửa được tên và SĐT, và gửi lại đúng role / trạng thái hiện tại thì được.
+- **Giới hạn đã biết:** chưa chặn trường hợp hai admin đồng thời hạ quyền hoặc khoá lẫn nhau khiến hệ thống không còn admin. Kết nối WebSocket đang mở của người bị khoá không tự đóng (xem mục 4.9).
+
 Kiểu dữ liệu đơn hàng admin (định nghĩa đầy đủ ở `frontend/src/types/api/order.ts`):
 ```ts
 interface AdminOrderCustomer { id: number; email: string; fullName: string; phone: string | null; }

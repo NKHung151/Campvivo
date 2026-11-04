@@ -2,6 +2,7 @@ package vn.campvivo.user;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
 
     /** Email đã chuẩn hoá chữ thường — gọi User.normalizeEmail() trước khi tra cứu. */
     Optional<User> findByEmail(String email);
@@ -66,6 +67,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("update User u set u.passwordHash = :newHash, u.tokenVersion = u.tokenVersion + 1, "
             + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id and u.passwordHash = :oldHash and u.active = true")
     int changePassword(@Param("id") Long id, @Param("oldHash") String oldHash, @Param("newHash") String newHash);
+
+    /**
+     * Admin đổi role / khoá hoặc mở khoá tài khoản (FR-14): một câu UPDATE nguyên tử đặt role, is_active VÀ tăng token_version,
+     * nên mọi token đã cấp của người đó hết hiệu lực ngay (D-11). Chỉ gọi khi role hoặc is_active thật sự đổi giá trị.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update User u set u.role = :role, u.active = :active, u.tokenVersion = u.tokenVersion + 1, "
+            + "u.updatedAt = CURRENT_TIMESTAMP where u.id = :id")
+    int changeAccess(@Param("id") Long id, @Param("role") Role role, @Param("active") boolean active);
 
     /** Id các tài khoản còn hoạt động có một trong các role đã cho — dùng để đẩy tin realtime tới mọi nhân viên. */
     @Query("select u.id from User u where u.role in :roles and u.active = true order by u.id")

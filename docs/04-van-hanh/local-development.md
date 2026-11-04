@@ -99,6 +99,25 @@ Show "Đổi mật khẩu" (Call Put "/users/me/password" '{"currentPassword":"M
 Show "Token cũ" (Call Get "/users/me" $null $h)
 ```
 
+**Thử danh sách người dùng của Admin bằng PowerShell** (cần tài khoản ADMIN: bảng "Tài khoản mẫu" bên dưới; dùng lại hàm `Call` / `Show` ở mục trên):
+```powershell
+$login = Call Post "/auth/login" '{"email":"admin@campvivo.local","password":"Admin@123"}'
+$h = @{ Authorization = "Bearer " + ($login.body | ConvertFrom-Json).data.accessToken }
+Show "Tất cả (trang 1)" (Call Get "/admin/users" $null $h)
+Show "Tìm 'admin' không phân biệt hoa thường" (Call Get "/admin/users?q=ADMIN" $null $h)
+Show "Chỉ khách hàng đang bị khoá" (Call Get "/admin/users?role=CUSTOMER&isActive=false" $null $h)
+Show "Trang 2, 5 dòng" (Call Get "/admin/users?limit=5&page=2" $null $h)
+```
+```powershell
+# Chi tiết (thêm địa chỉ, số đơn, tổng chi tiêu) và sửa từng phần; thay 2 bằng id thật (cột "id" ở danh sách)
+Show "Chi tiết" (Call Get "/admin/users/2" $null $h)
+Show "Đổi tên + SĐT" (Call Patch "/admin/users/2" '{"fullName":"Nguyễn Văn An","phone":"0912345678"}' $h)
+Show "Khoá" (Call Patch "/admin/users/2" '{"isActive":false}' $h)       # người đó bị đăng xuất ngay, đăng nhập báo ACCOUNT_DISABLED
+Show "Tự khoá mình" (Call Patch "/admin/users/1" '{"isActive":false}' $h)  # id của chính admin → 400 CANNOT_MODIFY_SELF
+```
+Hàm `Call` ở mục "Thử sửa hồ sơ" chỉ cần thêm `Patch` vào tham số `$method` (đã dùng được: nó truyền thẳng vào `Invoke-WebRequest`).
+Token của EMPLOYEE hoặc CUSTOMER gọi endpoint này nhận 403 `FORBIDDEN`. `q` có khoảng trắng hoặc chữ có dấu thì để hàm `Call` gửi UTF-8 (xem bẫy PowerShell 5.1 ở `troubleshooting.md`); gõ thẳng vào URL cần mã hoá `%20`.
+
 Xoá tài khoản thử:
 `docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 

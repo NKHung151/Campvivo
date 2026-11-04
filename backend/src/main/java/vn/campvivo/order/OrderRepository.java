@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import vn.campvivo.payment.PaymentMethod;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +16,15 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
 
     boolean existsByOrderCode(String orderCode);
+
+    /** Tổng số đơn của một khách, mọi trạng thái (admin xem chi tiết người dùng). */
+    long countByUserId(Long userId);
+
+    long countByUserIdAndStatus(Long userId, OrderStatus status);
+
+    /** Tổng tiền các đơn ở trạng thái `status` của một khách; 0 nếu chưa có đơn. */
+    @Query("select coalesce(sum(o.finalAmount), 0) from Order o where o.userId = :userId and o.status = :status")
+    BigDecimal sumFinalAmountByUserIdAndStatus(@Param("userId") Long userId, @Param("status") OrderStatus status);
 
     /** Đơn của chính khách (đơn người khác → coi như không tồn tại, BR quyền sở hữu). */
     Optional<Order> findByIdAndUserId(Long id, Long userId);

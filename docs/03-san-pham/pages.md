@@ -60,7 +60,7 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
 | `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
-| `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá | Admin | `/admin/users` |
+| `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
 | `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
 | `/admin/combos`, `/admin/combos/new`, `/admin/combos/[id]` | Combo | Admin | `/admin/combos` |
