@@ -37,6 +37,18 @@ public class OrderQueryService {
         return PageResponse.of(result.map(OrderSummaryResponse::from));
     }
 
+    /**
+     * Thống kê đơn của một khách cho trang chi tiết người dùng của Admin (FR-14): tổng số đơn (mọi trạng thái), số đơn
+     * COMPLETED và tổng tiền các đơn COMPLETED. Đơn đã hoàn trả (RETURNED) không tính vào chi tiêu.
+     */
+    @Transactional(readOnly = true)
+    public UserOrderStats statsForUser(Long userId) {
+        return new UserOrderStats(
+                orderRepository.countByUserId(userId),
+                orderRepository.countByUserIdAndStatus(userId, OrderStatus.COMPLETED),
+                orderRepository.sumFinalAmountByUserIdAndStatus(userId, OrderStatus.COMPLETED));
+    }
+
     @Transactional(readOnly = true)
     public OrderDetailResponse getForCustomer(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
