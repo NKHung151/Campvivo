@@ -165,7 +165,7 @@ export function SupportInbox() {
                     {!c.lastMessage.isFromStaff && <Tag color="orange">Chờ trả lời</Tag>}
                   </span>
                   <span className="cv-inbox__preview">
-                    {c.lastMessage.isFromStaff ? "Bạn: " : ""}
+                    {c.lastMessage.isFromStaff ? "Nhân viên: " : ""}
                     {c.lastMessage.content}
                   </span>
                   <span className="cv-inbox__time">{fmtDateTime(c.lastMessage.createdAt)}</span>

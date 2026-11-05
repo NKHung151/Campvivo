@@ -356,8 +356,9 @@ Hành vi đã hiện thực (N4-06):
   client phải hiển thị như text (React tự thoát ký tự), không dựng bằng `innerHTML`.
 - **Phân quyền:** `/support/**` chỉ CUSTOMER (nhân viên → 403); `/admin/support/**` chỉ EMPLOYEE và ADMIN (khách → 403). `customerId` ở route nhân viên phải là một tài khoản
   **CUSTOMER**; không tồn tại hoặc là tài khoản nhân viên → 404 `NOT_FOUND` (cả đọc lẫn trả lời). Khách không bao giờ gửi `customerId`: hội thoại lấy theo token.
-- **Realtime:** đẩy SAU khi commit (giao dịch bị huỷ thì không đẩy). Tin của khách → mọi nhân viên đang kết nối; tin của nhân viên → đúng khách đó. Người gửi KHÔNG nhận lại tin của mình qua
-  WebSocket (đã có trong phản hồi REST) và nhân viên khác không nhận tin trả lời của đồng nghiệp: họ thấy khi tải lại hội thoại. Đẩy hỏng không làm mất tin đã lưu.
+- **Realtime:** đẩy SAU khi commit (giao dịch bị huỷ thì không đẩy). Hộp thư là CHUNG cho mọi nhân viên (D-05): tin của khách → mọi nhân viên đang kết nối; tin của nhân viên → đúng khách đó
+  VÀ các nhân viên còn lại (để thấy đồng nghiệp đã trả lời). Người gửi KHÔNG nhận lại tin của mình qua WebSocket (đã có trong phản hồi REST). Client không biết tin `isFromStaff` do nhân viên nào gửi
+  (không lưu, KI-02). Đẩy hỏng không làm mất tin đã lưu.
   Notification `SUPPORT_MESSAGE` (khi nhân viên trả lời) chưa làm: chờ N4-03.
 
 ### 4.9 WebSocket (STOMP) — FR-22, FR-26

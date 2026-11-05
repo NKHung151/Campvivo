@@ -43,9 +43,17 @@ public class StompRealtimeSender implements RealtimeSender {
 
     @Override
     public void toStaff(String destination, Object payload) {
+        toStaffExcept(null, destination, payload);
+    }
+
+    @Override
+    public void toStaffExcept(Long excludedUserId, String destination, Object payload) {
         requireKnownDestination(destination);
         try {
             for (Long staffId : userRepository.findActiveIdsByRoleIn(STAFF_ROLES)) {
+                if (staffId.equals(excludedUserId)) {
+                    continue;
+                }
                 // Chỉ gửi cho người đang kết nối: tránh gọi broker vô ích cho nhân viên đang offline.
                 if (userRegistry.getUser(String.valueOf(staffId)) != null) {
                     toUser(staffId, destination, payload);

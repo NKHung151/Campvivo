@@ -78,6 +78,29 @@ class StompRealtimeSenderTest {
     }
 
     @Test
+    void toStaffExceptSkipsOnlyTheExcludedStaffMember() {
+        when(users.findActiveIdsByRoleIn(List.of(Role.EMPLOYEE, Role.ADMIN))).thenReturn(List.of(1L, 2L, 3L));
+        when(registry.getUser(anyString())).thenReturn(mock(SimpUser.class));
+
+        sender.toStaffExcept(2L, RealtimeDestinations.SUPPORT, "tin");
+
+        verify(template).convertAndSendToUser(eq("1"), eq("/queue/support"), eq("tin"));
+        verify(template).convertAndSendToUser(eq("3"), eq("/queue/support"), eq("tin"));
+        verify(template, never()).convertAndSendToUser(eq("2"), anyString(), any(Object.class));
+    }
+
+    @Test
+    void toStaffExceptWithNoExclusionSendsToEveryConnectedStaffMember() {
+        when(users.findActiveIdsByRoleIn(List.of(Role.EMPLOYEE, Role.ADMIN))).thenReturn(List.of(1L, 2L));
+        when(registry.getUser(anyString())).thenReturn(mock(SimpUser.class));
+
+        sender.toStaffExcept(null, RealtimeDestinations.SUPPORT, "tin");
+
+        verify(template).convertAndSendToUser(eq("1"), eq("/queue/support"), eq("tin"));
+        verify(template).convertAndSendToUser(eq("2"), eq("/queue/support"), eq("tin"));
+    }
+
+    @Test
     void anUnknownDestinationIsRejectedBeforeAnythingIsSent() {
         assertThatThrownBy(() -> sender.toUser(1L, "/queue/typo", "x")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> sender.toUser(1L, null, "x")).isInstanceOf(IllegalArgumentException.class);

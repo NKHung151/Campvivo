@@ -571,6 +571,34 @@ class SupportChatIntegrationTest {
     }
 
     @Test
+    void aStaffReplyIsAlsoPushedToTheOtherStaffButNotBackToTheSender() throws Exception {
+        User replier = newUser(Role.EMPLOYEE, "NV trả lời");
+        User colleague = newUser(Role.EMPLOYEE, "NV đồng nghiệp");
+        User admin = newUser(Role.ADMIN, "QT");
+        User target = customer();
+        User bystander = customer();
+        Inbox replierInbox = listen(replier);
+        Inbox colleagueInbox = listen(colleague);
+        Inbox adminInbox = listen(admin);
+        Inbox targetInbox = listen(target);
+        Inbox bystanderInbox = listen(bystander);
+        settle(replierInbox, colleagueInbox, adminInbox, targetInbox, bystanderInbox);
+
+        MvcResult result = staffReplies(replier, target, "Dạ để em kiểm tra ạ");
+
+        assertThat(status(result)).isEqualTo(201);
+        for (Inbox other : List.of(colleagueInbox, adminInbox)) {
+            Map<String, Object> received = other.next();
+            assertThat(received).as("đồng nghiệp phải thấy tin trả lời").isNotNull();
+            assertThat(received).containsEntry("content", "Dạ để em kiểm tra ạ").containsEntry("isFromStaff", true);
+            assertThat(((Number) received.get("customerId")).longValue()).isEqualTo(target.getId());
+        }
+        assertThat(targetInbox.next()).as("khách vẫn nhận").isNotNull();
+        assertThat(replierInbox.staysEmptyFor(800)).as("người trả lời không nhận lại tin của mình").isTrue();
+        assertThat(bystanderInbox.staysEmptyFor(800)).as("khách khác không nhận").isTrue();
+    }
+
+    @Test
     void nothingIsPushedWhenTheTransactionRollsBack() throws Exception {
         User staff = newUser(Role.EMPLOYEE, "NV");
         User customer = customer();

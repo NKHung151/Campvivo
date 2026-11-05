@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import vn.campvivo.auth.CurrentUserId;
 import vn.campvivo.common.dto.ApiResponse;
 import vn.campvivo.common.dto.PageResponse;
 
@@ -54,7 +55,8 @@ public class AdminSupportController {
 
     @PostMapping("/{customerId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<SupportMessageResponse> reply(@PathVariable Long customerId, @Valid @RequestBody SendMessageRequest request) {
-        return ApiResponse.of(service.sendAsStaff(customerId, request.content()));
+    public ApiResponse<SupportMessageResponse> reply(@PathVariable Long customerId, @Valid @RequestBody SendMessageRequest request,
+                                                     @CurrentUserId Long staffId) {
+        return ApiResponse.of(service.sendAsStaff(staffId, customerId, request.content()));
     }
 }

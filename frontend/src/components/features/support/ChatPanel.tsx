@@ -117,7 +117,7 @@ export function ChatPanel(p: Props) {
               <div key={m.id} className={`cv-msg ${m.isFromStaff === p.viewerIsStaff ? "is-mine" : "is-theirs"}`}>
                 <div className="cv-msg__bubble">{m.content}</div>
                 <div className="cv-msg__meta">
-                  {m.isFromStaff && !p.viewerIsStaff ? "Nhân viên · " : ""}
+                  {m.isFromStaff ? "Nhân viên · " : ""}
                   {fmtDateTime(m.createdAt)}
                 </div>
               </div>

@@ -37,8 +37,10 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   Sau sửa, kịch bản Chrome thật 2 người dùng đạt: khách gửi → nhân viên thấy ngay không tải lại, nhân viên trả lời → khách thấy ngay, xuống dòng giữ nguyên, HTML hiện nguyên dạng text,
   bố cục điện thoại đúng, không lỗi console. Bài học ghi ở `lessons-learned.md`.
 - Chưa kiểm chứng: gõ tiếng Việt có dấu bằng bộ gõ thật (Telex/VNI) với phím Enter, cuộn giữ vị trí khi tải tin cũ, tự nối lại sau khi tắt rồi bật backend, tablet, CI GitHub.
-- Hạn chế đã biết: chưa có notification `SUPPORT_MESSAGE` khi nhân viên trả lời (chờ N4-03/N4-04); không có "chưa đọc" / biết nhân viên nào trả lời (KI-02); nhân viên KHÔNG nhận tin trả lời của đồng nghiệp
-  qua WebSocket (chỉ thấy khi tải lại hội thoại); chưa có rate limit gửi tin; kết nối WebSocket không tự đóng khi đăng xuất / hết token (D-15); broker trong bộ nhớ → một instance.
+- Hộp thư CHUNG (D-05): người dùng hỏi nên đã thêm `RealtimeSender.toStaffExcept(excludedUserId, ...)`; tin trả lời của nhân viên được đẩy tới khách VÀ các nhân viên còn lại (trừ người gửi), nên nhãn "Chờ trả lời"
+  và nội dung đồng bộ giữa các nhân viên. `SupportMessageSentEvent` mang `staffSenderId` (chỉ để loại trừ, không lưu).
+- Hạn chế đã biết: chưa có notification `SUPPORT_MESSAGE` khi nhân viên trả lời (chờ N4-03/N4-04); không có "chưa đọc" / biết nhân viên nào trả lời / nhận xử lý riêng từng khách (KI-02); nhân viên không phân biệt được
+  tin của mình với của đồng nghiệp (cả hai hiển thị "Nhân viên"); chưa có rate limit gửi tin; kết nối WebSocket không tự đóng khi đăng xuất / hết token (D-15); broker trong bộ nhớ → một instance.
 - Còn dang dở / TODO tiếp theo: người dùng thử tay trên trình duyệt; báo Người 4 rằng N4-06 đã xong và `V7` đã dùng (số migration `notifications` của họ phải khác); thêm 5 endpoint chat vào test ma trận phân quyền N3-10;
   thêm notification `SUPPORT_MESSAGE` khi N4-03 có.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N4-06 đã tick)

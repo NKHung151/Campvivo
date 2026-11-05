@@ -36,14 +36,17 @@ public class SupportService {
     /** Khách gửi tin vào hội thoại của chính mình. */
     @Transactional
     public SupportMessageResponse sendAsCustomer(Long customerId, String content) {
-        return save(customerId, content, false);
+        return save(customerId, content, false, null);
     }
 
-    /** Nhân viên trả lời khách `customerId`. Không có người dùng đó, hoặc không phải khách → 404 NOT_FOUND. */
+    /**
+     * Nhân viên `staffId` trả lời khách `customerId`. Không có người dùng đó, hoặc không phải khách → 404 NOT_FOUND. `staffId` chỉ để
+     * không đẩy lại tin cho chính người gửi; không được lưu (D-05, KI-02).
+     */
     @Transactional
-    public SupportMessageResponse sendAsStaff(Long customerId, String content) {
+    public SupportMessageResponse sendAsStaff(Long staffId, Long customerId, String content) {
         requireCustomer(customerId);
-        return save(customerId, content, true);
+        return save(customerId, content, true, staffId);
     }
 
     /** Tin của hội thoại, MỚI NHẤT TRƯỚC; `before` = id tin cũ nhất client đang có (bỏ trống = từ tin mới nhất). */
@@ -73,10 +76,10 @@ public class SupportService {
                 ConversationResponse.Customer.from(customers.get(m.getUserId())), SupportMessageResponse.from(m))));
     }
 
-    private SupportMessageResponse save(Long customerId, String content, boolean fromStaff) {
+    private SupportMessageResponse save(Long customerId, String content, boolean fromStaff, Long staffSenderId) {
         SupportMessage saved = messages.save(new SupportMessage(customerId, content.trim(), fromStaff));
         SupportMessageResponse response = SupportMessageResponse.from(saved);
-        events.publishEvent(new SupportMessageSentEvent(response));
+        events.publishEvent(new SupportMessageSentEvent(response, staffSenderId));
         return response;
     }
 
