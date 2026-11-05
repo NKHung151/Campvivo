@@ -1,0 +1,241 @@
+/* Khung chat hỗ trợ dùng chung cho khách (/account/support) và nhân viên (/admin/support). */
+.cv-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 360px;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  background: #fff;
+  overflow: hidden;
+}
+.cv-chat__status {
+  padding: 6px 14px;
+  font-size: 12px;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cv-chat__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #bbb;
+}
+.cv-chat__dot.is-online {
+  background: #2f9e44;
+}
+.cv-chat__dot.is-connecting {
+  background: #f0a500;
+}
+.cv-chat__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f7f7f5;
+}
+.cv-chat__more {
+  align-self: center;
+  background: none;
+  border: 0;
+  color: #2f6a3f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+}
+.cv-chat__more:disabled {
+  color: #999;
+  cursor: default;
+}
+.cv-chat__empty,
+.cv-chat__notice {
+  margin: auto;
+  color: #777;
+  text-align: center;
+  font-size: 14px;
+  padding: 20px;
+}
+.cv-chat__notice.is-error {
+  color: #b42318;
+}
+.cv-msg {
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cv-msg.is-mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.cv-msg.is-theirs {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+.cv-msg__bubble {
+  padding: 8px 12px;
+  border-radius: 14px;
+  /* Nội dung là text thô: giữ xuống dòng, không bao giờ dựng HTML. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  font-size: 14px;
+}
+.cv-msg.is-mine .cv-msg__bubble {
+  background: #2f6a3f;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.cv-msg.is-theirs .cv-msg__bubble {
+  background: #fff;
+  color: #222;
+  border: 1px solid #e2e2e2;
+  border-bottom-left-radius: 4px;
+}
+.cv-msg__meta {
+  font-size: 11px;
+  color: #888;
+}
+.cv-chat__composer {
+  border-top: 1px solid #e2e2e2;
+  padding: 10px;
+  background: #fff;
+}
+.cv-chat__row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.cv-chat__input {
+  flex: 1;
+  resize: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  max-height: 140px;
+}
+.cv-chat__input:focus {
+  outline: 2px solid #2f6a3f33;
+  border-color: #2f6a3f;
+}
+.cv-chat__send {
+  border: 0;
+  border-radius: 8px;
+  background: #2f6a3f;
+  color: #fff;
+  font: inherit;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+.cv-chat__send:disabled {
+  background: #a9b8ad;
+  cursor: not-allowed;
+}
+.cv-chat__hint {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+  gap: 8px;
+}
+.cv-chat__hint .is-error {
+  color: #b42318;
+}
+
+/* Hộp thư của nhân viên: danh sách hội thoại + khung chat. */
+.cv-inbox {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  height: calc(100vh - 230px);
+  min-height: 480px;
+}
+.cv-inbox__list {
+  overflow-y: auto;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  background: #fff;
+}
+.cv-inbox__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+.cv-inbox__item:hover {
+  background: #fafafa;
+}
+.cv-inbox__item.is-active {
+  background: #eef4ef;
+}
+.cv-inbox__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.cv-inbox__preview {
+  color: #555;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-inbox__time {
+  color: #999;
+  font-size: 11px;
+}
+.cv-inbox__thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+.cv-inbox__thread .cv-chat {
+  flex: 1;
+  min-height: 0;
+}
+.cv-inbox__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cv-inbox__back {
+  display: none;
+}
+.cv-inbox__placeholder {
+  margin: auto;
+}
+@media (max-width: 768px) {
+  .cv-inbox {
+    grid-template-columns: 1fr;
+    height: calc(100vh - 200px);
+  }
+  .cv-inbox.has-selection .cv-inbox__list {
+    display: none;
+  }
+  .cv-inbox:not(.has-selection) .cv-inbox__thread {
+    display: none;
+  }
+  .cv-inbox__back {
+    display: inline-flex;
+  }
+}

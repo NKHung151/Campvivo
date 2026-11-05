@@ -45,7 +45,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/account/reviews` | Đánh giá của tôi: sửa, xoá | `/users/me/reviews`, `PUT/DELETE /reviews/{id}` | ⬜ |
 | `/account/favorites` | Yêu thích: tab Sản phẩm / Combo / Bài viết | `/users/me/favorites`, `DELETE /favorites/{id}` | ✅ (tab) |
 | `/account/notifications` | Thông báo: lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | `/notifications` | ⬜ |
-| `/account/support` | Chat hỗ trợ với nhân viên (realtime) | `/support/messages`, WS `/user/queue/support` | ⬜ |
+| `/account/support` | Chat hỗ trợ với nhân viên (realtime). ✅ Là tab "Hỗ trợ" của `/account` (mở thẳng bằng `/account/support`): một hội thoại, cuộn lên xem tin cũ, Enter gửi / Shift+Enter xuống dòng, báo trạng thái kết nối; mất kết nối vẫn gửi được, nối lại thì tự đồng bộ | `/support/messages`, WS `/user/queue/support` | ✅ |
 
 `/account/*` dùng chung layout có menu bên trái. Tab "địa chỉ" và "điểm" trong UI mock hiện tại bị
 bỏ (không có sổ địa chỉ — D-02; không có tích điểm trong báo cáo). Chuông thông báo trên header hiển
@@ -59,7 +59,7 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/orders/[id]` | Chi tiết đơn + lịch sử; chỉ hiện nút chuyển trạng thái server cho phép (kèm ghi chú, huỷ bắt buộc lý do); vận đơn GHN: tạo lại khi lỗi, xem hành trình ✅ | Staff | `/admin/orders/{id}`, `PATCH .../status`, `.../shipment` |
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
 | `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
-| `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
+| `/admin/support` | Danh sách hội thoại + khung chat. ✅ Cột trái: mỗi khách một dòng, tin mới nhất đứng đầu, nhãn "Chờ trả lời" khi tin cuối là của khách (chưa có "chưa đọc", KI-02); cột phải: tin của khách đang chọn (`?customer=` trên URL). Tin của khách đến ngay qua WebSocket; trên điện thoại hai cột tách thành hai màn hình | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
 | `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
