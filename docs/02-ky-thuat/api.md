@@ -346,6 +346,20 @@ Voucher: `/orders/preview` và `/vouchers/validate` chỉ tính thử; `POST /or
 interface SupportMessage { id: number; customerId: number; content: string; isFromStaff: boolean; createdAt: string; }
 ```
 
+Hành vi đã hiện thực (N4-06):
+- **Danh sách tin** (`GET /support/messages`, `GET /admin/support/conversations/{customerId}/messages`) trả `{success, data: [SupportMessage]}` KHÔNG kèm `pagination`:
+  mới nhất trước, `limit` mặc định 30 (1–100), `before` = `id` tin cũ nhất client đang có để cuộn lên (id không có nghĩa là mốc thời gian). Hết tin cũ → `data` rỗng.
+  `limit` hoặc `before` sai (0, âm, không phải số) → 400 `VALIDATION_ERROR`.
+- **Danh sách hội thoại** (`GET /admin/support/conversations`) có `pagination` như các danh sách khác, `limit` mặc định 20 (1–100). Mỗi khách đúng một dòng, hội thoại có
+  tin mới nhất (kể cả tin do nhân viên vừa trả lời) đứng đầu; khách chưa nhắn gì thì không xuất hiện.
+- **Gửi tin:** `content` bị bỏ khoảng trắng hai đầu rồi phải còn 1–2000 ký tự; rỗng / chỉ khoảng trắng / thiếu / quá dài → 400 `VALIDATION_ERROR`. Chỉ lưu text thô, KHÔNG lọc HTML:
+  client phải hiển thị như text (React tự thoát ký tự), không dựng bằng `innerHTML`.
+- **Phân quyền:** `/support/**` chỉ CUSTOMER (nhân viên → 403); `/admin/support/**` chỉ EMPLOYEE và ADMIN (khách → 403). `customerId` ở route nhân viên phải là một tài khoản
+  **CUSTOMER**; không tồn tại hoặc là tài khoản nhân viên → 404 `NOT_FOUND` (cả đọc lẫn trả lời). Khách không bao giờ gửi `customerId`: hội thoại lấy theo token.
+- **Realtime:** đẩy SAU khi commit (giao dịch bị huỷ thì không đẩy). Tin của khách → mọi nhân viên đang kết nối; tin của nhân viên → đúng khách đó. Người gửi KHÔNG nhận lại tin của mình qua
+  WebSocket (đã có trong phản hồi REST) và nhân viên khác không nhận tin trả lời của đồng nghiệp: họ thấy khi tải lại hội thoại. Đẩy hỏng không làm mất tin đã lưu.
+  Notification `SUPPORT_MESSAGE` (khi nhân viên trả lời) chưa làm: chờ N4-03.
+
 ### 4.9 WebSocket (STOMP) — FR-22, FR-26
 - Endpoint: `/ws` (SockJS fallback). Header CONNECT: `Authorization: Bearer <JWT>`.
 - Server đẩy (client SUBSCRIBE):
@@ -360,6 +374,7 @@ Hành vi đã hiện thực (N3-08):
 - Chỉ SUBSCRIBE được `/user/queue/notifications` và `/user/queue/support`; đăng ký kênh khác, hoặc gửi bất kỳ khung `SEND` nào, đều bị `ERROR`
   và đóng kết nối. Mỗi người chỉ nhận tin gửi tới `userId` của mình (principal = userId).
 - Origin phải nằm trong `app.cors.allowed-origins` (được kiểm ở cả CORS lẫn bắt tay WebSocket). Kích thước khung tối đa 8 KB.
+- CORS của `/ws/**` bật `Access-Control-Allow-Credentials: true` (SockJS gọi `/ws/info` ở chế độ credentials, trình duyệt chặn nếu thiếu); `/api/**` giữ `false`. Origin vẫn là danh sách cụ thể, không dùng `*`.
 - Token chỉ được kiểm lúc CONNECT: kết nối đang mở **không tự đóng** khi token hết hạn (24 giờ), người dùng đăng xuất hay bị khoá; tin vẫn
   tới tới khi client ngắt hoặc tải lại trang. Muốn chặt hơn phải chủ động ngắt kết nối khi `token_version` đổi (chưa làm).
 - Broker nằm trong bộ nhớ: chỉ đúng khi chạy **một** instance backend.
