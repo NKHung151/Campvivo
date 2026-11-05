@@ -10,6 +10,16 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Test bằng client Java/Node không bắt được lỗi CORS của trình duyệt
+- **Bài học:** WebSocket của N3-08 có test STOMP thật (Java) và script Node đều xanh, nhưng chat trên trình duyệt báo "Mất kết nối
+  trực tiếp" (REST vẫn chạy nên tải lại trang vẫn thấy tin). Nguyên nhân: SockJS gọi `/ws/info` bằng XHR chế độ credentials "include",
+  trình duyệt chặn nếu phản hồi thiếu `Access-Control-Allow-Credentials: true`; `SecurityConfig` đặt `allowCredentials=false`. Chỉ trình
+  duyệt thật mới thi hành CORS, nên mọi test không phải trình duyệt đều bỏ sót. Chỉ tái hiện được khi điều khiển Chrome thật (puppeteer-core
+  với Chrome có sẵn, cài ngoài repo).
+- **Áp dụng lại lần sau:** Tính năng nói chuyện với backend từ trình duyệt phải được chạy ít nhất một lần trong trình duyệt thật trước khi
+  báo "đã kiểm chứng". Với lỗi CORS, thêm test đọc header `Access-Control-*` của phản hồi khi gửi kèm `Origin` (xem
+  `RealtimeIntegrationTest`), vì client Java/Node không có CORS.
+
 ### Test "bị từ chối" xanh vì mọi thứ đều hỏng
 - **Bài học:** Test kiểm tra kết nối WebSocket bị từ chối ban đầu chỉ khẳng định "không kết nối được". Khi cố ý làm hỏng cấu hình để kiểm tra
   đột biến, bắt tay trả HTTP 500 cho MỌI kết nối nên các test từ chối vẫn xanh dù cơ chế xác thực đã bị gỡ. Test chỉ đáng tin khi khẳng định

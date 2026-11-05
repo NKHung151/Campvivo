@@ -366,6 +366,36 @@ class RealtimeIntegrationTest {
         assertThat(allowed.accepted()).as(allowed.failure()).isTrue();
     }
 
+    /**
+     * Trình duyệt chạy SockJS gọi `/ws/info` bằng XHR chế độ credentials "include" và CHẶN nếu phản hồi thiếu
+     * `Access-Control-Allow-Credentials: true`. Client Java / Node không có CORS nên các test STOMP ở trên không bắt được lỗi này
+     * (đã gặp thật ở trình duyệt: chat báo "Mất kết nối trực tiếp" dù REST vẫn chạy).
+     */
+    private java.net.http.HttpResponse<String> getWithOrigin(String path, String origin) throws Exception {
+        return java.net.http.HttpClient.newHttpClient().send(
+                java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:" + port + path))
+                        .header("Origin", origin).GET().build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
+    void sockJsInfoAllowsCredentialsOnlyForListedOriginsAndOnlyOnTheWebSocketPath() throws Exception {
+        var allowed = getWithOrigin("/ws/info", ALLOWED_ORIGIN);
+        assertThat(allowed.statusCode()).isEqualTo(200);
+        assertThat(allowed.headers().firstValue("Access-Control-Allow-Origin")).hasValue(ALLOWED_ORIGIN);
+        assertThat(allowed.headers().firstValue("Access-Control-Allow-Credentials")).hasValue("true");
+
+        var foreign = getWithOrigin("/ws/info", "http://evil.example");
+        assertThat(foreign.statusCode()).as("origin lạ bị từ chối").isEqualTo(403);
+        assertThat(foreign.headers().firstValue("Access-Control-Allow-Origin")).isEmpty();
+        assertThat(foreign.headers().firstValue("Access-Control-Allow-Credentials")).isEmpty();
+
+        var api = getWithOrigin("/api/categories", ALLOWED_ORIGIN);
+        assertThat(api.headers().firstValue("Access-Control-Allow-Origin")).hasValue(ALLOWED_ORIGIN);
+        assertThat(api.headers().firstValue("Access-Control-Allow-Credentials"))
+                .as("REST không dùng cookie nên không bật credentials").isEmpty();
+    }
+
     // --- RealtimeSender ---
 
     @Test
