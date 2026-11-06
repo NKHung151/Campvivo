@@ -101,6 +101,9 @@ export interface OrderDetail {
     unitPrice: Money;
     quantity: number;
     lineTotal: Money;
+    /** Đánh giá của khách cho mặt hàng này (từ bất kỳ đơn nào); null = chưa viết. */
+    myReviewId: number | null;
+    /** Đơn COMPLETED && myReviewId == null. */
     canReview: boolean;
   }[];
   subtotal: Money;

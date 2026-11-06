@@ -28,12 +28,14 @@ System: tác nhân ảo (job @Scheduled, IPN VNPay, event listener) — không c
 | Xem thông báo của mình | | ✔ | ✔ | ✔ |
 | Xem/lọc đơn toàn hệ thống, cập nhật trạng thái đơn | | | ✔ | ✔ |
 | Xử lý yêu cầu trả hàng | | | ✔ | ✔ |
+| Quản trị đánh giá: ẩn / hiện lại / đánh dấu an toàn (D-31) | | | ✔ | ✔ |
+| Xoá đánh giá (D-31) | | | | ✔ |
 | Xem/điều chỉnh tồn kho, xem nhật ký kho | | | ✔ | ✔ |
 | Trả lời chat hỗ trợ | | | ✔ | ✔ |
 | Quản lý user, danh mục, sản phẩm, combo, voucher, chiến dịch, bài viết | | | | ✔ |
 | Dashboard / doanh số | | | | ✔ |
 
-Frontend: Employee vào `/admin` chỉ thấy menu Đơn hàng, Trả hàng, Tồn kho, Hỗ trợ.
+Frontend: Employee vào `/admin` chỉ thấy menu Đơn hàng, Trả hàng, Tồn kho, Đánh giá, Hỗ trợ.
 
 ## 3. Cơ chế JWT
 

@@ -37,6 +37,7 @@ Lưu ý thiết kế xuyên tier:
 | FR-16 | Voucher: danh sách, thêm, sửa, xoá (chỉ khi chưa dùng; đã dùng thì tắt `is_active`) | 2 | Admin | Manage promotions, View voucher list, Add/Update/Delete voucher |
 | FR-17 | Chiến dịch giảm giá theo sản phẩm, có thời hạn; gán sản phẩm; trang chiến dịch | 2 | Admin | View discount campaigns, Add campaign, Update campaign |
 | FR-19b | Xử lý yêu cầu trả hàng: duyệt / từ chối / xác nhận đã nhận hàng | 2 | Admin, Employee | Process return request (bổ sung, xem D-07) |
+| FR-18b | Quản trị đánh giá: lọc, ẩn (có lý do) / hiện lại, đánh dấu an toàn; xoá (chỉ Admin) | 2 | Admin, Employee | Moderate review (bổ sung, xem D-31) |
 | FR-21b | Quản lý bài viết: danh sách, tạo, sửa, xoá, xuất bản | 2 | Admin | Manage article |
 | FR-24 | Dashboard: doanh thu và số đơn theo khoảng ngày / theo tháng / theo năm; top sản phẩm bán chạy | 2 | Admin | View analytics dashboard, Filter by date range/month/year |
 | FR-26b | Trả lời chat hỗ trợ | 2 | Admin, Employee | Exchange support messages |
@@ -49,7 +50,7 @@ Lưu ý thiết kế xuyên tier:
 | FR-10 | Đặt hàng từ giỏ: nhập thông tin người nhận (tự điền từ hồ sơ), chọn phương thức thanh toán, áp voucher; giữ chỗ tồn kho có khoá | 1 | Customer | Place order, Select shipping address, Choose payment method, Apply promotion code |
 | FR-11 | Thanh toán VNPay (IPN idempotent) hoặc COD | 1 | Customer, System | Pay order |
 | FR-12 | Đơn cá nhân: lịch sử, chi tiết, huỷ khi PENDING | 1 | Customer | Manage individual orders, View orders history, View order detail, Cancel order |
-| FR-18 | Đánh giá: viết (đã mua, đơn COMPLETED), sửa, xoá, xem danh sách đánh giá của mình | 2 | Customer | Write review, Update review, Manage review |
+| FR-18 | Đánh giá: viết (đã mua, đơn COMPLETED), sửa, xoá ngay tại trang mặt hàng và chi tiết đơn (D-34); lọc theo số sao; tự làm mờ ngôn từ không phù hợp (D-33) | 2 | Customer | Write review, Update review, Manage review |
 | FR-19a | Gửi yêu cầu trả hàng cho đơn COMPLETED trong thời hạn | 2 | Customer | Return order |
 
 ## Phân hệ 4 — Khám phá và hỗ trợ
@@ -211,10 +212,20 @@ xem BR-xx trong `database.md`.
 - **Ngoại lệ:** `end_date ≤ start_date` → `VALIDATION_ERROR`.
 
 ### FR-18 Đánh giá
-- **Chính:** rating 1–5 + nội dung (tuỳ chọn) cho sản phẩm hoặc combo đã mua (BR-10). Sửa/xoá
-  đánh giá của mình. Trang chi tiết mặt hàng hiển thị điểm trung bình + số lượt + danh sách.
-- **Ngoại lệ:** chưa mua → `NOT_PURCHASED`; đã có đánh giá → `REVIEW_ALREADY_EXISTS`; sửa/xoá
-  đánh giá của người khác → 404 `NOT_FOUND`.
+- **Chính:** rating 1–5 (bắt buộc) + nội dung (tuỳ chọn, ≤ 2000 ký tự) cho sản phẩm hoặc combo đã mua (BR-10). Viết từ
+  nút "Viết đánh giá" ở từng dòng hàng của đơn COMPLETED hoặc ở trang chi tiết mặt hàng; sửa/xoá đánh giá của mình ở hai nơi đó
+  (không có trang "Đánh giá của tôi" — D-34). Trang chi tiết sản phẩm/combo hiển thị điểm trung bình + số lượt + phân bố sao +
+  danh sách (mới nhất trước, lọc theo số sao — D-32). Thẻ mặt hàng hiển thị sao thật; chưa có đánh giá → sao trống.
+- **Làm mờ (D-33):** nội dung chứa từ trong từ điển từ cấm → đánh giá vẫn đăng nhưng nội dung bị làm mờ kèm cảnh báo, người xem
+  bấm "Hiển thị" mới đọc; chủ đánh giá thấy rõ kèm ghi chú. Sửa nội dung → kiểm tra lại.
+- **Ngoại lệ:** chưa mua → `NOT_PURCHASED`; đã có đánh giá → `REVIEW_ALREADY_EXISTS` (giao diện chuyển sang sửa); sửa/xoá
+  đánh giá của người khác → 404 `NOT_FOUND`; sửa đánh giá đã bị nhân viên ẩn → `REVIEW_HIDDEN` (chỉ xoá được).
+
+### FR-18b Quản trị đánh giá (Employee/Admin)
+- **Chính:** `/admin/reviews` lọc theo khách/mặt hàng, loại, số sao, trạng thái (đang hiện / đã ẩn / bị làm mờ). Ẩn (bắt buộc
+  lý do) → đánh giá biến mất khỏi trang công khai và không tính điểm, chủ thấy lý do; Hiện lại; Đánh dấu an toàn → bỏ làm mờ
+  (hệ thống bắt nhầm). Admin xoá cứng (spam) → khách viết lại được (D-31).
+- **Ngoại lệ:** ẩn thiếu lý do → `VALIDATION_ERROR`; Employee xoá → 403 `FORBIDDEN`.
 
 ### FR-19 Trả hàng
 - **Khách:** chọn đơn COMPLETED → nhập lý do → tạo yêu cầu `PENDING` (BR-9).

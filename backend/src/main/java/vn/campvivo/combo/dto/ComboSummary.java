@@ -25,7 +25,8 @@ public record ComboSummary(
 ) {
     public static ComboSummary from(ProductCombo c, String primaryImageUrl) {
         return new ComboSummary("COMBO", c.getId(), c.getName(), c.getSlug(), primaryImageUrl, c.getComboPrice(),
-                c.getComboPrice(), Math.max(0, c.getAvailableQuantity()), null, 0, c.getItemsTotal(), c.getItems().size(),
+                c.getComboPrice(), Math.max(0, c.getAvailableQuantity()), c.getAverageRating(), c.getReviewCount(),
+                c.getItemsTotal(), c.getItems().size(),
                 new ComboDetailResponse.CategoryRef(c.getCategory().getId(), c.getCategory().getName(), c.getCategory().getSlug()));
     }
 }

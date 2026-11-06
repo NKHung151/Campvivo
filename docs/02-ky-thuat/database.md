@@ -21,7 +21,8 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
   **(+)** = cột bổ sung so với báo cáo.
 - Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
   migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6), `V5__order_schema.sql` (F-08) tạo 7 bảng
-mua hàng (mục 3.7–3.13; V3/V4 là seed); các bảng còn lại được thêm dần bằng migration mới theo
+mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng khuyến mãi (V7 là seed), `V8__reviews.sql` tạo bảng
+  `reviews` (mục 3.17); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).
 
@@ -45,7 +46,7 @@ mua hàng (mục 3.7–3.13; V3/V4 là seed); các bảng còn lại được th
 | 14 | Voucher | `vouchers` | promotion | max_discount, used_count, start_date, is_active |
 | 15 | DiscountCampaign | `discount_campaigns` | promotion | slug, description, banner_url, is_active |
 | 16 | DiscountCampaignProduct | `discount_campaign_products` | promotion | — |
-| 17 | Review | `reviews` | review | — |
+| 17 | Review | `reviews` | review | moderation_status, flagged_terms, is_hidden, hidden_reason, hidden_by, hidden_at (D-31, D-33) |
 | 18 | Favorite | `favorites` | favorite | article_id |
 | 19 | SupportMessage | `support_messages` | support | is_from_staff (D-05) |
 | 20 | Notification | `notifications` | notification | type, link |
@@ -297,14 +298,22 @@ PK `(campaign_id, product_id)`. Chiến dịch chỉ áp cho sản phẩm, khôn
 |---|---|---|
 | id | BIGINT | PK |
 | user_id | BIGINT | FK → users(id) |
-| product_id | BIGINT | N, FK → products(id) |
-| combo_id | BIGINT | N, FK → product_combos(id) |
+| product_id | BIGINT | N, FK → products(id) `ON DELETE CASCADE` |
+| combo_id | BIGINT | N, FK → product_combos(id) `ON DELETE CASCADE` |
 | rating | SMALLINT | `CHECK (rating BETWEEN 1 AND 5)` |
 | content | VARCHAR(2000) | N |
-| created_at, updated_at | timestamptz | |
+| moderation_status | VARCHAR(20) | (+) mặc định `'SAFE'`, `CHECK IN ('SAFE','SENSITIVE','CLEARED')` — kết quả kiểm duyệt từ điển (D-33) |
+| flagged_terms | VARCHAR(500) | (+) N — các mục từ điển bị bắt, cách nhau dấu phẩy |
+| is_hidden | BOOLEAN | (+) mặc định false — nhân viên ẩn (D-31) |
+| hidden_reason | VARCHAR(500) | (+) N |
+| hidden_by | BIGINT | (+) N, FK → users(id) |
+| hidden_at | timestamptz | (+) N |
+| created_at, updated_at | timestamptz | `updated_at` chỉ đổi khi chủ sửa nội dung |
 
-`CHECK (num_nonnulls(product_id, combo_id) = 1)`; unique một phần `(user_id, product_id) WHERE
-product_id IS NOT NULL`, `(user_id, combo_id) WHERE combo_id IS NOT NULL`. Xoá cứng (D-09).
+`CHECK (num_nonnulls(product_id, combo_id) = 1)`; `CHECK (NOT is_hidden OR (hidden_reason IS NOT NULL AND hidden_at IS NOT
+NULL))`; unique một phần `(user_id, product_id) WHERE product_id IS NOT NULL`, `(user_id, combo_id) WHERE combo_id IS NOT NULL`.
+Xoá cứng (D-09). Điểm TB/số lượt đọc qua `Product.averageRating`/`reviewCount` và `ProductCombo` tương tự (D-35).
+Migration: `V8__reviews.sql`.
 
 ### 3.18 `favorites`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -386,6 +395,9 @@ trạng thái đã đọc.
 - `idx_support_messages_user_id_created_at (user_id, created_at)`.
 - `idx_discount_campaigns_active_dates (is_active, start_date, end_date)`.
 - `idx_discount_campaign_products_product_id` — subquery giá sau chiến dịch theo sản phẩm (D-30).
+- `idx_reviews_product_id_created_at (product_id, created_at DESC) WHERE product_id IS NOT NULL`,
+  `idx_reviews_combo_id_created_at (combo_id, created_at DESC) WHERE combo_id IS NOT NULL` — danh sách đánh giá và subquery
+  điểm TB (D-35).
 
 ## 4. Quy tắc nghiệp vụ bắt buộc
 
@@ -468,9 +480,17 @@ không ghi log (truy được qua `order_status_history`). Điều chỉnh khôn
 **BR-10 — Đánh giá** (D-09).
 - Chỉ viết khi tồn tại đơn của user ở `status = COMPLETED` có dòng chứa sản phẩm/combo đó (đơn
   `RETURNED` không tính).
+- Mua combo không tính là đã mua các sản phẩm trong combo (và ngược lại).
 - Mỗi (user, sản phẩm) / (user, combo) tối đa 1 đánh giá. Chủ đánh giá sửa được (`rating`,
   `content`) và xoá cứng được; xoá xong được viết lại nếu vẫn đủ điều kiện.
-- Điểm trung bình, số lượt tính bằng truy vấn (không lưu cột tổng hợp).
+- Chỉ bắt buộc `rating`; `content` tuỳ chọn, rỗng/toàn khoảng trắng → `null`.
+- Kiểm duyệt (D-33): mỗi lần viết/sửa, nội dung đi qua từ điển từ cấm; bắt được → `moderation_status = SENSITIVE` (giao diện
+  làm mờ), không → `SAFE`. Không chặn đăng. Sửa nội dung luôn tính lại, kể cả khi đang `CLEARED`.
+- Ẩn (D-31): Employee/Admin ẩn (bắt buộc lý do) / hiện lại / đánh dấu an toàn (`SENSITIVE` → `CLEARED`); chỉ Admin xoá cứng.
+  Đánh giá bị ẩn không hiện công khai và không tính điểm; chủ vẫn thấy kèm lý do, **không sửa được, chỉ xoá**. Hành động của
+  nhân viên không đổi `updated_at`.
+- Điểm trung bình (làm tròn 1 chữ số), số lượt tính bằng truy vấn, bỏ đánh giá bị ẩn (không lưu cột tổng hợp; D-35). Đánh giá
+  bị làm mờ vẫn được tính.
 
 **BR-11 — OTP** (D-10).
 - 6 chữ số ngẫu nhiên (`SecureRandom`), lưu BCrypt vào `otp_code_hash` cùng `otp_purpose`,

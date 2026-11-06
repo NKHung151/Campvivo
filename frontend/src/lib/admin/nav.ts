@@ -43,6 +43,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         ],
       },
       { href: "/admin/support", label: "Hỗ trợ khách hàng", roles: STAFF },
+      { href: "/admin/reviews", label: "Đánh giá", roles: STAFF },
     ],
   },
   {

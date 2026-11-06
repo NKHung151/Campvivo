@@ -59,7 +59,8 @@ public enum ErrorCode {
     RETURN_WINDOW_EXPIRED(HttpStatus.BAD_REQUEST, "Đã quá thời hạn cho phép trả hàng."),
     RETURN_ALREADY_EXISTS(HttpStatus.CONFLICT, "Đơn hàng này đã có yêu cầu trả hàng."),
     NOT_PURCHASED(HttpStatus.FORBIDDEN, "Bạn chỉ có thể đánh giá sản phẩm đã mua."),
-    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "Bạn đã đánh giá sản phẩm này rồi.");
+    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "Bạn đã đánh giá sản phẩm này rồi."),
+    REVIEW_HIDDEN(HttpStatus.CONFLICT, "Đánh giá đã bị ẩn, bạn chỉ có thể xoá.");
 
     private final HttpStatus status;
     private final String message;

@@ -200,11 +200,13 @@ public class CartService {
             if (i.isProduct()) {
                 Product p = i.getProduct();
                 item = new CartResponse.Item("PRODUCT", p.getId(), p.getName(), p.getSlug(), productImages.get(p.getId()),
-                        p.getPrice(), pricingService.unitPrice(p), p.getAvailableQuantity(), null, 0, p.getBrand(), p.isActive());
+                        p.getPrice(), pricingService.unitPrice(p), p.getAvailableQuantity(), p.getAverageRating(),
+                        p.getReviewCount(), p.getBrand(), p.isActive());
             } else {
                 ProductCombo c = i.getCombo();
                 item = new CartResponse.Item("COMBO", c.getId(), c.getName(), c.getSlug(), comboImages.get(c.getId()),
-                        c.getComboPrice(), pricingService.unitPrice(c), c.getAvailableQuantity(), null, 0, null, c.isActive());
+                        c.getComboPrice(), pricingService.unitPrice(c), c.getAvailableQuantity(), c.getAverageRating(),
+                        c.getReviewCount(), null, c.isActive());
             }
             BigDecimal lineTotal = item.price().multiply(BigDecimal.valueOf(i.getQuantity()));
             subtotal = subtotal.add(lineTotal);

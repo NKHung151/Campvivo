@@ -63,6 +63,13 @@ public class Product {
             """)
     private BigDecimal salePrice;
 
+    /** Điểm TB đánh giá đang hiện, làm tròn 1 chữ số; null = chưa có (BR-10, D-35 — cùng điều kiện với `/reviews/summary`). */
+    @Formula("(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.product_id = id AND NOT r.is_hidden)")
+    private BigDecimal averageRating;
+
+    @Formula("(SELECT COUNT(*) FROM reviews r WHERE r.product_id = id AND NOT r.is_hidden)")
+    private Long reviewCount;
+
     // BR-1 (docs/02-ky-thuat/database.md): availableQuantity = stockQuantity - reservedQuantity
     @Column(name = "stock_quantity", nullable = false)
     private int stockQuantity = 0;
@@ -175,6 +182,8 @@ public class Product {
     public BigDecimal getPrice() { return price; }
     /** Giá sau chiến dịch (D-30); entity mới tạo chưa nạp lại từ DB → bằng `price`. */
     public BigDecimal getSalePrice() { return salePrice != null ? salePrice : price; }
+    public Double getAverageRating() { return averageRating == null ? null : averageRating.doubleValue(); }
+    public long getReviewCount() { return reviewCount == null ? 0 : reviewCount; }
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }

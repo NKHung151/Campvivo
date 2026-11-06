@@ -13,6 +13,72 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Đánh giá sản phẩm / combo (2026-11-06)
+
+Bổ sung cho D-09 (D-09 vẫn giữ nguyên: 1 đánh giá / user / mặt hàng, chỉ khi đã mua, chủ sửa/xoá cứng được).
+
+### 2026-11-06 — D-35: Điểm trung bình và số lượt đánh giá tính bằng `@Formula`
+- **Bối cảnh:** BR-10 cấm lưu cột tổng hợp. `averageRating`/`reviewCount` cần có ở `ItemSummary` (mọi danh sách), `ProductDetail`,
+  `ComboSummary`, `ComboDetail`, giỏ hàng — đang trả cứng `null`/0.
+- **Quyết định:** `Product` và `ProductCombo` có 2 thuộc tính chỉ đọc (`@Formula`): `averageRating` =
+  `ROUND(AVG(rating), 1)` và `reviewCount` = `COUNT(*)` trên `reviews` của mặt hàng, **bỏ đánh giá bị ẩn**. Cùng cách với
+  `salePrice` (D-30). Endpoint `.../reviews/summary` dùng cùng điều kiện nên không lệch.
+- **Lý do:** đúng BR-10; catalog/combo/cart không gọi sang module `review`; mọi nơi map DTO dùng được ngay, không N+1.
+- **Đánh đổi:** entity của `catalog`/`combo` chứa SQL đọc bảng `reviews`; mỗi dòng thêm 2 subquery (có index
+  `idx_reviews_product_id_created_at`, `idx_reviews_combo_id_created_at`).
+- **Phương án khác:** cột tổng hợp + cập nhật khi viết/xoá (trái BR-10, dễ lệch); gọi `ReviewQueryService` theo lô ở từng nơi
+  map DTO (phụ thuộc chéo nhiều module, dễ quên một nơi).
+
+### 2026-11-06 — D-34: Bỏ trang "Đánh giá của tôi" (`/account/reviews`, `GET /users/me/reviews`)
+- **Bối cảnh:** use case *Manage review* (báo cáo Phase1_v4) gắn với trang `/account/reviews`. Người dùng (Người 4) thấy trang
+  này thừa vì khách luôn đánh giá từ đơn hàng hoặc trang mặt hàng.
+- **Quyết định:** không làm `/account/reviews` và `GET /users/me/reviews`. *Manage review* thực hiện ở 2 nơi:
+  trang chi tiết sản phẩm/combo (khối "Đánh giá của bạn": sửa/xoá) và từng dòng hàng ở `/account/orders/[id]` (nút "Xem đánh giá").
+  Thêm `GET /reviews/mine?productId=|comboId=` để lấy đánh giá của chính mình cho 1 mặt hàng, và `OrderDetail.items[].myReviewId`.
+- **Lý do:** bớt 1 trang + 1 endpoint, chức năng của use case vẫn đủ. Khi bảo vệ: nêu *Manage review* được dời sang 2 trang trên.
+- **Phương án khác:** giữ trang riêng như báo cáo (thêm việc, trùng chức năng).
+
+### 2026-11-06 — D-33: Tự làm mờ đánh giá có ngôn từ không phù hợp bằng từ điển
+- **Bối cảnh:** người dùng muốn hệ thống tự phát hiện nội dung không lành mạnh và làm mờ, người xem bấm "Hiển thị" mới đọc.
+  Upload ảnh/video trong đánh giá đã bị bỏ, chỉ còn chữ.
+- **Quyết định:**
+  - Chỉ dùng **từ điển từ cấm tiếng Việt** là file trong code (`backend/src/main/resources/moderation/vi-banned-words.txt`), nhóm sửa
+    và commit; không có giao diện sửa từ điển. Từ điển chia `[accented]` (so trên chữ còn dấu — từ bỏ dấu sẽ trùng từ thường,
+    vd. `lồn`/`lon`, `ngu`/`ngủ`), `[plain]` (so sau khi bỏ dấu), `[abbr]` (teencode, khớp nguyên token), `[allow]` (cụm hay bắt nhầm).
+  - Trước khi so: chuẩn hoá Unicode NFC, bỏ ký tự vô hình, chữ thường, nối chữ cái đơn bị chèn ký tự (`đ.m` → `đm`), đổi leetspeak
+    trên token lẫn chữ–số, gộp chữ lặp ≥ 3. So theo ranh giới từ (`dm` không khớp trong `admin`).
+  - Chạy đồng bộ mỗi lần viết/sửa; bắt được → `moderation_status = SENSITIVE`, lưu `flagged_terms`. **Không chặn đăng.**
+  - Giao diện **làm mờ cả nội dung** (tên, sao, ngày vẫn hiện) + cảnh báo + nút "Hiển thị" (CSS blur — mục đích tránh vô tình đọc,
+    không phải giấu dữ liệu). Chủ đánh giá thấy rõ kèm ghi chú. Đánh giá bị mờ vẫn tính điểm.
+  - Từ điển chỉ chứa từ thô tục, tình dục (nghĩa tục), lăng mạ, kỳ thị, đe doạ — **không** chứa từ chê bai sản phẩm.
+- **Lý do:** miễn phí, chạy offline, kết quả xác định nên viết test được; dễ trình bày khi bảo vệ.
+- **Giới hạn đã biết:** không hiểu ngữ cảnh; bỏ sót câu xúc phạm không dùng từ tục và từ tục viết không dấu trùng từ thường →
+  nhân viên xử lý bằng "Ẩn" (D-31).
+- **Phương án khác:** API AI kiểm duyệt (hiểu ngữ cảnh nhưng cần API key, tốn phí, chậm) — để ở hướng phát triển, cắm thêm sau
+  interface `ContentModerator`; thay từ cấm bằng `***` (mất ngữ cảnh); chặn không cho đăng (khách bị chặn nhầm).
+
+### 2026-11-06 — D-32: Lọc đánh giá theo số sao; tách danh sách và tổng quan
+- **Bối cảnh:** api.md cũ trả `{averageRating, reviewCount, items}` từ `GET /products/{id}/reviews` — không khớp format phân trang
+  chung (`data` là mảng + `pagination`) và không có phân bố sao để làm bộ lọc.
+- **Quyết định:** `GET /products|combos/{id}/reviews?rating=1..5&page&limit` trả `[Review]` + `pagination`;
+  `GET /products|combos/{id}/reviews/summary` trả `{averageRating, reviewCount, ratingCounts}`. Giao diện: thanh phân bố 5★→1★
+  bấm để lọc + nút lọc "Tất cả · 5★ … 1★". Chỉ sắp xếp mới nhất trước.
+- **Lý do:** giữ đúng format phân trang chung; lọc không làm đổi tổng quan.
+- **Phương án khác:** nhét tổng quan vào mỗi trang danh sách (lặp dữ liệu, trái format chung).
+
+### 2026-11-06 — D-31: Nhân viên ẩn/hiện lại/đánh dấu an toàn đánh giá; chỉ Admin xoá
+- **Bối cảnh:** báo cáo không có chức năng quản trị đánh giá. Người dùng yêu cầu làm trong đợt này, cùng với làm mờ tự động (D-33).
+- **Quyết định:**
+  - Trang `/admin/reviews` (Employee + Admin): lọc theo khách/mặt hàng, loại, số sao, trạng thái (`VISIBLE`/`HIDDEN`/`SENSITIVE`).
+  - **Ẩn** (bắt buộc lý do ≤ 500 ký tự), **Hiện lại**, **Đánh dấu an toàn** (`SENSITIVE` → `CLEARED`): Employee + Admin.
+    **Xoá cứng**: chỉ Admin (khách viết lại được).
+  - Thêm cột `reviews.is_hidden`, `hidden_reason`, `hidden_by`, `hidden_at`, `moderation_status`, `flagged_terms` (vẫn 22 bảng).
+  - Đánh giá bị ẩn: không hiện công khai, không tính điểm; chủ thấy kèm lý do, **không sửa được** (`REVIEW_HIDDEN`), chỉ xoá;
+    xoá rồi viết lại thì đi qua kiểm duyệt như mới (chấp nhận khả năng lách, nhân viên ẩn tiếp được).
+  - Hành động của nhân viên không đổi `updated_at` (để "(đã chỉnh sửa)" chỉ phản ánh chủ sửa). Không gửi thông báo khi bị ẩn.
+- **Lý do:** "Ẩn" giữ lại dấu vết để đối chiếu, xoá chỉ dành cho spam; cột trên `reviews` đủ dùng, không cần bảng nhật ký.
+- **Phương án khác:** chỉ có xoá (mất dấu vết); bảng `review_moderation_logs` (vượt 22 bảng).
+
 ## Khuyến mãi — voucher và chiến dịch (2026-10-31)
 
 ### 2026-10-31 — D-30: Giá sau chiến dịch tính bằng một biểu thức SQL (`Product.salePrice`)

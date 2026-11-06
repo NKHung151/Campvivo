@@ -84,6 +84,7 @@ Danh sách có phân trang:
 | 409 | RETURN_ALREADY_EXISTS | |
 | 403 | NOT_PURCHASED | Đánh giá khi chưa mua |
 | 409 | REVIEW_ALREADY_EXISTS | |
+| 409 | REVIEW_HIDDEN | Sửa đánh giá đã bị nhân viên ẩn — chủ chỉ được xoá (D-31) |
 
 ## 3. Kiểu dữ liệu dùng chung (đặt trong `frontend/src/types/`)
 
@@ -150,13 +151,12 @@ Hành vi đã hiện thực (N3-04, khớp `features.md` FR-03 và BR-11):
   đổi mật khẩu, tăng `token_version` (mọi thiết bị đang đăng nhập bị đăng xuất), đặt `email_verified = true`; **không** trả
   token — người dùng đăng nhập lại.
 
-### 4.2 user — FR-04, FR-18, FR-20
+### 4.2 user — FR-04, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
 | GET | `/users/me` | User | → `UserProfile` |
 | PUT | `/users/me` | User | `{fullName, phone, address}` → `UserProfile` |
 | PUT | `/users/me/password` | User | `{currentPassword, newPassword}` → 200 (token cũ hết hiệu lực) |
-| GET | `/users/me/reviews` | Customer | `?page&limit` → `[ReviewMine]` |
 | GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ArticleSummary, createdAt}]` |
 
 Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
@@ -175,12 +175,13 @@ Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
 | GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `onSale=true` (chỉ sản phẩm đang được giảm: giá sau chiến dịch < giá gốc, mức giảm lớn nhất nếu thuộc nhiều chiến dịch — trang `/promotions`, khối Flash sale), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
 | GET | `/products/{slug}` | Public | → `ProductDetail` |
 | GET | `/products/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` (FR-25) |
-| GET | `/products/{id}/reviews` | Public | `?page&limit` → `{averageRating, reviewCount, items: [Review]}` |
+| GET | `/products/{id}/reviews` | Public | `?rating=1..5&page&limit` (limit mặc định 10) → `[Review]` + `pagination`; bỏ đánh giá bị ẩn; mới nhất trước (FR-18, D-32) |
+| GET | `/products/{id}/reviews/summary` | Public | → `ReviewSummary` (điểm TB, số lượt, phân bố sao; bỏ đánh giá bị ẩn) |
 | GET | `/brands` | Public | → `[{name, productCount}]` (distinct `products.brand`) |
 | GET | `/combos` | Public | `category` (slug danh mục cấp 1), `q`, `sortBy=newest\|price_asc\|price_desc`, `page`, `limit` (1..100) → `[ComboSummary]` (chỉ combo đang bán) |
 | GET | `/combos/{slug}` | Public | → `ComboDetail` |
 | GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
-| GET | `/combos/{id}/reviews` | Public | như sản phẩm |
+| GET | `/combos/{id}/reviews`, `/combos/{id}/reviews/summary` | Public | như sản phẩm |
 | GET | `/search` | Public | `q` (bắt buộc, ≥ 2 ký tự), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` → `{products: [...], combos: [...], articles: [...]}` (+ `pagination` khi có `type`) |
 | GET | `/campaigns` | Public | → `[{id, name, slug, bannerUrl, discountType, discountValue, endDate, productCount}]` chiến dịch đang hiệu lực, sắp kết thúc trước (PromoBar, trang `/promotions`); `productCount` = số sản phẩm đang bán |
 | GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
@@ -210,10 +211,14 @@ interface ArticleSummary { id: number; title: string; slug: string; summary: str
   thumbnailUrl: string | null; category: ArticleCategory; publishedAt: string; }
 interface ArticleDetail extends ArticleSummary { content: string; authorName: string; isFavorite?: boolean; }
 interface Review { id: number; userFullName: string; rating: number; content: string | null;
-  createdAt: string; updatedAt: string; }
-interface ReviewMine extends Review { item: { type: ItemType; id: number; name: string; slug: string;
-  primaryImageUrl: string | null } }
+  isSensitive: boolean;            // hệ thống bắt được ngôn từ không phù hợp → giao diện làm mờ nội dung (D-33)
+  createdAt: string; updatedAt: string; }   // updatedAt > createdAt = chủ đã sửa ("(đã chỉnh sửa)")
+interface ReviewSummary { averageRating: number | null;   // làm tròn 1 chữ số; null = chưa có đánh giá
+  reviewCount: number;
+  ratingCounts: { 1: number; 2: number; 3: number; 4: number; 5: number }; }   // đủ 5 khoá, kể cả 0
 ```
+Mặt hàng không tồn tại hoặc đang tắt → `NOT_FOUND` (cùng quy tắc `GET /products/{slug}`). `rating` ngoài 1–5 → `VALIDATION_ERROR`.
+`averageRating`/`reviewCount` trong `ItemSummary`, `ProductDetail`, `ComboDetail` tính cùng cách với `summary` (D-35).
 
 ### 4.4 cart — FR-09
 | Method | Path | Quyền | Body → Response |
@@ -275,7 +280,9 @@ interface OrderSummary { id: number; orderCode: string; status: OrderStatus; pay
   createdAt: string; }
 interface OrderDetail extends OrderSummary {
   items: { type: ItemType; itemId: number; name: string; imageUrl: string | null; originalPrice: Money;
-           unitPrice: Money; quantity: number; lineTotal: Money; canReview: boolean }[];
+           unitPrice: Money; quantity: number; lineTotal: Money;
+           myReviewId: number | null;          // đánh giá của khách cho mặt hàng này (từ bất kỳ đơn nào)
+           canReview: boolean }[];             // = đơn COMPLETED && myReviewId == null
   subtotal: Money; discountAmount: Money; shippingFee: Money; voucherCode: string | null;
   recipientName: string; recipientPhone: string; shippingAddress: string; note: string | null;
   payment: { method: PaymentMethod; status: PaymentStatus; paidAt: string | null };
@@ -319,12 +326,25 @@ Voucher: `/orders/preview` và `/vouchers/validate` chỉ tính thử; `POST /or
 ### 4.6 review / favorite — FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| POST | `/reviews` | Customer | `{productId?, comboId?, rating (1–5), content?}` → 201 `Review` |
-| PUT | `/reviews/{id}` | Customer (chủ) | `{rating, content?}` → `Review` |
-| DELETE | `/reviews/{id}` | Customer (chủ) | → 200 |
+| GET | `/reviews/mine` | Customer | `?productId=\|comboId=` (đúng 1) → `MyReview \| null` (kể cả khi bị ẩn) |
+| GET | `/reviews/eligibility` | Customer | `?productId=\|comboId=` (đúng 1) → `{canReview}`: đã có đơn COMPLETED chứa mặt hàng **và** chưa viết — trang sản phẩm/combo chọn hiện form hay "đánh giá sau khi nhận hàng" |
+| POST | `/reviews` | Customer | `{productId? \| comboId?, rating (1–5), content? (≤ 2000)}` → 201 `MyReview` |
+| PUT | `/reviews/{id}` | Customer (chủ) | `{rating, content?}` → `MyReview` |
+| DELETE | `/reviews/{id}` | Customer (chủ) | → 200 (được cả khi bị ẩn; xoá xong viết lại được) |
 | POST | `/favorites` | Customer | `{productId? \| comboId? \| articleId?}` → 201 `{id}` (đã có → 200, trả id cũ) |
 | DELETE | `/favorites/{id}` | Customer (chủ) | → 200 |
 | DELETE | `/favorites?productId=\|comboId=\|articleId=` | Customer | → 200 (bỏ thích từ trang chi tiết) |
+
+```ts
+interface MyReview extends Review { itemType: ItemType; itemId: number;
+  isHidden: boolean; hiddenReason: string | null; }   // chủ thấy lý do khi bị ẩn (D-31)
+```
+Đánh giá (BR-10):
+- `POST`: đúng 1 trong `productId`/`comboId`, không thì `VALIDATION_ERROR`. Mặt hàng không tồn tại/đang tắt → `NOT_FOUND`;
+  chưa có đơn COMPLETED chứa mặt hàng → `NOT_PURCHASED`; đã có đánh giá → `REVIEW_ALREADY_EXISTS`.
+- `content` được `trim`; rỗng/toàn khoảng trắng → lưu `null`. Không có độ dài tối thiểu.
+- Mỗi lần viết/sửa, hệ thống kiểm tra nội dung bằng từ điển (D-33): bắt được → `isSensitive = true`; **không chặn đăng**.
+- `PUT`/`DELETE` đánh giá không phải của mình → `NOT_FOUND`. `PUT` đánh giá đang bị ẩn → `REVIEW_HIDDEN`.
 
 ### 4.7 notification — FR-22
 | Method | Path | Quyền | Body → Response |
@@ -404,6 +424,11 @@ Hành vi đã hiện thực (N3-08):
 | POST | `/admin/campaigns` | Admin | `CampaignRequest` → 201 `AdminCampaignDetail`. Slug trống → sinh từ tên (thêm `-2`… nếu trùng); tự nhập mà trùng → `SLUG_ALREADY_EXISTS`; `productIds` có id không tồn tại → `NOT_FOUND` |
 | GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | PUT như POST (thay toàn bộ danh sách sản phẩm; slug trống = giữ slug cũ). DELETE luôn được (đơn cũ đã lưu giá) |
 | GET | `/admin/campaigns/overlaps` | Admin | `?productIds=1,2&startDate&endDate&excludeId` → `[{productId, campaignId, campaignName}]`: sản phẩm đã thuộc chiến dịch khác **đang bật** có thời gian giao nhau — chỉ để cảnh báo, không chặn lưu (BR-6 lấy mức giảm lớn nhất) |
+| GET | `/admin/reviews` | Staff | `?q` (họ tên/email khách hoặc tên mặt hàng, gõ không dấu được), `itemType=PRODUCT\|COMBO`, `rating=1..5`, `status=VISIBLE\|HIDDEN\|SENSITIVE`, `page`, `limit` → `[AdminReview]`, mới nhất trước (D-31) |
+| PATCH | `/admin/reviews/{id}/hide` | Staff | `{reason}` (1–500 ký tự) → `AdminReview`. Đã ẩn → ghi đè lý do |
+| PATCH | `/admin/reviews/{id}/unhide` | Staff | → `AdminReview` |
+| PATCH | `/admin/reviews/{id}/clear-sensitive` | Staff | → `AdminReview`. `SENSITIVE` → `CLEARED` (bỏ làm mờ); trạng thái khác giữ nguyên |
+| DELETE | `/admin/reviews/{id}` | Admin | Xoá cứng → 200; khách viết lại được |
 | GET/POST | `/admin/articles` | Admin | `?category&isPublished&q`; POST `{title, slug?, summary?, content, thumbnailUrl?, category, isPublished}` |
 | GET/PUT/DELETE | `/admin/articles/{id}` | Admin | |
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
@@ -472,6 +497,24 @@ interface AdminCampaignDetail extends AdminCampaignSummary { description: string
 ```
 Lỗi validate (`VALIDATION_ERROR`, `fieldErrors`): `expiryDate`/`endDate` ≤ ngày bắt đầu; giá trị giảm sai miền theo loại;
 `maxDiscount` khi FIXED_AMOUNT.
+
+Kiểu dữ liệu quản trị đánh giá (FR-18, D-31, D-33):
+```ts
+type ModerationStatus = "SAFE" | "SENSITIVE" | "CLEARED";   // CLEARED = nhân viên đánh dấu an toàn
+interface AdminReview { id: number; rating: number; content: string | null;
+  user: { id: number; fullName: string; email: string };
+  item: { type: ItemType; id: number; name: string; slug: string };
+  moderationStatus: ModerationStatus; flaggedTerms: string[];   // mục từ điển bị bắt
+  isHidden: boolean; hiddenReason: string | null; hiddenByName: string | null; hiddenAt: string | null;
+  createdAt: string; updatedAt: string; }
+```
+- `status`: `VISIBLE` = chưa ẩn; `HIDDEN` = đã ẩn; `SENSITIVE` = chưa ẩn và `moderationStatus = SENSITIVE`.
+- `q` (tối đa 100 ký tự, `trim`, rỗng = không lọc): **chứa chuỗi con** trong email, họ tên khách hoặc tên sản phẩm/combo,
+  không phân biệt hoa thường và **gõ không dấu được** ("nguyen" khớp "Nguyễn", dùng `translate()` của PostgreSQL, không cần
+  `unaccent`). `%`, `_`, `\` là chữ thường. `limit` mặc định 20 (1–100). Sai `status`/`itemType`/`rating` → 400 `VALIDATION_ERROR`.
+- Ẩn: `reason` bắt buộc (sau `trim`, tối đa 500) — thiếu → 400 `fieldErrors.reason`; `hiddenByName` = người ẩn gần nhất.
+  Id không tồn tại → 404 `NOT_FOUND`. Employee gọi `DELETE` → 403 `FORBIDDEN`.
+- Ẩn/hiện lại/đánh dấu an toàn không đổi `updatedAt`. Khách sửa nội dung → kiểm duyệt lại, `CLEARED` cũng bị tính lại.
 
 ### 4.11 Kiểu dữ liệu admin catalog
 Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:

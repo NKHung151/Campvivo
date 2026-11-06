@@ -26,6 +26,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     @Query("select coalesce(sum(o.finalAmount), 0) from Order o where o.userId = :userId and o.status = :status")
     BigDecimal sumFinalAmountByUserIdAndStatus(@Param("userId") Long userId, @Param("status") OrderStatus status);
 
+    /** BR-10: khách có đơn COMPLETED chứa sản phẩm này (đơn RETURNED không tính; mua combo ≠ mua sản phẩm con). */
+    @Query("select count(i) > 0 from OrderItem i where i.order.userId = :userId and i.productId = :productId "
+            + "and i.order.status = vn.campvivo.order.OrderStatus.COMPLETED")
+    boolean existsCompletedPurchaseOfProduct(@Param("userId") Long userId, @Param("productId") Long productId);
+
+    @Query("select count(i) > 0 from OrderItem i where i.order.userId = :userId and i.comboId = :comboId "
+            + "and i.order.status = vn.campvivo.order.OrderStatus.COMPLETED")
+    boolean existsCompletedPurchaseOfCombo(@Param("userId") Long userId, @Param("comboId") Long comboId);
+
     /** Đơn của chính khách (đơn người khác → coi như không tồn tại, BR quyền sở hữu). */
     Optional<Order> findByIdAndUserId(Long id, Long userId);
 

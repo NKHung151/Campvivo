@@ -100,13 +100,6 @@ export interface VariantOption {
   sku?: string;
 }
 
-export interface Review {
-  name: string;
-  date: string;
-  rating: number;
-  text: string;
-}
-
 export interface ProductDetail extends ProductCard {
   sku: string;
   breadcrumbs: LinkItem[];
@@ -118,7 +111,6 @@ export interface ProductDetail extends ProductCard {
   variantLabel: string | null;
   variants: VariantOption[];
   reviewCount: number;
-  reviews: Review[];
   descriptionHtml: string;
   specsHtml: string | null;
   guideHtml: string | null;

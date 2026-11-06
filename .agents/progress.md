@@ -17,6 +17,24 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-06 — Người 4 (Claude Code) — review: đánh giá sản phẩm/combo + kiểm duyệt (FR-18, RV-01 → RV-35)
+- Đã làm: nhánh `feature/review-product` (tách từ `dev` @ `0899757`, vẫn CHƯA add/commit/push). Docs trước (api.md, database.md,
+  features/use-cases/pages/user-flows, authentication.md, D-31 → D-35). Backend: `V8__reviews.sql` (cột kiểm duyệt + ẩn, CHECK,
+  unique một phần); module `review` (khách: `POST/PUT/DELETE /reviews`, `GET /reviews/mine`, `GET /reviews/eligibility`;
+  công khai: `/products|combos/{id}/reviews[/summary]` lọc sao; admin `/admin/reviews` lọc + hide/unhide/clear-sensitive, DELETE
+  chỉ Admin); kiểm duyệt từ điển `moderation/vi-banned-words.txt` + `TextNormalizer` (chống lách, không chặn đăng, chỉ làm mờ);
+  `@Formula averageRating/reviewCount` trên `Product`/`ProductCombo` (bỏ đánh giá ẩn) thay `null, 0` ở catalog/combo/cart;
+  chi tiết đơn `myReviewId` + `canReview` thật. Frontend: `features/review/*` (ReviewSection, MyReviewPanel, ReviewDialog, Stars,
+  `styles/shop/review.css`) cho trang sản phẩm, combo, chi tiết đơn; bỏ mock `localStorage` và 5 sao giả trên thẻ; trang
+  `/admin/reviews` (antd, bộ lọc trên URL, menu "⋯" mỗi dòng).
+- Kiểm chứng: backend `mvn test` 490/490; `agent-lint.sh` sạch; frontend `tsc` sạch. Người dùng thử tay storefront + admin, góp ý
+  giao diện đã sửa. `npm run build` chưa chạy (dev server của người dùng đang chạy — dùng chung `.next`).
+- Lưu ý: `base.css` có `.ttl{text-transform:lowercase}` — đừng đặt tên class `ttl` cho tiêu đề mới. Tên "Kh?ch h?ng Dev" trong
+  DB local là do chạy SQL ở `local-development.md` qua terminal không UTF-8, không phải lỗi code.
+- Còn dang dở / TODO tiếp theo: chạy `npm run build` + kiểm lại V8 trên `origin` trước khi mở PR; F-09 còn `favorites`,
+  `support_messages`, `notifications`; hướng phát triển: kiểm duyệt AI, admin sửa từ điển trên giao diện.
+- Plan liên quan: `.agents/plans/completed/review-product.md`
+
 ### 2026-10-31 — Người 4 (Claude Code) — promotion: lối vào khuyến mãi cho khách (Phần 5b, PM-30 → PM-33)
 - Đã làm (người dùng yêu cầu thêm; vẫn CHƯA add/commit/push): docs (`api.md`: `onSale` ở `GET /products`, `GET /campaigns`;
   `pages.md`: `/promotions`). Backend: `ProductQuery.onSale` (`salePrice < price`), `GET /campaigns` (`CampaignService.listActive`,

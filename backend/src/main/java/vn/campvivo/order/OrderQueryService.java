@@ -12,6 +12,9 @@ import vn.campvivo.common.dto.PageResponse;
 import vn.campvivo.order.dto.OrderDetailResponse;
 import vn.campvivo.order.dto.OrderSummaryResponse;
 import vn.campvivo.payment.PaymentService;
+import vn.campvivo.review.ReviewQueryService;
+
+import java.util.List;
 
 /** Đọc đơn hàng (FR-12). Đơn của người khác → 404 NOT_FOUND (không tiết lộ đơn tồn tại). */
 @Service
@@ -19,10 +22,13 @@ public class OrderQueryService {
 
     private final OrderRepository orderRepository;
     private final PaymentService paymentService;
+    private final ReviewQueryService reviewQueryService;
 
-    public OrderQueryService(OrderRepository orderRepository, PaymentService paymentService) {
+    public OrderQueryService(OrderRepository orderRepository, PaymentService paymentService,
+                             ReviewQueryService reviewQueryService) {
         this.orderRepository = orderRepository;
         this.paymentService = paymentService;
+        this.reviewQueryService = reviewQueryService;
     }
 
     /** Đơn của chính khách, mới nhất trước, lọc theo trạng thái (FR-12). */
@@ -49,10 +55,22 @@ public class OrderQueryService {
                 orderRepository.sumFinalAmountByUserIdAndStatus(userId, OrderStatus.COMPLETED));
     }
 
+    /** BR-10 — điều kiện viết đánh giá. `itemType`: "PRODUCT" / "COMBO". */
+    @Transactional(readOnly = true)
+    public boolean hasCompletedPurchase(Long userId, String itemType, Long itemId) {
+        return "COMBO".equals(itemType)
+                ? orderRepository.existsCompletedPurchaseOfCombo(userId, itemId)
+                : orderRepository.existsCompletedPurchaseOfProduct(userId, itemId);
+    }
+
     @Transactional(readOnly = true)
     public OrderDetailResponse getForCustomer(Long userId, Long orderId) {
         Order order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-        return OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null));
+        // myReviewId cho mọi dòng: 1 truy vấn cho sản phẩm + 1 cho combo
+        List<Long> productIds = order.getItems().stream().filter(OrderItem::isProduct).map(OrderItem::getProductId).toList();
+        List<Long> comboIds = order.getItems().stream().filter(i -> !i.isProduct()).map(OrderItem::getComboId).toList();
+        ReviewQueryService.ReviewIds reviews = reviewQueryService.reviewIds(userId, productIds, comboIds);
+        return OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null), reviews::of);
     }
 }

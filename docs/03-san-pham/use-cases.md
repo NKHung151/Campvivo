@@ -33,6 +33,7 @@ quyết định.
 | View order detail | Admin, Employee | FR-13 | `GET /admin/orders/{id}` | `/admin/orders/[id]` | orders, order_items, order_status_history, payments |
 | Update order status | Admin, Employee | FR-13 | `PATCH /admin/orders/{id}/status` | `/admin/orders/[id]` | orders, order_status_history, products, product_combos, payments |
 | Process return request **(bổ sung, D-07)** | Admin, Employee | FR-19 | `GET /admin/returns`, `PATCH /admin/returns/{id}` | `/admin/returns` | return_requests, orders, products, product_combos, inventory_logs |
+| Moderate review **(bổ sung, D-31)** | Admin, Employee (xoá: Admin) | FR-18b | `GET /admin/reviews`, `PATCH /admin/reviews/{id}/hide\|unhide\|clear-sensitive`, `DELETE /admin/reviews/{id}` | `/admin/reviews` | reviews |
 | Manage Inventory / View stock levels | Admin, Employee | FR-08 | `GET /admin/inventory` | `/admin/inventory` | products, product_combos |
 | Adjust stock | Admin, Employee | FR-08 | `POST /admin/inventory/adjustments`, `GET /admin/inventory/logs` | `/admin/inventory` | products, product_combos, inventory_logs |
 | Manage products / View product list / detail | Admin | FR-06 | `GET /admin/products[/{id}]` | `/admin/products` | products, images |
@@ -62,9 +63,9 @@ quyết định.
 | View order detail | Customer | FR-12 | `GET /orders/{id}` | `/account/orders/[id]` | orders, order_items, order_status_history, payments, return_requests |
 | Cancel order | Customer | FR-12 | `POST /orders/{id}/cancel` | `/account/orders/[id]` | orders, products, product_combos, vouchers |
 | Return order | Customer | FR-19 | `POST /orders/{id}/returns` | `/account/orders/[id]` | return_requests |
-| Write review | Customer | FR-18 | `POST /reviews` | `/account/orders/[id]` | reviews |
-| Update review | Customer | FR-18 | `PUT /reviews/{id}` | `/account/reviews` | reviews |
-| Manage review (+ xoá) | Customer | FR-18 | `GET /users/me/reviews`, `DELETE /reviews/{id}` | `/account/reviews` | reviews |
+| Write review | Customer | FR-18 | `POST /reviews` | `/account/orders/[id]`, `/products/[slug]`, `/combos/[slug]` | reviews, orders, order_items |
+| Update review | Customer | FR-18 | `GET /reviews/mine`, `PUT /reviews/{id}` | `/account/orders/[id]`, `/products/[slug]`, `/combos/[slug]` | reviews |
+| Manage review (+ xoá) | Customer | FR-18 | `GET /reviews/mine`, `DELETE /reviews/{id}` | `/account/orders/[id]`, `/products/[slug]`, `/combos/[slug]` (không có trang riêng — D-34) | reviews |
 | Manage orders / Update order status | Employee, Admin | FR-13 | (xem phân hệ quản trị) | `/admin/orders` | — |
 
 ## Khám phá và hỗ trợ (bảng 2.6, 2.11)
@@ -74,7 +75,7 @@ quyết định.
 | Search | Guest+ | FR-07 | `GET /search?q=` | `/search` | products, product_combos, articles |
 | View result products / combos / articles | Guest+ | FR-07 | `GET /search?type=` | `/search` | — |
 | View products | Guest+ | FR-07 | `GET /products` | `/products`, `/categories/[slug]`, `/brands/[slug]` | products |
-| View product detail | Guest+ | FR-07 | `GET /products/{slug}` (+ reviews, recommendations) | `/products/[slug]` | products, images, reviews |
+| View product detail | Guest+ | FR-07 | `GET /products/{slug}` (+ `/products/{id}/reviews[/summary]`, recommendations) | `/products/[slug]` | products, images, reviews |
 | Filter by category | Guest+ | FR-07 | `?category=` | `/categories/[slug]` | categories |
 | Sort | Guest+ | FR-07 | `?sortBy=` | danh sách | — |
 | View combos | Guest+ | FR-07/15 | `GET /combos` | `/combos` | product_combos |
