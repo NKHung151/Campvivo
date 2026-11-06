@@ -48,7 +48,7 @@ export function HomeCard({ p }: { p: Card }) {
       </div>{" "}
       <div className="brand">{p.brand}</div> <h3 className="title">{p.name}</h3>{" "}
       <div className="core">
-        <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
+        <div className="stars" style={{ width: `${p.rating ?? 0}%` }} />
       </div>
       <Price p={p} />
     </Link>
@@ -68,7 +68,7 @@ export function SearchCard({ p }: { p: Card }) {
       <div className="brand">{p.brand}</div>
       <h3 className="title">{p.name}</h3>
       <div className="core">
-        <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
+        <div className="stars" style={{ width: `${p.rating ?? 0}%` }} />
       </div>
       <Price p={p} />
     </Link>
@@ -140,7 +140,7 @@ export function GridCard({
         {p.brand && <div className="brand">{p.brand}</div>}
         <h3 className="title">{p.name}</h3>
         <div className="core">
-          <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
+          <div className="stars" style={{ width: `${p.rating ?? 0}%` }} />
         </div>
         <Price p={p} />
       </Link>

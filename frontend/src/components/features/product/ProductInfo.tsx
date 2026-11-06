@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { ProductFull, PdpStatic } from "@/types/product";
 import { vnd } from "@/lib/format";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { fmtRating } from "@/components/features/review/Stars";
 
 /** Thời gian còn lại tới hết chiến dịch: [ngày, giờ, phút, giây]; đã hết → toàn 0 (tải lại trang sẽ thấy giá gốc). */
 function useCountdown(iso: string | null) {
@@ -130,12 +131,12 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
         <h1 className="tensp">{p.name}</h1>
         <div className="flbox">
           <div className="khungSoSao">
-            <div className="core">
-              <div className="stars" style={{ width: `${p.rating || 100}%` }} />
+            <div className="core" role="img" aria-label={p.reviewCount ? `${fmtRating(p.rating / 20)} trên 5 sao` : "Chưa có đánh giá"}>
+              <div className="stars" style={{ width: `${p.reviewCount ? p.rating : 0}%` }} />
             </div>
             <a href="#tabcontent4">
               <span className="splt" />
-              Xem {p.reviewCount} đánh giá
+              {p.reviewCount ? `Xem ${p.reviewCount} đánh giá` : "Chưa có đánh giá"}
             </a>
             {p.sold && (
               <>

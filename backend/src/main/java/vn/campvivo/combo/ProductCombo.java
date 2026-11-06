@@ -2,6 +2,7 @@ package vn.campvivo.combo;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Formula;
 import vn.campvivo.catalog.Category;
 import vn.campvivo.catalog.Product;
 
@@ -48,6 +49,13 @@ public class ProductCombo {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /** Điểm TB đánh giá đang hiện, làm tròn 1 chữ số; null = chưa có (BR-10, D-35). */
+    @Formula("(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private BigDecimal averageRating;
+
+    @Formula("(SELECT COUNT(*) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private Long reviewCount;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -158,6 +166,8 @@ public class ProductCombo {
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }
+    public Double getAverageRating() { return averageRating == null ? null : averageRating.doubleValue(); }
+    public long getReviewCount() { return reviewCount == null ? 0 : reviewCount; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public List<ComboItem> getItems() { return items; }

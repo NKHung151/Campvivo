@@ -25,11 +25,10 @@ export interface PdpDynProps {
   articles: { title: string; url: string }[];
   social: { sold: number; rating: number; satisf: number } | null;
   fbt: FbtItem[];
-  reviews: { name: string; rating: number; text: string }[];
 }
 
 /** "CHỌN ĐÚNG TRƯỚC KHI MUA" — rebuilt from the data campvivo.vn's pdp-dyn.js renders client-side. */
-export function PdpDyn({ journeys, heroImg, tips, specs, articles, social, fbt, reviews }: PdpDynProps) {
+export function PdpDyn({ journeys, heroImg, tips, specs, articles, social, fbt }: PdpDynProps) {
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Masonry layout: 4px auto-rows + 14px gap, span computed from content height.
@@ -185,27 +184,6 @@ export function PdpDyn({ journeys, heroImg, tips, specs, articles, social, fbt, 
                     </div>
                   </div>
                 </SmartLink>
-              ))}
-            </div>
-          </div>
-        )}
-        {reviews.length > 0 && (
-          <div className="pdp-dyn-mod" data-mod="M7">
-            <div className="pdp-dyn-mod-hd">
-              <h3 className="pdp-dyn-mod-title">Trải nghiệm thực tế</h3>
-            </div>
-            <div className="pdp-dyn-testimonials">
-              {reviews.slice(0, 3).map((r, i) => (
-                <div className="pdp-dyn-testimonial-row" key={i}>
-                  <div className="pdp-dyn-testimonial-avatar">{r.name.charAt(0).toUpperCase()}</div>
-                  <div className="pdp-dyn-testimonial-body">
-                    <div className="pdp-dyn-testimonial-name">{r.name}</div>
-                    <div className="pdp-dyn-testimonial-stars">
-                      <Star />
-                    </div>
-                    <div className="pdp-dyn-testimonial-text">{r.text}</div>
-                  </div>
-                </div>
               ))}
             </div>
           </div>

@@ -163,7 +163,7 @@ function toRelated(p: ItemSummary): RelatedItem {
     oldPrice: c.oldPrice,
     discount: c.discount,
     discountClass: null,
-    rating: c.rating ?? 100,
+    rating: c.rating,
   };
 }
 
@@ -175,7 +175,7 @@ function toSidebar(p: ItemSummary): SidebarItem {
     img: p.primaryImageUrl ?? "",
     brand: p.brand ?? "",
     price: vnd(p.price),
-    rating: 100,
+    rating: p.averageRating === null ? null : p.averageRating * 20,
   };
 }
 
@@ -223,7 +223,6 @@ function toProductFull(
     descriptionHtml: d.description,
     specsHtml: specsTable(d.specs),
     guideHtml: null,
-    reviews: [],
     social: null,
     fbt: [],
     articles: [],

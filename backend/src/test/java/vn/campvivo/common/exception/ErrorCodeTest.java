@@ -27,6 +27,7 @@ class ErrorCodeTest {
         assertThat(ErrorCode.OTP_RESEND_TOO_SOON.getStatus().value()).isEqualTo(429);
         assertThat(ErrorCode.EMAIL_SEND_FAILED.getStatus().value()).isEqualTo(502);
         assertThat(ErrorCode.NOT_PURCHASED.getStatus().value()).isEqualTo(403);
+        assertThat(ErrorCode.REVIEW_HIDDEN.getStatus().value()).isEqualTo(409);
     }
 
     /** Chống lệch docs: mọi mã trong api.md mục 2 phải có trong enum đúng HTTP status, và ngược lại. */

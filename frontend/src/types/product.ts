@@ -1,4 +1,4 @@
-import type { LinkItem, Review } from "@/types/shop";
+import type { LinkItem } from "@/types/shop";
 
 export interface SidebarItem {
   slug: string | null;
@@ -7,7 +7,8 @@ export interface SidebarItem {
   img: string;
   brand: string;
   price: string;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface RelatedItem {
@@ -19,7 +20,8 @@ export interface RelatedItem {
   oldPrice: number | null;
   discount: string | null;
   discountClass: string | null;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface FbtItem {
@@ -63,7 +65,6 @@ export interface ProductFull {
   descriptionHtml: string | null;
   specsHtml: string | null;
   guideHtml: string | null;
-  reviews: Review[];
   social: { sold: number; rating: number; satisf: number } | null;
   fbt: FbtItem[];
   articles: { title: string; url: string }[];

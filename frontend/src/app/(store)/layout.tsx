@@ -9,6 +9,7 @@ import "@/styles/shop/guides.css";
 import "@/styles/shop/search.css";
 import "@/styles/shop/journal.css";
 import "@/styles/shop/custom.css";
+import "@/styles/shop/review.css";
 import "@/styles/shop/ui.css";
 import "@/styles/shop/auth.css";
 import { AuthProvider } from "@/components/features/auth/AuthProvider";

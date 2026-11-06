@@ -49,7 +49,8 @@ public record ProductDetailResponse(
         CategoryRef category = new CategoryRef(c.getId(), c.getName(), c.getSlug(),
                 path.stream().map(x -> new PathItem(x.getName(), x.getSlug())).toList());
         return new ProductDetailResponse("PRODUCT", p.getId(), p.getName(), p.getSlug(), primary,
-                p.getPrice(), p.getSalePrice(), Math.max(0, p.getAvailableQuantity()), null, 0, p.getBrand(),
+                p.getPrice(), p.getSalePrice(), Math.max(0, p.getAvailableQuantity()), p.getAverageRating(),
+                p.getReviewCount(), p.getBrand(),
                 p.getShortDescription(), p.getDescription(), p.getSpecs(), category, images, campaign);
     }
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Review } from "@/types/shop";
-import { useShop } from "@/components/features/shop/ShopProvider";
+import { ReviewSection } from "@/components/features/review/ReviewSection";
 
 const TABS = [
   { id: "tabcontent1", label: "Chi tiết" },
@@ -29,27 +28,20 @@ const HtmlPanel = memo(function HtmlPanel({ id, className, html }: { id: string;
  * - Người dùng tự cuộn/chạm/bấm phím trong lúc đang trượt → dừng trượt ngay, không bị kéo ngược lại.
  * - Cuộn tay: tab sáng theo mục đang nằm ngay dưới thanh tab.
  * - Link `#tabcontentN` ở chỗ khác trên trang (xem đánh giá, xem thông số…) dùng chung cách cuộn này.
+ * - Mục "Đánh giá" là khối đánh giá thật (FR-18, `ReviewSection`).
  */
 export function ProductTabs({
-  slug,
+  productId,
   descriptionHtml,
   specsHtml,
   guideHtml,
-  rating,
-  reviews,
 }: {
-  slug: string;
+  productId: number;
   descriptionHtml: string | null;
   specsHtml: string | null;
   guideHtml: string | null;
-  rating: number;
-  reviews: Review[];
 }) {
   const [current, setCurrent] = useState("tabcontent1");
-  const { notify } = useShop();
-  const [local, setLocal] = useState<Review[]>([]);
-  const [stars, setStars] = useState(5);
-  const [text, setText] = useState("");
   const barRef = useRef<HTMLDivElement>(null);
   /** Đang trượt tới mục vừa bấm — tạm không đổi tab theo vị trí cuộn. */
   const autoScrolling = useRef(false);
@@ -157,16 +149,6 @@ export function ProductTabs({
     return () => document.removeEventListener("click", onClick);
   }, [go]);
 
-  useEffect(() => {
-    try {
-      setLocal(JSON.parse(window.localStorage.getItem(`cv-reviews:${slug}`) ?? "[]") as Review[]);
-    } catch {
-      /* ignore */
-    }
-  }, [slug]);
-
-  const all = [...local, ...reviews];
-
   return (
     <div id="SubProductTabInfo">
       <div className="bgTab" ref={barRef}>
@@ -181,95 +163,7 @@ export function ProductTabs({
       {specsHtml && <HtmlPanel id="tabcontent2" className="tabcontent" html={specsHtml} />}
       {guideHtml && <HtmlPanel id="tabcontent3" className="tabcontent" html={guideHtml} />}
       <div id="tabcontent4" className="tabcontent">
-        <div id="SubProductComments">
-          <div className="header">Đánh giá của người dùng</div>
-          <div className="product_ratings">
-            <div className="core">
-              <div className="stars" style={{ width: `${rating || 100}%` }} />
-            </div>
-            <span className="text-danger">{((rating || 100) / 20).toFixed(0)}</span>&nbsp;điểm&nbsp;/&nbsp;<span className="text-danger">{all.length}</span>&nbsp;đánh giá.
-          </div>
-          <div className="count" />
-          <div className="listComment">
-            {all.map((r, i) => (
-              <div key={i}>
-                <div className="comment">
-                  <div>
-                    <span className="ctext fwb">{r.name}</span> -{" "}
-                    <span className="date">
-                      <span title={r.date}>{r.date}</span>
-                    </span>{" "}
-                    <br />
-                    <div className="core">
-                      <div className="stars" style={{ width: `${r.rating * 20}%` }} />
-                    </div>
-                    <div>{r.text}</div>
-                  </div>
-                  <div className="cb" />
-                  <div className="cb h5" />
-                </div>
-                {i < all.length - 1 && <div className="vien" />}
-              </div>
-            ))}
-          </div>
-          <div className="cb h10" />
-          <form
-            id="BoxComment"
-            className="boxcontent"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (text.trim().length < 16) {
-                notify("Bình luận cần tối thiểu 16 ký tự");
-                return;
-              }
-              const r: Review = { name: "Bạn", date: new Date().toLocaleString("vi-VN"), rating: stars, text: text.trim() };
-              const next = [r, ...local];
-              setLocal(next);
-              setText("");
-              try {
-                window.localStorage.setItem(`cv-reviews:${slug}`, JSON.stringify(next));
-              } catch {
-                /* ignore */
-              }
-              notify("Cảm ơn bạn đã đánh giá sản phẩm!");
-            }}
-          >
-            <div className="pb5"> Đánh giá sảm phẩm này </div>
-            <div className="saoxam" id="DanhGiaChiTietSP">
-              {[1, 2, 3, 4, 5].reduceRight<React.ReactNode>(
-                (inner, n) => (
-                  <span
-                    id={`Rate_${n}`}
-                    className={n <= stars ? "current" : ""}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setStars(n);
-                    }}
-                  >
-                    {inner}
-                  </span>
-                ),
-                <>&nbsp;</>,
-              )}
-            </div>
-            <div className="cb pt15 pb3"> Bình luận (*): </div>
-            <textarea
-              id="tbContent"
-              style={{ width: "100%", padding: 10, boxSizing: "border-box" }}
-              rows={5}
-              minLength={16}
-              maxLength={1020}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <div className="cb h20" />
-            <div className="tac">
-              <button type="submit" className="btOK">
-                Gửi bình luận
-              </button>
-            </div>
-          </form>
-        </div>
+        <ReviewSection itemType="PRODUCT" itemId={productId} />
       </div>
     </div>
   );

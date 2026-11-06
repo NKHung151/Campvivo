@@ -66,19 +66,11 @@ export function ProductPage({ p }: { p: ProductFull }) {
             articles={p.articles}
             social={p.social}
             fbt={p.fbt}
-            reviews={p.reviews}
           />
           <div className="flx">
             <div id="ProductDetailCol1">
               <div id="ProductDetailCol3">
-                <ProductTabs
-                  slug={p.slug}
-                  descriptionHtml={p.descriptionHtml}
-                  specsHtml={p.specsHtml}
-                  guideHtml={p.guideHtml}
-                  rating={p.rating}
-                  reviews={p.reviews}
-                />
+                <ProductTabs productId={p.id} descriptionHtml={p.descriptionHtml} specsHtml={p.specsHtml} guideHtml={p.guideHtml} />
               </div>
             </div>
             {p.sidebar.items.length > 0 && (
@@ -99,7 +91,7 @@ export function ProductPage({ p }: { p: ProductFull }) {
                             <div className="brandOther">{it.brand}</div>
                             <div className="titleOther">{it.name}</div>
                             <div className="core">
-                              <div className="stars" style={{ width: `${it.rating}%` }} />
+                              <div className="stars" style={{ width: `${it.rating ?? 0}%` }} />
                             </div>
                             <div className="priceOther">{it.price}</div>
                           </SmartLink>

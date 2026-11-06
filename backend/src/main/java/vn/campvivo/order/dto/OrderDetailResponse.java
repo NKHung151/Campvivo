@@ -11,10 +11,12 @@ import vn.campvivo.payment.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.function.BiFunction;
 
 /**
- * `OrderDetail` (api.md 4.5) + thông tin vận chuyển GHN (`shipping`, D-27/D-28). Review/trả hàng chưa có module nên
- * `canReview`/`canReturn` = false, `returnRequest` = null.
+ * `OrderDetail` (api.md 4.5) + thông tin vận chuyển GHN (`shipping`, D-27/D-28). Trả hàng chưa có module nên
+ * `canReturn` = false, `returnRequest` = null. Mỗi dòng: `myReviewId` = đánh giá của khách cho mặt hàng (từ bất kỳ đơn
+ * nào), `canReview` = đơn COMPLETED && chưa đánh giá (FR-18).
  */
 public record OrderDetailResponse(
         Long id,
@@ -44,7 +46,7 @@ public record OrderDetailResponse(
         OffsetDateTime completedAt
 ) {
     public record Item(String type, Long itemId, String name, String imageUrl, BigDecimal originalPrice,
-                       BigDecimal unitPrice, int quantity, BigDecimal lineTotal, boolean canReview) {}
+                       BigDecimal unitPrice, int quantity, BigDecimal lineTotal, Long myReviewId, boolean canReview) {}
 
     public record PaymentInfo(PaymentMethod method, PaymentStatus status, OffsetDateTime paidAt) {}
 
@@ -53,8 +55,19 @@ public record OrderDetailResponse(
 
     public record History(OrderStatus oldStatus, OrderStatus newStatus, String note, OffsetDateTime createdAt) {}
 
+    /** Không kèm thông tin đánh giá (admin xem đơn): `myReviewId` = null, `canReview` = false. */
     public static OrderDetailResponse from(Order o, Payment payment) {
-        List<Item> items = o.getItems().stream().map(OrderDetailResponse::item).toList();
+        return from(o, payment, (type, itemId) -> null, false);
+    }
+
+    /** Phía khách: `myReviewId.apply(type, itemId)` → id đánh giá của chính khách cho mặt hàng, null = chưa có. */
+    public static OrderDetailResponse from(Order o, Payment payment, BiFunction<String, Long, Long> myReviewId) {
+        return from(o, payment, myReviewId, o.getStatus() == OrderStatus.COMPLETED);
+    }
+
+    private static OrderDetailResponse from(Order o, Payment payment, BiFunction<String, Long, Long> myReviewId,
+                                            boolean reviewable) {
+        List<Item> items = o.getItems().stream().map(i -> item(i, myReviewId, reviewable)).toList();
         OrderItem first = o.getItems().isEmpty() ? null : o.getItems().get(0);
         PaymentInfo paymentInfo = payment == null
                 ? new PaymentInfo(o.getPaymentMethod(), PaymentStatus.PENDING, null)
@@ -75,10 +88,12 @@ public record OrderDetailResponse(
                 o.getCompletedAt());
     }
 
-    private static Item item(OrderItem i) {
-        return new Item(i.isProduct() ? "PRODUCT" : "COMBO", i.isProduct() ? i.getProductId() : i.getComboId(),
-                i.getItemName(), i.getItemImageUrl(), i.getOriginalPrice(), i.getUnitPrice(), i.getQuantity(),
-                i.getLineTotal(), false);
+    private static Item item(OrderItem i, BiFunction<String, Long, Long> myReviewId, boolean reviewable) {
+        String type = i.isProduct() ? "PRODUCT" : "COMBO";
+        Long itemId = i.isProduct() ? i.getProductId() : i.getComboId();
+        Long reviewId = myReviewId.apply(type, itemId);
+        return new Item(type, itemId, i.getItemName(), i.getItemImageUrl(), i.getOriginalPrice(), i.getUnitPrice(),
+                i.getQuantity(), i.getLineTotal(), reviewId, reviewable && reviewId == null);
     }
 
     private static History history(OrderStatusHistory h) {
