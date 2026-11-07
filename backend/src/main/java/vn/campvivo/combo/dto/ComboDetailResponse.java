@@ -47,7 +47,8 @@ public record ComboDetailResponse(
         List<Image> images = IntStream.range(0, urls.size()).mapToObj(i -> new Image(urls.get(i), i == 0)).toList();
         String primary = urls.isEmpty() ? null : urls.get(0);
         return new ComboDetailResponse("COMBO", c.getId(), c.getName(), c.getSlug(), primary, c.getComboPrice(), c.getComboPrice(),
-                Math.max(0, c.getAvailableQuantity()), null, 0, c.getItemsTotal(), c.getDescription(),
+                Math.max(0, c.getAvailableQuantity()), c.getAverageRating(), c.getReviewCount(), c.getItemsTotal(),
+                c.getDescription(),
                 new CategoryRef(c.getCategory().getId(), c.getCategory().getName(), c.getCategory().getSlug()), images, items);
     }
 }

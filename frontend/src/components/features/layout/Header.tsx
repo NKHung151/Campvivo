@@ -11,14 +11,14 @@ import { landingFor } from "@/lib/auth/redirect";
 import { CartIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
-  const { cart, user, ready, openLogin } = useShop();
+  const { cartCount, user, ready, openLogin } = useShop();
   const auth = useAuth();
   // Nhân viên / quản trị viên không dùng khu vực tài khoản khách hàng: liên kết dẫn tới trang quản trị.
   const isStaff = auth.user?.role === "ADMIN" || auth.user?.role === "EMPLOYEE";
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [popOpen, setPopOpen] = useState(false);
-  const count = cart.reduce((n, c) => n + c.qty, 0);
+  const count = cartCount;
 
   // campvivo.vn opens the "ĐĂNG NHẬP để có trải nghiệm tốt nhất" popover on each visit until dismissed.
   useEffect(() => {

@@ -10,6 +10,29 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Test "bị từ chối" xanh vì mọi thứ đều hỏng
+- **Bài học:** Test kiểm tra kết nối WebSocket bị từ chối ban đầu chỉ khẳng định "không kết nối được". Khi cố ý làm hỏng cấu hình để kiểm tra
+  đột biến, bắt tay trả HTTP 500 cho MỌI kết nối nên các test từ chối vẫn xanh dù cơ chế xác thực đã bị gỡ. Test chỉ đáng tin khi khẳng định
+  đúng LÝ DO thất bại (ở đây: server trả khung `ERROR` của STOMP sau bắt tay thành công, còn origin lạ bị chặn 403 ở bước bắt tay).
+- **Áp dụng lại lần sau:** Với test "phải bị từ chối", khẳng định kiểu từ chối chứ không chỉ "thất bại"; kèm một test ngược "đúng thì vào được"
+  để chứng minh hạ tầng vẫn hoạt động. Khi phá một cơ chế để kiểm tra đột biến, phá sao cho phần còn lại vẫn chạy được.
+
+### Test xanh ở máy này, đỏ ở CI vì phụ thuộc thứ tự chạy
+- **Bài học:** Các lớp test tích hợp dùng chung một PostgreSQL. Test đơn hàng và khuyến mãi tạo giỏ/đơn rồi không dọn, còn test catalog/combo xoá
+  `products` ở đầu mỗi test nên lỗi `cart_items_product_id_fkey` nếu chạy SAU chúng (41 lỗi trên CI). Windows chạy các lớp theo thứ tự tên nên
+  catalog chạy trước và luôn xanh; Linux (CI) chạy theo thứ tự khác. Chỉ tái hiện được khi ép đảo thứ tự (`-Dsurefire.runOrder=reversealphabetical`).
+- **Áp dụng lại lần sau:** Test tạo dữ liệu thì tự dọn khi kết thúc (`@AfterEach`, ví dụ `TRUNCATE TABLE products, product_combos CASCADE` dọn mọi bảng
+  tham chiếu); không được giả định thứ tự chạy. Trước khi mở PR chạy thêm bộ test với `-Dsurefire.runOrder=reversealphabetical`.
+
+### Bộ test tích hợp cạn kết nối PostgreSQL khi thêm lớp test mới
+- **Bài học:** Mỗi lớp test tích hợp có Spring context riêng và được giữ trong cache tới hết lần chạy; mỗi context mở khoảng 10 kết nối (mặc định
+  Hikari) tới PostgreSQL Testcontainers dùng chung (`max_connections` = 100). Khi số lớp test tăng, một lớp mới thêm vào làm `UserRepositoryTest`
+  (không liên quan) lỗi `FATAL: sorry, too many clients already`. Cùng lúc đó một test giả định "đường dẫn này chưa có controller" (nên mong 404) hỏng khi
+  module khác thêm controller thật: test nên dùng đường dẫn thăm dò không bao giờ có controller thay vì đường dẫn thật của tính năng sắp làm.
+- **Áp dụng lại lần sau:** Test dùng DB dùng chung phải giới hạn pool (`spring.datasource.hikari.maximum-pool-size=5` trong `PostgresTestContainerConfig`).
+  Test lỗi ở chỗ không liên quan tới thay đổi vừa làm thì xem log tìm nguyên nhân gốc (`Caused by`) trước khi đoán. Chạy `mvn clean test` toàn bộ
+  trên `dev` mới trước khi bắt đầu việc mới để có mốc.
+
 ### `catch` chung nuốt lỗi điều khiển luồng của framework
 - **Bài học:** `serverApi.request` bọc `fetch(..., { cache: "no-store" })` trong `catch` rồi đổi mọi lỗi thành `NETWORK_ERROR`. Lúc `next build`
   Next ném `DYNAMIC_SERVER_USAGE` (để chuyển trang sang render động) và `catch` đã nuốt nó, nên build lỗi `NETWORK_ERROR` ở `/`, `/brands`, `/products`

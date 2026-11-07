@@ -10,7 +10,7 @@ export default function CartRoute() {
   const d = getCartData();
   return (
     <Shell page="shop">
-      <CartPage csvcHtml={d.csvcHtml} pvcHtml={d.pvcHtml} provinces={d.provinces} />
+      <CartPage csvcHtml={d.csvcHtml} pvcHtml={d.pvcHtml} />
     </Shell>
   );
 }

@@ -47,7 +47,7 @@ import static vn.campvivo.catalog.ProductSpecifications.isCountQuery;
  *   <li>Combo gồm ≥ 2 sản phẩm khác nhau, mỗi sản phẩm 1..99 cái trong một bộ.</li>
  *   <li>Tồn kho combo theo bộ (D-03): combo mới = 0; "đóng gói" N bộ trừ kho từng sản phẩm × số lượng (D-22) và cộng N vào
  *       combo; "tháo" làm ngược lại (chỉ số bộ chưa bị giữ chỗ). Khách mua combo chỉ trừ kho combo.</li>
- *   <li>Đóng gói/tháo ghi nhật ký kho cho combo và từng sản phẩm thành phần (D-27).</li>
+ *   <li>Đóng gói/tháo ghi nhật ký kho cho combo và từng sản phẩm thành phần (D-36).</li>
  *   <li>Combo còn bộ đã đóng gói thì không đổi được thành phần (phải tháo hết trước) — để hàng tháo ra đúng hàng đã lấy.</li>
  *   <li>Không xoá cứng (BR-14): "xoá" = ẩn bằng isActive=false.</li>
  *   <li>Slug/ảnh/mô tả: cùng quy tắc với sản phẩm (slug trống → sinh từ tên; đúng 1 ảnh chính; HTML được làm sạch).</li>

@@ -7,19 +7,18 @@ import { useEffect, useState } from "react";
 import type { ProductFull, PdpStatic } from "@/types/product";
 import { vnd } from "@/lib/format";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { fmtRating } from "@/components/features/review/Stars";
 
+/** Thời gian còn lại tới hết chiến dịch: [ngày, giờ, phút, giây]; đã hết → toàn 0 (tải lại trang sẽ thấy giá gốc). */
 function useCountdown(iso: string | null) {
-  const [left, setLeft] = useState<[string, string, string] | null>(null);
+  const [left, setLeft] = useState<[number, string, string, string] | null>(null);
   useEffect(() => {
     if (!iso) return;
     const end = new Date(iso).getTime();
     const tick = () => {
-      // Sale end dates in the snapshot may already be past; roll forward by days so the timer keeps running.
-      let ms = end - Date.now();
-      while (ms < 0) ms += 86_400_000;
-      const s = Math.floor(ms / 1000);
+      const s = Math.max(0, Math.floor((end - Date.now()) / 1000));
       const pad = (n: number) => String(n).padStart(2, "0");
-      setLeft([pad(Math.floor(s / 3600) % 24), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
+      setLeft([Math.floor(s / 86_400), pad(Math.floor(s / 3600) % 24), pad(Math.floor((s % 3600) / 60)), pad(s % 60)]);
     };
     tick();
     const t = setInterval(tick, 1000);
@@ -48,30 +47,22 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.slug]);
 
-  const add = (go: boolean) => {
+  const [adding, setAdding] = useState(false);
+  const add = async (go: boolean) => {
     if (p.variants.length > 1 && variant < 0) {
       setWarn(true);
       return false;
     }
-    if (!p.price) return false;
+    if (!p.price || adding) return false;
     if (p.variants[variant] && p.variants[variant].inv <= 0) {
       notify(`${p.variantLabel ?? "Sản phẩm"} này đã hết hàng`);
       return false;
     }
-    addToCart(
-      {
-        slug: p.slug,
-        name: p.name,
-        img: p.images[0]?.thumb ?? "",
-        sku: p.sku,
-        variant: showVariants ? (p.variants[variant]?.name ?? null) : null,
-        options: showVariants ? p.variants.map((v) => v.name) : [],
-        variantLabel: p.variantLabel,
-        stock: p.variants[variant]?.inv ?? p.maxQty,
-        price: p.price,
-      },
-      qty,
-    );
+    // Giỏ hàng ở server (FR-09): lỗi hết hàng/ngừng bán/chưa đăng nhập đã được ShopProvider báo
+    setAdding(true);
+    const ok = await addToCart({ productId: p.id }, qty);
+    setAdding(false);
+    if (!ok) return false;
     if (go) router.push("/cart");
     else notify("Đã thêm sản phẩm vào giỏ hàng");
     return true;
@@ -140,12 +131,12 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
         <h1 className="tensp">{p.name}</h1>
         <div className="flbox">
           <div className="khungSoSao">
-            <div className="core">
-              <div className="stars" style={{ width: `${p.rating || 100}%` }} />
+            <div className="core" role="img" aria-label={p.reviewCount ? `${fmtRating(p.rating / 20)} trên 5 sao` : "Chưa có đánh giá"}>
+              <div className="stars" style={{ width: `${p.reviewCount ? p.rating : 0}%` }} />
             </div>
             <a href="#tabcontent4">
               <span className="splt" />
-              Xem {p.reviewCount} đánh giá
+              {p.reviewCount ? `Xem ${p.reviewCount} đánh giá` : "Chưa có đánh giá"}
             </a>
             {p.sold && (
               <>
@@ -168,6 +159,11 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               <div className="promotion-price-left">
                 <div className="promotion-desc">
                   Bạn đã tiết kiệm được <b>{p.savePct}</b>
+                  {p.campaign && (
+                    <Link className="ctkm-campaign-tag" href={`/promotions/${p.campaign.slug}`} prefetch={false}>
+                      {p.campaign.name}
+                    </Link>
+                  )}
                 </div>
                 <div className="promotion-detail">
                   <div className="promotion-desc">
@@ -179,16 +175,24 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               <div className="promotion-price-right">
                 <div className="promotion-desc">Kết thúc sau</div>
                 <div className="promotion-countdown">
+                  {left && left[0] > 0 && (
+                    <>
+                      <div className="block">
+                        <span className="remain-days">{left[0]}</span>ngày
+                      </div>
+                      :
+                    </>
+                  )}
                   <div className="block">
-                    <span className="remain-hours">{left?.[0]}</span>giờ
+                    <span className="remain-hours">{left?.[1]}</span>giờ
                   </div>
                   :
                   <div className="block">
-                    <span className="remain-minutes">{left?.[1]}</span>phút
+                    <span className="remain-minutes">{left?.[2]}</span>phút
                   </div>
                   :
                   <div className="block">
-                    <span className="remain-seconds">{left?.[2]}</span>giây
+                    <span className="remain-seconds">{left?.[3]}</span>giây
                   </div>
                 </div>
               </div>
@@ -286,10 +290,10 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
               </button>
             ) : (
               <>
-                <button type="button" className="btBuy1 gg_add_to_cart" onClick={() => add(true)}>
+                <button type="button" className="btBuy1 gg_add_to_cart" disabled={adding} onClick={() => void add(true)}>
                   Mua ngay
                 </button>
-                <button type="button" className="btBuy2 gg_add_to_cart" onClick={() => add(false)}>
+                <button type="button" className="btBuy2 gg_add_to_cart" disabled={adding} onClick={() => void add(false)}>
                   Thêm vào giỏ
                 </button>
               </>

@@ -40,7 +40,7 @@ export function BrandStrip({ title, href, items, id }: { title: string; href?: s
             </div>{" "}
             <div className="brand">{p.brand}</div> <h3 className="title">{p.name}</h3>{" "}
             <div className="core">
-              <div className="stars" style={{ width: `${p.rating ?? 100}%` }} />
+              <div className="stars" style={{ width: `${p.rating ?? 0}%` }} />
             </div>
             <div className="price">
               {vnd(p.price)} {p.oldPrice ? <span>{vnd(p.oldPrice)}</span> : null}

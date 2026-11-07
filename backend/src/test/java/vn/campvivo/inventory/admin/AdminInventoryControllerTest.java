@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Integration test trang Tồn kho (FR-08, BR-8) và nhật ký đóng gói/tháo combo (D-27). */
+/** Integration test trang Tồn kho (FR-08, BR-8) và nhật ký đóng gói/tháo combo (D-36). */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ContextConfiguration(initializers = PostgresTestContainerConfig.class)
@@ -162,7 +162,7 @@ class AdminInventoryControllerTest {
         assertThat(stock("products", tent)).isEqualTo(50);
     }
 
-    // --- Đóng gói / tháo combo ghi nhật ký (D-27) --------------------------------------------------
+    // --- Đóng gói / tháo combo ghi nhật ký (D-36) --------------------------------------------------
 
     @Test
     void packAndUnpackLogComboAndEachProductAndEmployeeCanDoIt() throws Exception {

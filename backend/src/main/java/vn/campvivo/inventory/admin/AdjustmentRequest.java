@@ -9,7 +9,7 @@ import vn.campvivo.inventory.InventoryReason;
 /**
  * Body POST /api/admin/inventory/adjustments — docs/02-ky-thuat/api.md mục 4.10. Đúng một trong productId / comboId.
  * `changeQuantity`: dương = nhập, âm = xuất. IMPORT phải dương, EXPORT phải âm, ADJUST tuỳ dấu; RETURN không chọn tay.
- * Combo chỉ được giảm (D-27). Ràng buộc chéo kiểm tra ở AdminInventoryService.
+ * Combo chỉ được giảm (D-36). Ràng buộc chéo kiểm tra ở AdminInventoryService.
  */
 public record AdjustmentRequest(
         Long productId,

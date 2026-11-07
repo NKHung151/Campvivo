@@ -73,15 +73,18 @@ Danh sách có phân trang:
 | 409 | VOUCHER_EXHAUSTED | Hết lượt |
 | 409 | VOUCHER_ALREADY_USED | User đã dùng mã |
 | 409 | VOUCHER_IN_USE | Xoá voucher đã có đơn dùng |
+| 409 | VOUCHER_CODE_ALREADY_EXISTS | Admin tạo/sửa voucher trùng mã (không phân biệt hoa thường) |
 | 409 | ORDER_NOT_CANCELLABLE | Huỷ khi không PENDING |
 | 409 | INVALID_STATUS_TRANSITION | Sai máy trạng thái (đơn hoặc yêu cầu trả hàng) |
 | 502 | PAYMENT_GATEWAY_ERROR | Không tạo được URL thanh toán |
+| 502 | SHIPPING_GATEWAY_ERROR | GHN lỗi/không kết nối được, chưa cấu hình `GHN_*`, hoặc địa chỉ không giao được (D-27) |
 | **return/review** | | |
 | 400 | RETURN_NOT_ALLOWED | Đơn không ở COMPLETED |
 | 400 | RETURN_WINDOW_EXPIRED | Quá hạn trả |
 | 409 | RETURN_ALREADY_EXISTS | |
 | 403 | NOT_PURCHASED | Đánh giá khi chưa mua |
 | 409 | REVIEW_ALREADY_EXISTS | |
+| 409 | REVIEW_HIDDEN | Sửa đánh giá đã bị nhân viên ẩn — chủ chỉ được xoá (D-31) |
 
 ## 3. Kiểu dữ liệu dùng chung (đặt trong `frontend/src/types/`)
 
@@ -136,29 +139,51 @@ Hành vi đã hiện thực (N3-02, khớp `features.md` FR-01 và BR-11):
 - Ba endpoint này công khai nhưng backend vẫn từ chối request mang token sai/hết hạn (401); frontend phải gọi với
   `skipAuth` (xem `authentication.md` mục 3).
 
-### 4.2 user — FR-04, FR-18, FR-20
+Hành vi đã hiện thực (N3-04, khớp `features.md` FR-03 và BR-11):
+- `forgot-password`: luôn 200 với email không tồn tại hoặc tài khoản bị khoá (không gửi gì). Gửi lại khi mã trước mới gửi
+  < 60 giây cũng trả 200 im lặng (không gửi thư mới, mã cũ vẫn dùng được) để không lộ email nào đã đăng ký. Gửi email lỗi
+  vẫn trả `EMAIL_SEND_FAILED` để người dùng biết thử lại. Tài khoản **chưa xác thực email** vẫn được gửi mã. Mỗi user chỉ có
+  một ô OTP: xin mã đặt lại mật khẩu sẽ ghi đè mã xác thực email đang chờ (và ngược lại).
+- `reset-password`: `newPassword` theo cùng luật mật khẩu của `register` (kể cả giới hạn 72 byte UTF-8); mật khẩu sai định dạng
+  bị từ chối **trước khi** đụng tới mã nên không làm mất lượt thử. Email không tồn tại và mã sai đều trả `INVALID_OTP`; mã
+  của mục đích khác (vd. mã xác thực email) cũng là `INVALID_OTP`; hết hạn `OTP_EXPIRED`; sai quá 5 lần `OTP_TOO_MANY_ATTEMPTS`;
+  tài khoản bị khoá `ACCOUNT_DISABLED`. Mã dùng một lần (nhiều yêu cầu song song cùng mã chỉ một yêu cầu thành công). Thành công:
+  đổi mật khẩu, tăng `token_version` (mọi thiết bị đang đăng nhập bị đăng xuất), đặt `email_verified = true`; **không** trả
+  token — người dùng đăng nhập lại.
+
+### 4.2 user — FR-04, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
 | GET | `/users/me` | User | → `UserProfile` |
 | PUT | `/users/me` | User | `{fullName, phone, address}` → `UserProfile` |
 | PUT | `/users/me/password` | User | `{currentPassword, newPassword}` → 200 (token cũ hết hiệu lực) |
-| GET | `/users/me/reviews` | Customer | `?page&limit` → `[ReviewMine]` |
 | GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ArticleSummary, createdAt}]` |
+
+Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
+- `PUT /users/me` thay thế đúng ba trường `fullName`, `phone`, `address`; **email và role không sửa được** — gửi kèm trong body (cũng như `isActive`, `tokenVersion`...) bị bỏ qua.
+  `fullName` 2–100 ký tự sau khi `trim`; `phone` tuỳ chọn, đúng `^0\d{9}$` (cùng luật với số điện thoại khi đặt hàng); `address` tuỳ chọn, tối đa 500 ký tự.
+  `phone`/`address` bỏ trống, rỗng hoặc toàn khoảng trắng nghĩa là xoá giá trị đã lưu (không phải "giữ nguyên"). Mọi role đã đăng nhập đều dùng được. Sửa hồ sơ KHÔNG làm token hết hiệu lực.
+- `PUT /users/me/password`: sai mật khẩu hiện tại → `INVALID_CURRENT_PASSWORD` (400), không đổi gì. Mật khẩu mới theo cùng luật với đăng ký (8–64 ký tự, có chữ và số, ≤ 72 byte UTF-8) và
+  được kiểm TRƯỚC khi so mật khẩu cũ (sai định dạng → `VALIDATION_ERROR` ở `newPassword`). Mật khẩu mới được phép trùng mật khẩu hiện tại. Thành công: đổi mật khẩu và tăng `token_version`
+  trong một câu UPDATE nguyên tử, nên **mọi token đã cấp, kể cả của thiết bị đang đổi, hết hiệu lực** — client phải đăng nhập lại; không trả token mới. Nếu có lần đổi / đặt lại mật khẩu khác chen vào
+  giữa lúc xác nhận và lúc ghi thì trả `INVALID_CURRENT_PASSWORD` (nhiều yêu cầu đổi song song cùng mật khẩu cũ chỉ một yêu cầu thành công). Chưa có giới hạn số lần thử mật khẩu hiện tại.
 
 ### 4.3 catalog / combo / article (public) — FR-07, FR-21a, FR-25
 | Method | Path | Quyền | Query / Response |
 |---|---|---|---|
 | GET | `/categories` | Public | → cây `[{id, name, slug, children: [...]}]` |
-| GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
+| GET | `/products` | Public | `category` (slug, gồm danh mục con; slug không tồn tại → rỗng), `brand` (khớp đúng tên), `q` (tên/thương hiệu/slug, gõ không dấu được; có `q` thì xếp theo mức liên quan trước `sortBy`, như `/admin/products`), `slugs` (danh sách slug cách nhau dấu phẩy, ≤ 100 — khối sản phẩm chọn sẵn, đã xem, yêu thích), `minPrice`, `maxPrice` (theo giá sau chiến dịch), `onSale=true` (chỉ sản phẩm đang được giảm: giá sau chiến dịch < giá gốc, mức giảm lớn nhất nếu thuộc nhiều chiến dịch — trang `/promotions`, khối Flash sale), `sortBy=newest\|price_asc\|price_desc\|name_asc` (mặc định newest), `page`, `limit` (1..100) → `[ItemSummary]`. Chỉ sản phẩm đang bán |
 | GET | `/products/{slug}` | Public | → `ProductDetail` |
 | GET | `/products/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` (FR-25) |
-| GET | `/products/{id}/reviews` | Public | `?page&limit` → `{averageRating, reviewCount, items: [Review]}` |
+| GET | `/products/{id}/reviews` | Public | `?rating=1..5&page&limit` (limit mặc định 10) → `[Review]` + `pagination`; bỏ đánh giá bị ẩn; mới nhất trước (FR-18, D-32) |
+| GET | `/products/{id}/reviews/summary` | Public | → `ReviewSummary` (điểm TB, số lượt, phân bố sao; bỏ đánh giá bị ẩn) |
 | GET | `/brands` | Public | → `[{name, productCount}]` (distinct `products.brand`) |
 | GET | `/combos` | Public | `category` (slug danh mục cấp 1), `q`, `sortBy=newest\|price_asc\|price_desc`, `page`, `limit` (1..100) → `[ComboSummary]` (chỉ combo đang bán) |
 | GET | `/combos/{slug}` | Public | → `ComboDetail` |
 | GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
-| GET | `/combos/{id}/reviews` | Public | như sản phẩm |
+| GET | `/combos/{id}/reviews`, `/combos/{id}/reviews/summary` | Public | như sản phẩm |
 | GET | `/search` | Public | `q` (bắt buộc, ≥ 2 ký tự), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` → `{products: [...], combos: [...], articles: [...]}` (+ `pagination` khi có `type`) |
+| GET | `/campaigns` | Public | → `[{id, name, slug, bannerUrl, discountType, discountValue, endDate, productCount}]` chiến dịch đang hiệu lực, sắp kết thúc trước (PromoBar, trang `/promotions`); `productCount` = số sản phẩm đang bán |
 | GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
 | GET | `/articles` | Public | `category`, `page`, `limit` → `[ArticleSummary]` (chỉ đã xuất bản, mới nhất trước) |
 | GET | `/articles/{slug}` | Public | → `ArticleDetail` |
@@ -186,10 +211,14 @@ interface ArticleSummary { id: number; title: string; slug: string; summary: str
   thumbnailUrl: string | null; category: ArticleCategory; publishedAt: string; }
 interface ArticleDetail extends ArticleSummary { content: string; authorName: string; isFavorite?: boolean; }
 interface Review { id: number; userFullName: string; rating: number; content: string | null;
-  createdAt: string; updatedAt: string; }
-interface ReviewMine extends Review { item: { type: ItemType; id: number; name: string; slug: string;
-  primaryImageUrl: string | null } }
+  isSensitive: boolean;            // hệ thống bắt được ngôn từ không phù hợp → giao diện làm mờ nội dung (D-33)
+  createdAt: string; updatedAt: string; }   // updatedAt > createdAt = chủ đã sửa ("(đã chỉnh sửa)")
+interface ReviewSummary { averageRating: number | null;   // làm tròn 1 chữ số; null = chưa có đánh giá
+  reviewCount: number;
+  ratingCounts: { 1: number; 2: number; 3: number; 4: number; 5: number }; }   // đủ 5 khoá, kể cả 0
 ```
+Mặt hàng không tồn tại hoặc đang tắt → `NOT_FOUND` (cùng quy tắc `GET /products/{slug}`). `rating` ngoài 1–5 → `VALIDATION_ERROR`.
+`averageRating`/`reviewCount` trong `ItemSummary`, `ProductDetail`, `ComboDetail` tính cùng cách với `summary` (D-35).
 
 ### 4.4 cart — FR-09
 | Method | Path | Quyền | Body → Response |
@@ -204,56 +233,84 @@ interface Cart {
   items: { id: number; item: ItemSummary & { isActive: boolean }; quantity: number;
            lineTotal: Money; }[];                     // giá hiện hành (D-04)
   subtotal: Money;
+  itemCount: number;                                  // tổng số món (badge giỏ hàng)
   hasProblems: boolean;                               // có dòng hết hàng/ngừng bán/vượt available
 }
 ```
-Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`.
+Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`, `VALIDATION_ERROR` (số lượng 1..999; gửi cả hai hoặc không id nào →
+`fieldErrors.exactlyOneItem`). Giỏ được tạo khi khách dùng lần đầu.
 
 ### 4.5 order / payment — FR-10, FR-11, FR-12, FR-19a
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| POST | `/vouchers/validate` | Customer | `{code}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
-| POST | `/orders/preview` | Customer | `{voucherCode?}` → `OrderPreview` (dùng để hiển thị trang thanh toán và lấy `expectedTotal`) |
+| POST | `/vouchers/validate` | Customer | `{code, cartItemIds?}` → `{code, discountType, discountValue, discountAmount, ...OrderPreview}` (tính trên giỏ hiện tại, không trừ lượt) |
+| GET | `/vouchers/available` | Customer | `?cartItemIds=1,2` (bỏ trống = cả giỏ) → `[AvailableVoucher]`: voucher công khai (`is_public`) đang hiệu lực, còn lượt, tính trên giỏ hiện tại (D-29). Mã dùng được trước (giảm nhiều trước), rồi mã chưa dùng được |
+| GET | `/vouchers/public` | Public | → `[PublicVoucher]` tối đa 5 voucher công khai đang hiệu lực, còn lượt, sắp hết hạn trước — thanh PromoBar (D-29) |
+| POST | `/orders/preview` | Customer | `{voucherCode?, cartItemIds?, shippingDistrictId?, shippingWardCode?}` → `OrderPreview` (hiển thị trang thanh toán, lấy `expectedTotal`; có địa chỉ GHN thì tính phí ship — D-27; `cartItemIds` rỗng = cả giỏ) |
 | POST | `/orders` | Customer | `CreateOrderRequest` → 201 `{orderId, orderCode, status, finalAmount, paymentMethod, paymentUrl: string \| null}` |
-| GET | `/orders` | Customer | `?status&page&limit` → `[OrderSummary]` (của chính mình) |
+| GET | `/orders` | Customer | `?status&page&limit` (limit mặc định 10) → `[OrderSummary]` (của chính mình, mới nhất trước) |
 | GET | `/orders/{id}` | Customer | → `OrderDetail` |
-| POST | `/orders/{id}/cancel` | Customer | `{reason?}` → `OrderDetail` |
+| POST | `/orders/{id}/cancel` | Customer | `{reason?}` (≤ 500) → `OrderDetail`. Chỉ khi PENDING (`ORDER_NOT_CANCELLABLE`); đơn người khác → `NOT_FOUND` |
 | POST | `/orders/{id}/returns` | Customer | `{reason}` (10–1000 ký tự) → 201 `ReturnRequestDto` |
-| GET | `/payments/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12) |
-| GET | `/payments/vnpay/return` | Public | query `vnp_*` → `{orderId, orderCode, status, paymentStatus}` — chỉ đọc |
+| GET | `/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12, D-28) — KHÔNG bọc `{success, data}` |
+| GET | `/vnpay/return` | Public | query `vnp_*` (trang `/payment/vnpay-return` chuyển nguyên) → `VnpayReturnResult`; cùng hàm xử lý với IPN (D-28) |
 
 ```ts
 interface OrderPreview {
-  items: { type: ItemType; id: number; name: string; quantity: number;
+  items: { cartItemId: number; type: ItemType; id: number; name: string; quantity: number;
            originalPrice: Money; unitPrice: Money; lineTotal: Money }[];
   subtotal: Money; discountAmount: Money; shippingFee: Money; finalAmount: Money;
   voucherCode: string | null;
+  shippingCalculated: boolean;                        // false = chưa có địa chỉ GHN, shippingFee tạm 0
+  freeShipping: boolean; freeShippingThreshold: Money; // D-27
 }
 interface CreateOrderRequest {
-  recipientName: string; recipientPhone: string; shippingAddress: string;
+  recipientName: string; recipientPhone: string;      // SĐT: 10 số, bắt đầu bằng 0
+  shippingAddress: string;                            // địa chỉ đầy đủ (số nhà, phường, quận, tỉnh)
+  shippingDistrictId: number; shippingWardCode: string; // mã GHN (api.md 4.12) — tính phí + tạo vận đơn
   saveAsDefault: boolean; paymentMethod: PaymentMethod; voucherCode?: string;
   note?: string; expectedTotal: Money;                // = OrderPreview.finalAmount client đang thấy
+  cartItemIds?: number[];                             // dòng giỏ được chọn; rỗng = cả giỏ
 }
+type PaymentOutcome = "SUCCESS" | "FAILED" | "ALREADY_PROCESSED" | "INVALID_SIGNATURE" | "ORDER_NOT_FOUND" | "AMOUNT_MISMATCH";
+interface VnpayReturnResult { outcome: PaymentOutcome; orderId: number | null; orderCode: string | null;
+  orderStatus: OrderStatus | null; paymentStatus: PaymentStatus | null; }
 interface OrderSummary { id: number; orderCode: string; status: OrderStatus; paymentMethod: PaymentMethod;
   finalAmount: Money; itemCount: number; firstItemName: string; firstItemImageUrl: string | null;
   createdAt: string; }
 interface OrderDetail extends OrderSummary {
   items: { type: ItemType; itemId: number; name: string; imageUrl: string | null; originalPrice: Money;
-           unitPrice: Money; quantity: number; lineTotal: Money; canReview: boolean }[];
+           unitPrice: Money; quantity: number; lineTotal: Money;
+           myReviewId: number | null;          // đánh giá của khách cho mặt hàng này (từ bất kỳ đơn nào)
+           canReview: boolean }[];             // = đơn COMPLETED && myReviewId == null
   subtotal: Money; discountAmount: Money; shippingFee: Money; voucherCode: string | null;
   recipientName: string; recipientPhone: string; shippingAddress: string; note: string | null;
   payment: { method: PaymentMethod; status: PaymentStatus; paidAt: string | null };
+  shipping: { carrier: "GHN"; districtId: number; wardCode: string;
+              trackingCode: string | null;            // mã vận đơn GHN, null = chưa tạo (D-28)
+              error: string | null };                 // lỗi lần tạo vận đơn gần nhất
   history: { oldStatus: OrderStatus | null; newStatus: OrderStatus; note: string | null; createdAt: string }[];
   returnRequest: ReturnRequestDto | null;
   canCancel: boolean; canReturn: boolean; completedAt: string | null;
 }
 interface ReturnRequestDto { id: number; orderId: number; reason: string; status: ReturnStatus;
   note: string | null; processedAt: string | null; createdAt: string; }
+interface PublicVoucher { code: string; discountType: DiscountType; discountValue: Money; maxDiscount: Money | null;
+  minOrderValue: Money; expiryDate: string; }
+interface AvailableVoucher extends PublicVoucher {
+  remaining: number;                                  // quantity − used_count
+  usable: boolean;
+  reason: "VOUCHER_MIN_ORDER_NOT_MET" | "VOUCHER_ALREADY_USED" | null;  // vì sao chưa dùng được
+  missingAmount: Money | null;                        // còn thiếu bao nhiêu để đạt minOrderValue
+  estimatedDiscount: Money;                           // mức giảm trên giỏ hiện tại; 0 khi !usable
+  best: boolean;                                      // mã dùng được giảm nhiều nhất (tối đa 1 mã)
+}
 ```
 Ví dụ `POST /orders` VNPay:
 ```json
 { "recipientName": "Nguyễn Văn A", "recipientPhone": "0901234567",
-  "shippingAddress": "12 Lê Lợi, Q.1, TP.HCM", "saveAsDefault": true,
+  "shippingAddress": "12 Lê Lợi, Phường Bến Nghé, Quận 1, Hồ Chí Minh",
+  "shippingDistrictId": 1442, "shippingWardCode": "20109", "saveAsDefault": true,
   "paymentMethod": "VNPAY", "voucherCode": "CAMPVIVO10", "expectedTotal": 840000 }
 ```
 ```json
@@ -262,17 +319,32 @@ Ví dụ `POST /orders` VNPay:
   "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..." } }
 ```
 Lỗi `POST /orders`: `CART_EMPTY`, `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `PRICE_CHANGED`, các lỗi
-voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `VALIDATION_ERROR`.
+voucher (BR-5), `PAYMENT_GATEWAY_ERROR`, `SHIPPING_GATEWAY_ERROR`, `VALIDATION_ERROR`, `NOT_FOUND` (cartItemIds không thuộc giỏ).
+Voucher: `/orders/preview` và `/vouchers/validate` chỉ tính thử; `POST /orders` khoá voucher, kiểm tra lại BR-5 và trừ 1 lượt.
+Đơn chuyển CANCELLED/PAYMENT_FAILED → trả lại lượt. Mã nhập không phân biệt hoa thường.
 
 ### 4.6 review / favorite — FR-18, FR-20
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| POST | `/reviews` | Customer | `{productId?, comboId?, rating (1–5), content?}` → 201 `Review` |
-| PUT | `/reviews/{id}` | Customer (chủ) | `{rating, content?}` → `Review` |
-| DELETE | `/reviews/{id}` | Customer (chủ) | → 200 |
+| GET | `/reviews/mine` | Customer | `?productId=\|comboId=` (đúng 1) → `MyReview \| null` (kể cả khi bị ẩn) |
+| GET | `/reviews/eligibility` | Customer | `?productId=\|comboId=` (đúng 1) → `{canReview}`: đã có đơn COMPLETED chứa mặt hàng **và** chưa viết — trang sản phẩm/combo chọn hiện form hay "đánh giá sau khi nhận hàng" |
+| POST | `/reviews` | Customer | `{productId? \| comboId?, rating (1–5), content? (≤ 2000)}` → 201 `MyReview` |
+| PUT | `/reviews/{id}` | Customer (chủ) | `{rating, content?}` → `MyReview` |
+| DELETE | `/reviews/{id}` | Customer (chủ) | → 200 (được cả khi bị ẩn; xoá xong viết lại được) |
 | POST | `/favorites` | Customer | `{productId? \| comboId? \| articleId?}` → 201 `{id}` (đã có → 200, trả id cũ) |
 | DELETE | `/favorites/{id}` | Customer (chủ) | → 200 |
 | DELETE | `/favorites?productId=\|comboId=\|articleId=` | Customer | → 200 (bỏ thích từ trang chi tiết) |
+
+```ts
+interface MyReview extends Review { itemType: ItemType; itemId: number;
+  isHidden: boolean; hiddenReason: string | null; }   // chủ thấy lý do khi bị ẩn (D-31)
+```
+Đánh giá (BR-10):
+- `POST`: đúng 1 trong `productId`/`comboId`, không thì `VALIDATION_ERROR`. Mặt hàng không tồn tại/đang tắt → `NOT_FOUND`;
+  chưa có đơn COMPLETED chứa mặt hàng → `NOT_PURCHASED`; đã có đánh giá → `REVIEW_ALREADY_EXISTS`.
+- `content` được `trim`; rỗng/toàn khoảng trắng → lưu `null`. Không có độ dài tối thiểu.
+- Mỗi lần viết/sửa, hệ thống kiểm tra nội dung bằng từ điển (D-33): bắt được → `isSensitive = true`; **không chặn đăng**.
+- `PUT`/`DELETE` đánh giá không phải của mình → `NOT_FOUND`. `PUT` đánh giá đang bị ẩn → `REVIEW_HIDDEN`.
 
 ### 4.7 notification — FR-22
 | Method | Path | Quyền | Body → Response |
@@ -301,6 +373,17 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
   - `/user/queue/support` → `SupportMessage` (khách nhận tin của nhân viên; nhân viên nhận tin của mọi khách)
 - Client chỉ gửi qua REST (POST ở 4.8); WebSocket chỉ để nhận. Mất kết nối → client gọi lại REST để đồng bộ.
 
+Hành vi đã hiện thực (N3-08):
+- Bắt tay WebSocket/SockJS là công khai (trình duyệt không đặt được header ở bước này); **xác thực nằm ở khung CONNECT**. Thiếu header,
+  token sai chữ ký / hết hạn, `tv` cũ hay tài khoản bị khoá → server trả khung `ERROR` rồi đóng kết nối (nội dung lỗi chỉ là câu chung của
+  Spring, KHÔNG phải mã lỗi `errorCode`). Phía client: `ERROR` trước khi nhận `CONNECTED` = xác thực thất bại, nên lấy token mới / về `/login`.
+- Chỉ SUBSCRIBE được `/user/queue/notifications` và `/user/queue/support`; đăng ký kênh khác, hoặc gửi bất kỳ khung `SEND` nào, đều bị `ERROR`
+  và đóng kết nối. Mỗi người chỉ nhận tin gửi tới `userId` của mình (principal = userId).
+- Origin phải nằm trong `app.cors.allowed-origins` (được kiểm ở cả CORS lẫn bắt tay WebSocket). Kích thước khung tối đa 8 KB.
+- Token chỉ được kiểm lúc CONNECT: kết nối đang mở **không tự đóng** khi token hết hạn (24 giờ), người dùng đăng xuất hay bị khoá; tin vẫn
+  tới tới khi client ngắt hoặc tải lại trang. Muốn chặt hơn phải chủ động ngắt kết nối khi `token_version` đổi (chưa làm).
+- Broker nằm trong bộ nhớ: chỉ đúng khi chạy **một** instance backend.
+
 ### 4.10 admin
 | Method | Path | Quyền | Ghi chú |
 |---|---|---|---|
@@ -321,26 +404,117 @@ interface SupportMessage { id: number; customerId: number; content: string; isFr
 | POST | `/admin/combos` | Admin | `ComboRequest` → 201 `AdminComboDetail`; tồn kho bắt đầu 0 (đóng gói ở `/pack`). `categoryId` phải là danh mục cấp 1 (D-23), không thì 400 `fieldErrors.categoryId`. < 2 sản phẩm hoặc trùng sản phẩm → 400 `fieldErrors.items`; sản phẩm không tồn tại → `NOT_FOUND`; slug tự nhập trùng → `SLUG_ALREADY_EXISTS` |
 | GET/PUT | `/admin/combos/{id}` | Admin | PUT như POST (thay toàn bộ thành phần và ảnh; slug trống = giữ slug cũ) |
 | PATCH | `/admin/combos/{id}/status` | Admin | `{isActive}` → `AdminComboSummary`. "Xoá" combo = ẩn (BR-14) |
-| POST | `/admin/combos/{id}/pack` | Staff | `{sets: 1..999}` → `AdminComboDetail`. Trừ `sets × quantity` ở kho sản phẩm của từng dòng, cộng `sets` vào kho combo (D-22); ghi nhật ký kho cho combo (IMPORT) và từng sản phẩm (EXPORT) (D-27). Thiếu → 409 `OUT_OF_STOCK` (`details.shortages`) |
+| POST | `/admin/combos/{id}/pack` | Staff | `{sets: 1..999}` → `AdminComboDetail`. Trừ `sets × quantity` ở kho sản phẩm của từng dòng, cộng `sets` vào kho combo (D-22); ghi nhật ký kho cho combo (IMPORT) và từng sản phẩm (EXPORT) (D-36). Thiếu → 409 `OUT_OF_STOCK` (`details.shortages`) |
 | POST | `/admin/combos/{id}/unpack` | Staff | `{sets}` → `AdminComboDetail`. Trả hàng về kho sản phẩm, ghi nhật ký (combo EXPORT, sản phẩm IMPORT); `sets` > số bộ khả dụng → `INVALID_STOCK_ADJUSTMENT` |
 | GET | `/admin/inventory` | Staff | `?type=PRODUCT\|COMBO` (mặc định PRODUCT) `&q&lowStock=true&page&limit` → `[InventoryItem]`, ít hàng khả dụng nhất lên đầu. `q` tìm như danh sách sản phẩm (không dấu). `lowStock`: khả dụng ≤ `app.inventory.low-stock-threshold` (gồm hết hàng) |
-| POST | `/admin/inventory/adjustments` | Staff | `AdjustmentRequest` → 201 `InventoryLogEntry`. Đúng một trong productId/comboId; IMPORT phải dương, EXPORT phải âm, ADJUST khác 0, RETURN không chọn tay (400 `fieldErrors`). Combo chỉ được giảm (D-27) và mọi điều chỉnh không được làm `stock < reserved` → `INVALID_STOCK_ADJUSTMENT` |
+| POST | `/admin/inventory/adjustments` | Staff | `AdjustmentRequest` → 201 `InventoryLogEntry`. Đúng một trong productId/comboId; IMPORT phải dương, EXPORT phải âm, ADJUST khác 0, RETURN không chọn tay (400 `fieldErrors`). Combo chỉ được giảm (D-36) và mọi điều chỉnh không được làm `stock < reserved` → `INVALID_STOCK_ADJUSTMENT` |
 | GET | `/admin/inventory/logs` | Staff | `?productId&comboId&type=PRODUCT\|COMBO&reason&from&to&page&limit` → `[InventoryLogEntry]`, mới nhất trước. `from`/`to`: `YYYY-MM-DD` giờ Việt Nam, gồm cả hai đầu |
-| GET | `/admin/orders` | Staff | `?status&paymentMethod&q (orderCode/email/SĐT)&from&to&page&limit` |
-| GET | `/admin/orders/{id}` | Staff | `OrderDetail` + thông tin khách |
-| PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` (mục 5.1 `database.md`) → `{orderId, oldStatus, newStatus, updatedAt}` |
+| GET | `/admin/orders` | Staff | `?status&paymentMethod&q&from&to&page&limit` (limit mặc định 20) → `[AdminOrderSummary]`, mới nhất trước. `q`: mã đơn, SĐT người nhận, email/họ tên khách; `from`/`to` `yyyy-MM-dd` theo giờ VN (gồm cả ngày `to`) |
+| GET | `/admin/orders/{id}` | Staff | → `AdminOrderDetail` (`OrderDetail` + khách + `allowedStatuses` + `canCreateShipment`) |
+| PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` → `{orderId, oldStatus, newStatus, updatedAt}`. Nhân viên chỉ được: PENDING+COD → CONFIRMED / CANCELLED (bắt buộc `note`, thiếu → 400 `fieldErrors.note`); CONFIRMED → SHIPPING (không ghi chú thì tự ghi mã vận đơn GHN); SHIPPING → COMPLETED. Khác → `INVALID_STATUS_TRANSITION` |
+| POST | `/admin/orders/{id}/shipment` | Staff | Tạo (lại) vận đơn GHN cho đơn CONFIRMED/SHIPPING chưa có vận đơn → `AdminOrderDetail`; đã có thì giữ nguyên; lỗi GHN → `SHIPPING_GATEWAY_ERROR` (lỗi được lưu vào `shipping.error`) — D-28 |
+| GET | `/admin/orders/{id}/shipment` | Staff | Hành trình vận đơn đọc từ GHN → `ShipmentTracking`; chưa có vận đơn → `NOT_FOUND` |
 | GET | `/admin/returns` | Staff | `?status&page&limit` |
 | GET | `/admin/returns/{id}` | Staff | + `OrderDetail` |
 | PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT" \| "COMPLETE", note?}` (REJECT bắt buộc note) |
-| GET/POST | `/admin/vouchers` | Admin | POST `{code, discountType, discountValue, maxDiscount?, minOrderValue, quantity, startDate, expiryDate, isActive}` |
-| GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | DELETE → `VOUCHER_IN_USE` nếu đã dùng |
-| GET/POST | `/admin/campaigns` | Admin | POST `{name, slug?, description?, bannerUrl?, discountType, discountValue, startDate, endDate, isActive, productIds: number[]}` |
-| GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | |
+| GET | `/admin/vouchers` | Admin | `?q` (mã, chứa chuỗi), `status=UPCOMING\|ACTIVE\|EXPIRED\|EXHAUSTED\|INACTIVE`, `page`, `limit` → `[AdminVoucher]`, mới tạo trước |
+| POST | `/admin/vouchers` | Admin | `VoucherRequest` → 201 `AdminVoucher`. Mã lưu IN HOA; trùng → `VOUCHER_CODE_ALREADY_EXISTS` |
+| GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | PUT như POST; `quantity < usedCount` → 400 `fieldErrors.quantity`. DELETE → `VOUCHER_IN_USE` nếu đã có đơn dùng (chỉ được tắt) |
+| GET | `/admin/campaigns` | Admin | `?q` (tên/slug), `status=UPCOMING\|RUNNING\|ENDED\|INACTIVE`, `page`, `limit` → `[AdminCampaignSummary]`, mới tạo trước |
+| POST | `/admin/campaigns` | Admin | `CampaignRequest` → 201 `AdminCampaignDetail`. Slug trống → sinh từ tên (thêm `-2`… nếu trùng); tự nhập mà trùng → `SLUG_ALREADY_EXISTS`; `productIds` có id không tồn tại → `NOT_FOUND` |
+| GET/PUT/DELETE | `/admin/campaigns/{id}` | Admin | PUT như POST (thay toàn bộ danh sách sản phẩm; slug trống = giữ slug cũ). DELETE luôn được (đơn cũ đã lưu giá) |
+| GET | `/admin/campaigns/overlaps` | Admin | `?productIds=1,2&startDate&endDate&excludeId` → `[{productId, campaignId, campaignName}]`: sản phẩm đã thuộc chiến dịch khác **đang bật** có thời gian giao nhau — chỉ để cảnh báo, không chặn lưu (BR-6 lấy mức giảm lớn nhất) |
+| GET | `/admin/reviews` | Staff | `?q` (họ tên/email khách hoặc tên mặt hàng, gõ không dấu được), `itemType=PRODUCT\|COMBO`, `rating=1..5`, `status=VISIBLE\|HIDDEN\|SENSITIVE`, `page`, `limit` → `[AdminReview]`, mới nhất trước (D-31) |
+| PATCH | `/admin/reviews/{id}/hide` | Staff | `{reason}` (1–500 ký tự) → `AdminReview`. Đã ẩn → ghi đè lý do |
+| PATCH | `/admin/reviews/{id}/unhide` | Staff | → `AdminReview` |
+| PATCH | `/admin/reviews/{id}/clear-sensitive` | Staff | → `AdminReview`. `SENSITIVE` → `CLEARED` (bỏ làm mờ); trạng thái khác giữ nguyên |
+| DELETE | `/admin/reviews/{id}` | Admin | Xoá cứng → 200; khách viết lại được |
 | GET/POST | `/admin/articles` | Admin | `?category&isPublished&q`; POST `{title, slug?, summary?, content, thumbnailUrl?, category, isPublished}` |
 | GET/PUT/DELETE | `/admin/articles/{id}` | Admin | |
 | GET | `/admin/analytics/summary` | Admin | `?from&to` → `{revenue, completedOrders, ordersByStatus: {...}, newCustomers}` |
 | GET | `/admin/analytics/revenue` | Admin | `?from&to&groupBy=day\|month\|year` → `[{period: "2026-10-17" \| "2026-10" \| "2026", revenue, orderCount}]` |
 | GET | `/admin/analytics/top-items` | Admin | `?from&to&limit=10` → `[{type, id, name, quantitySold, revenue}]` |
+
+Kiểu dữ liệu và hành vi đã hiện thực của danh sách người dùng admin (N3-06, FR-14):
+```ts
+interface AdminUserSummary { id: number; email: string; fullName: string; phone: string | null; role: "CUSTOMER" | "EMPLOYEE" | "ADMIN";
+  isActive: boolean; emailVerified: boolean; createdAt: string; }   // KHÔNG có address, mật khẩu, OTP, token_version
+```
+- `GET /admin/users` chỉ **ADMIN** (EMPLOYEE và CUSTOMER → 403 `FORBIDDEN`, chưa đăng nhập → 401). Trả `{success, data: AdminUserSummary[], pagination}`.
+- `q`: email HOẶC họ tên **chứa** từ khoá, **không phân biệt hoa thường** (kể cả chữ hoa có dấu). Từ khoá được `trim`; rỗng / toàn khoảng trắng = không lọc; tối đa 100 ký tự
+  (quá → 400 `VALIDATION_ERROR`). `%`, `_`, `\` trong `q` là chữ thường, không phải ký tự đại diện. **Chưa tìm không dấu** ("nguyen" không ra "Nguyễn"; cần `unaccent` của PostgreSQL).
+- `role` (`CUSTOMER`/`EMPLOYEE`/`ADMIN`, viết hoa) và `isActive` (`true`/`false`) là bộ lọc tuỳ chọn; không truyền `isActive` thì thấy cả tài khoản đang bị khoá. Sai giá trị → 400 `VALIDATION_ERROR`.
+- `page` ≥ 1 (mặc định 1), `limit` 1–100 (mặc định 12), ngoài khoảng → 400 `VALIDATION_ERROR`. Sắp xếp cố định **mới nhất trước** (`createdAt` giảm dần, rồi `id` giảm dần) nên phân trang không nhảy dòng.
+
+Chi tiết và sửa người dùng admin (N3-07, FR-14):
+```ts
+interface AdminUserDetail extends AdminUserSummary { address: string | null;
+  orderCount: number;            // mọi đơn của người này, mọi trạng thái
+  completedOrderCount: number;   // số đơn COMPLETED
+  totalSpent: number; }          // tổng tiền các đơn COMPLETED (VND); đơn RETURNED/CANCELLED không tính
+```
+- `GET /admin/users/{id}` chỉ **ADMIN**; không tồn tại → 404 `NOT_FOUND`. `PATCH /admin/users/{id}` trả `AdminUserDetail` mới.
+- `PATCH` sửa **từng phần**: trường vắng hoặc `null` = giữ nguyên; `phone` là chuỗi rỗng = xoá. `fullName` 2–100 ký tự sau `trim`; `phone` đúng `^0\d{9}$`; sai → 400 `VALIDATION_ERROR` và không đổi gì.
+  Chỉ bốn trường `fullName`, `phone`, `role`, `isActive` sửa được; `email`, mật khẩu, `address`, `emailVerified`, `tokenVersion`... gửi kèm bị bỏ qua.
+- Đổi `role` hoặc `isActive` **thật sự đổi giá trị** thì tăng `token_version` trong cùng một câu UPDATE nguyên tử: mọi token của người đó hết hiệu lực ngay (khoá còn chặn đăng nhập bằng `ACCOUNT_DISABLED`).
+  Gửi lại đúng giá trị hiện tại, hoặc chỉ sửa tên / SĐT, thì KHÔNG tăng. Mở khoá cũng là một lần đổi. Phiên của chính admin đang thao tác không bị ảnh hưởng khi sửa người khác.
+- Admin **tự khoá mình hoặc tự đổi role của mình** → 400 `CANNOT_MODIFY_SELF`, cả yêu cầu bị từ chối (tên / SĐT gửi kèm cũng không đổi); vẫn tự sửa được tên và SĐT, và gửi lại đúng role / trạng thái hiện tại thì được.
+- **Giới hạn đã biết:** chưa chặn trường hợp hai admin đồng thời hạ quyền hoặc khoá lẫn nhau khiến hệ thống không còn admin. Kết nối WebSocket đang mở của người bị khoá không tự đóng (xem mục 4.9).
+
+Kiểu dữ liệu đơn hàng admin (định nghĩa đầy đủ ở `frontend/src/types/api/order.ts`):
+```ts
+interface AdminOrderCustomer { id: number; email: string; fullName: string; phone: string | null; }
+interface AdminOrderSummary extends OrderSummary { paymentStatus: PaymentStatus | null; customer: AdminOrderCustomer | null;
+  recipientName: string; recipientPhone: string; shippingOrderCode: string | null; }
+interface AdminOrderDetail { order: OrderDetail; customer: AdminOrderCustomer | null;
+  allowedStatuses: OrderStatus[];        // nút chuyển trạng thái được phép ngay lúc này
+  canCreateShipment: boolean; }          // CONFIRMED/SHIPPING chưa có vận đơn
+interface ShipmentTracking { carrier: "GHN"; trackingCode: string; status: string;   // mã trạng thái GHN (ready_to_pick, delivering...)
+  expectedDeliveryTime: string | null; updatedAt: string | null; log: { status: string; updatedAt: string | null }[]; }
+```
+
+Kiểu dữ liệu khuyến mãi admin (FR-16, FR-17; định nghĩa đầy đủ ở `frontend/src/types/api/promotion.ts`):
+```ts
+type VoucherStatus = "UPCOMING" | "ACTIVE" | "EXPIRED" | "EXHAUSTED" | "INACTIVE";   // tính từ dữ liệu, không lưu
+type CampaignStatus = "UPCOMING" | "RUNNING" | "ENDED" | "INACTIVE";
+interface VoucherRequest { code: string;              // 3–50 ký tự A-Z 0-9 _ - (chữ thường được đổi IN HOA)
+  discountType: DiscountType; discountValue: Money;   // PERCENTAGE 1–100, FIXED_AMOUNT > 0
+  maxDiscount?: Money | null;                         // chỉ PERCENTAGE, > 0
+  minOrderValue: Money; quantity: number;             // minOrderValue ≥ 0, quantity ≥ 1
+  startDate: string; expiryDate: string;              // expiryDate > startDate
+  isActive: boolean; isPublic: boolean; }             // isPublic: hiện trong danh sách mã (D-29)
+interface AdminVoucher extends Omit<VoucherRequest, "maxDiscount"> { id: number; maxDiscount: Money | null;
+  usedCount: number; status: VoucherStatus; createdAt: string; updatedAt: string; }
+interface CampaignRequest { name: string; slug?: string | null; description?: string | null; bannerUrl?: string | null;
+  discountType: DiscountType; discountValue: Money; startDate: string; endDate: string; isActive: boolean;
+  productIds: number[]; }                             // chỉ sản phẩm (không combo)
+interface AdminCampaignSummary { id: number; name: string; slug: string; bannerUrl: string | null;
+  discountType: DiscountType; discountValue: Money; startDate: string; endDate: string; isActive: boolean;
+  status: CampaignStatus; productCount: number; createdAt: string; updatedAt: string; }
+interface AdminCampaignDetail extends AdminCampaignSummary { description: string | null;
+  products: { id: number; name: string; slug: string; primaryImageUrl: string | null; isActive: boolean;
+              price: Money; campaignPrice: Money }[]; }   // campaignPrice: giá nếu chỉ áp chiến dịch này
+```
+Lỗi validate (`VALIDATION_ERROR`, `fieldErrors`): `expiryDate`/`endDate` ≤ ngày bắt đầu; giá trị giảm sai miền theo loại;
+`maxDiscount` khi FIXED_AMOUNT.
+
+Kiểu dữ liệu quản trị đánh giá (FR-18, D-31, D-33):
+```ts
+type ModerationStatus = "SAFE" | "SENSITIVE" | "CLEARED";   // CLEARED = nhân viên đánh dấu an toàn
+interface AdminReview { id: number; rating: number; content: string | null;
+  user: { id: number; fullName: string; email: string };
+  item: { type: ItemType; id: number; name: string; slug: string };
+  moderationStatus: ModerationStatus; flaggedTerms: string[];   // mục từ điển bị bắt
+  isHidden: boolean; hiddenReason: string | null; hiddenByName: string | null; hiddenAt: string | null;
+  createdAt: string; updatedAt: string; }
+```
+- `status`: `VISIBLE` = chưa ẩn; `HIDDEN` = đã ẩn; `SENSITIVE` = chưa ẩn và `moderationStatus = SENSITIVE`.
+- `q` (tối đa 100 ký tự, `trim`, rỗng = không lọc): **chứa chuỗi con** trong email, họ tên khách hoặc tên sản phẩm/combo,
+  không phân biệt hoa thường và **gõ không dấu được** ("nguyen" khớp "Nguyễn", dùng `translate()` của PostgreSQL, không cần
+  `unaccent`). `%`, `_`, `\` là chữ thường. `limit` mặc định 20 (1–100). Sai `status`/`itemType`/`rating` → 400 `VALIDATION_ERROR`.
+- Ẩn: `reason` bắt buộc (sau `trim`, tối đa 500) — thiếu → 400 `fieldErrors.reason`; `hiddenByName` = người ẩn gần nhất.
+  Id không tồn tại → 404 `NOT_FOUND`. Employee gọi `DELETE` → 403 `FORBIDDEN`.
+- Ẩn/hiện lại/đánh dấu an toàn không đổi `updatedAt`. Khách sửa nội dung → kiểm duyệt lại, `CLEARED` cũng bị tính lại.
 
 ### 4.11 Kiểu dữ liệu admin catalog
 Định nghĩa đầy đủ trong `frontend/src/types/api/catalog.ts` (nguồn TypeScript); backend trả đúng field:
@@ -387,6 +561,34 @@ interface ComboRequest { name: string; slug?: string; description?: string | nul
   // 2..20 sản phẩm khác nhau, quantity 1..99.
   // Combo còn bộ đã đóng gói thì không đổi được thành phần (400 fieldErrors.items)
 ```
+
+### 4.12 shipping (GHN) — FR-10, D-27
+Token/ShopId GHN chỉ ở backend (`app.ghn.*` ← biến `GHN_*`); frontend chỉ gọi các endpoint dưới đây.
+| Method | Path | Quyền | Query / Body → Response |
+|---|---|---|---|
+| GET | `/shipping/provinces` | Public | → `[Province]` (bỏ tỉnh tắt/tỉnh thử nghiệm của staging; xếp theo tên tiếng Việt; cache server `app.ghn.master-data-cache-ttl`) |
+| GET | `/shipping/districts` | Public | `provinceId` (> 0) → `[District]` |
+| GET | `/shipping/wards` | Public | `districtId` (> 0) → `[Ward]` |
+| GET | `/shipping/services` | Public | `toDistrictId` → `[ShippingServiceOption]` — gói GHN khả dụng từ kho tới quận nhận (tham khảo; đơn dùng gói `app.ghn.service-type-id`) |
+| POST | `/shipping/fee` | Public | `ShippingFeeRequest` → `ShippingFee`. Tính thử ở trang thanh toán; khi tạo đơn server tự tính lại từ giỏ |
+
+```ts
+interface Province { id: number; name: string; }
+interface District { id: number; name: string; }
+interface Ward { code: string; name: string; }
+interface ShippingServiceOption { serviceId: number; serviceTypeId: number; name: string; }
+interface ShippingFeeRequest {
+  toDistrictId: number; toWardCode: string;
+  quantity: number;          // tổng số món (1..999); cân nặng = quantity × app.ghn.default-weight (gram)
+  orderValue?: Money;        // tạm tính − giảm giá, để xét miễn phí ship
+}
+interface ShippingFee {
+  fee: Money;                // phí khách trả: 0 nếu orderValue ≥ freeShippingThreshold
+  carrierFee: Money;         // phí GHN báo (shop trả GHN)
+  freeShipping: boolean; freeShippingThreshold: Money;
+}
+```
+Lỗi: `VALIDATION_ERROR` (`fieldErrors`), `SHIPPING_GATEWAY_ERROR` (502).
 
 ## 5. Ánh xạ sang frontend
 - Mỗi nhóm endpoint ↔ `frontend/src/services/<module>Service.ts` (auth, user, catalog, cart, order,

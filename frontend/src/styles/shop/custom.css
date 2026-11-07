@@ -114,6 +114,9 @@ body {
   font-size: 22px;
   margin: 0 0 18px;
 }
+.cv-account__form {
+  max-width: 460px;
+}
 .cv-order {
   border: 1px solid #e2e2e2;
   border-radius: 6px;
@@ -383,4 +386,108 @@ body {
 .pg-shop #SubProductTabInfo .bgTab,
 .pg-shop #ProductDetailCol2 .stickyTop0 {
   overflow-anchor: none;
+}
+
+/* Khối Flash sale trang chủ: nút "Xem tất cả" → /promotions (khối có chiều cao cố định nên đặt ở góc trên) */
+.pg-home .ChuongTrinhGiamGiaTrangChu {
+  position: relative;
+}
+.pg-home .ChuongTrinhGiamGiaTrangChu .cvFlashMore {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff;
+  color: #2f6a3f;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.pg-home .ChuongTrinhGiamGiaTrangChu .cvFlashMore:hover {
+  background: #2f6a3f;
+  color: #fff;
+}
+@media (max-width: 640px) {
+  .pg-home .ChuongTrinhGiamGiaTrangChu .cvFlashMore {
+    top: 12px;
+    right: 10px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Phân trang của ListingView (trang /promotions) */
+.pg-shop .cv-listing-pages {
+  clear: both;
+  padding: 16px 0 0;
+}
+
+/* Trang chiến dịch /promotions/[slug] (FR-17) */
+.pg-shop .cvPromotionBanner {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 16px 0 0;
+}
+.pg-shop .cvPromotionEnds {
+  text-align: center;
+  color: #2f6a3f;
+  font-weight: 600;
+  margin: -6px 0 12px;
+}
+
+/* Popup voucher trang /cart: danh sách mã công khai (D-29) — dùng lại .voucher_group/.item_voucher của shop.css */
+.pg-shop .cvVoucherList {
+  margin-top: 16px;
+}
+.pg-shop .cvVoucherHint {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #666;
+}
+.pg-shop .voucher_group.is-disabled {
+  opacity: 0.55;
+}
+.pg-shop .voucher_group.is-disabled:hover {
+  border-color: #e0e0e0;
+  box-shadow: none;
+}
+.pg-shop .cvVoucherBest {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #2f6a3f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.pg-shop .cvVoucherReason {
+  color: #d46b08;
+}
+.pg-shop .cvVoucherApply {
+  padding: 8px 14px;
+  background: #2f6a3f;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.pg-shop .cvVoucherApply:disabled {
+  background: #9bb5a2;
+  cursor: default;
+}
+@media (max-width: 480px) {
+  .pg-shop .voucher_info-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

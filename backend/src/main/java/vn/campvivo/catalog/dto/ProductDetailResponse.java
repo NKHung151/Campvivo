@@ -4,6 +4,7 @@ import vn.campvivo.catalog.Category;
 import vn.campvivo.catalog.Product;
 import vn.campvivo.catalog.ProductImage;
 import vn.campvivo.catalog.ProductSpec;
+import vn.campvivo.promotion.dto.ActiveCampaignRef;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,7 +29,7 @@ public record ProductDetailResponse(
         List<ProductSpec> specs,
         CategoryRef category,
         List<Image> images,
-        Object campaign
+        ActiveCampaignRef campaign
 ) {
     public record PathItem(String name, String slug) {}
 
@@ -36,8 +37,11 @@ public record ProductDetailResponse(
 
     public record Image(String url, boolean isPrimary) {}
 
-    /** `path` = các danh mục từ gốc đến danh mục của sản phẩm (gồm chính nó). */
-    public static ProductDetailResponse from(Product p, List<Category> path) {
+    /**
+     * `path` = các danh mục từ gốc đến danh mục của sản phẩm (gồm chính nó). `campaign` = chiến dịch đang áp (null nếu không có).
+     * `price` = giá sau chiến dịch (BR-6, D-30).
+     */
+    public static ProductDetailResponse from(Product p, List<Category> path, ActiveCampaignRef campaign) {
         List<Image> images = p.getImages().stream().map(i -> new Image(i.getImageUrl(), i.isPrimary())).toList();
         String primary = p.getImages().stream().filter(ProductImage::isPrimary)
                 .map(ProductImage::getImageUrl).findFirst().orElse(null);
@@ -45,7 +49,8 @@ public record ProductDetailResponse(
         CategoryRef category = new CategoryRef(c.getId(), c.getName(), c.getSlug(),
                 path.stream().map(x -> new PathItem(x.getName(), x.getSlug())).toList());
         return new ProductDetailResponse("PRODUCT", p.getId(), p.getName(), p.getSlug(), primary,
-                p.getPrice(), p.getPrice(), Math.max(0, p.getAvailableQuantity()), null, 0, p.getBrand(),
-                p.getShortDescription(), p.getDescription(), p.getSpecs(), category, images, null);
+                p.getPrice(), p.getSalePrice(), Math.max(0, p.getAvailableQuantity()), p.getAverageRating(),
+                p.getReviewCount(), p.getBrand(),
+                p.getShortDescription(), p.getDescription(), p.getSpecs(), category, images, campaign);
     }
 }

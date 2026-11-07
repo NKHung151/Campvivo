@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   const rows = details
     .filter((p) => p !== null)
     .map((p) => ({
+      id: p.id,
       slug: p.slug,
       name: p.name,
       img: p.primaryImageUrl ?? "",

@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 
 /**
  * Ghi nhật ký tồn kho (BR-8). Gọi SAU khi đã đổi tồn kho, trong cùng transaction với thay đổi đó (MANDATORY):
- * điều chỉnh tay, đóng gói/tháo combo (D-27), trả hàng hoàn tất (module order, reason RETURN).
+ * điều chỉnh tay, đóng gói/tháo combo (D-36), trả hàng hoàn tất (module order, reason RETURN).
  */
 @Service
 public class InventoryLogService {

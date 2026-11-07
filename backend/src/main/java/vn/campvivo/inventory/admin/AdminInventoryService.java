@@ -43,7 +43,7 @@ import static vn.campvivo.catalog.ProductSpecifications.matchesKeyword;
  * <ul>
  *   <li>Danh sách tồn kho sản phẩm / combo, ít hàng khả dụng nhất lên đầu; lọc "sắp hết" (khả dụng ≤ ngưỡng).</li>
  *   <li>Điều chỉnh tay: sản phẩm nhập/xuất/điều chỉnh; combo CHỈ được giảm (hỏng/mất) — muốn tăng phải đóng gói để trừ
- *       hàng lẻ (D-27). Không được làm tồn kho thấp hơn số đang giữ chỗ. Mỗi lần ghi đúng 1 dòng nhật ký.</li>
+ *       hàng lẻ (D-36). Không được làm tồn kho thấp hơn số đang giữ chỗ. Mỗi lần ghi đúng 1 dòng nhật ký.</li>
  *   <li>Nhật ký: lọc theo mặt hàng, lý do, khoảng ngày (giờ Việt Nam), mới nhất trước.</li>
  * </ul>
  */
@@ -153,7 +153,7 @@ public class AdminInventoryService {
         return LogEntry.from(logService.record(p, userId, change, req.reason(), req.note()));
     }
 
-    /** Combo chỉ được giảm tay (D-27): tăng bộ combo phải qua đóng gói để trừ hàng lẻ. */
+    /** Combo chỉ được giảm tay (D-36): tăng bộ combo phải qua đóng gói để trừ hàng lẻ. */
     private LogEntry writeOffCombo(long id, int change, AdjustmentRequest req, long userId) {
         if (change > 0) {
             throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT,

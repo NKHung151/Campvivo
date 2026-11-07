@@ -41,15 +41,19 @@ const BACKEND_MESSAGES: Record<string, string> = {
   VOUCHER_EXHAUSTED: "Mã giảm giá đã hết lượt sử dụng.",
   VOUCHER_ALREADY_USED: "Bạn đã sử dụng mã giảm giá này.",
   VOUCHER_IN_USE: "Không thể xoá mã giảm giá đã có đơn hàng sử dụng. Hãy tắt mã thay vì xoá.",
+  VOUCHER_CODE_ALREADY_EXISTS: "Mã giảm giá này đã tồn tại. Vui lòng chọn mã khác.",
   ORDER_NOT_CANCELLABLE: "Chỉ có thể huỷ đơn hàng khi đơn đang chờ xử lý.",
   INVALID_STATUS_TRANSITION: "Không thể chuyển sang trạng thái này từ trạng thái hiện tại.",
   PAYMENT_GATEWAY_ERROR: "Không tạo được liên kết thanh toán. Vui lòng thử lại sau.",
+  SHIPPING_GATEWAY_ERROR:
+    "Không kết nối được đơn vị vận chuyển hoặc địa chỉ chưa được hỗ trợ. Vui lòng thử lại hoặc chọn địa chỉ khác.",
   // return / review
   RETURN_NOT_ALLOWED: "Chỉ có thể yêu cầu trả hàng với đơn đã hoàn tất.",
   RETURN_WINDOW_EXPIRED: "Đã quá thời hạn cho phép trả hàng.",
   RETURN_ALREADY_EXISTS: "Đơn hàng này đã có yêu cầu trả hàng.",
   NOT_PURCHASED: "Bạn chỉ có thể đánh giá sản phẩm đã mua.",
   REVIEW_ALREADY_EXISTS: "Bạn đã đánh giá sản phẩm này rồi.",
+  REVIEW_HIDDEN: "Đánh giá đã bị ẩn, bạn chỉ có thể xoá.",
 };
 
 /** Mã do frontend tự sinh (services/apiError.ts), không có ở backend. */

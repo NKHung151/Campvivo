@@ -17,6 +17,82 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-06 — Người 4 (Claude Code) — review: đánh giá sản phẩm/combo + kiểm duyệt (FR-18, RV-01 → RV-35)
+- Đã làm: nhánh `feature/review-product` (tách từ `dev` @ `0899757`, vẫn CHƯA add/commit/push). Docs trước (api.md, database.md,
+  features/use-cases/pages/user-flows, authentication.md, D-31 → D-35). Backend: `V8__reviews.sql` (cột kiểm duyệt + ẩn, CHECK,
+  unique một phần); module `review` (khách: `POST/PUT/DELETE /reviews`, `GET /reviews/mine`, `GET /reviews/eligibility`;
+  công khai: `/products|combos/{id}/reviews[/summary]` lọc sao; admin `/admin/reviews` lọc + hide/unhide/clear-sensitive, DELETE
+  chỉ Admin); kiểm duyệt từ điển `moderation/vi-banned-words.txt` + `TextNormalizer` (chống lách, không chặn đăng, chỉ làm mờ);
+  `@Formula averageRating/reviewCount` trên `Product`/`ProductCombo` (bỏ đánh giá ẩn) thay `null, 0` ở catalog/combo/cart;
+  chi tiết đơn `myReviewId` + `canReview` thật. Frontend: `features/review/*` (ReviewSection, MyReviewPanel, ReviewDialog, Stars,
+  `styles/shop/review.css`) cho trang sản phẩm, combo, chi tiết đơn; bỏ mock `localStorage` và 5 sao giả trên thẻ; trang
+  `/admin/reviews` (antd, bộ lọc trên URL, menu "⋯" mỗi dòng).
+- Kiểm chứng: backend `mvn test` 490/490; `agent-lint.sh` sạch; frontend `tsc` sạch. Người dùng thử tay storefront + admin, góp ý
+  giao diện đã sửa. `npm run build` chưa chạy (dev server của người dùng đang chạy — dùng chung `.next`).
+- Lưu ý: `base.css` có `.ttl{text-transform:lowercase}` — đừng đặt tên class `ttl` cho tiêu đề mới. Tên "Kh?ch h?ng Dev" trong
+  DB local là do chạy SQL ở `local-development.md` qua terminal không UTF-8, không phải lỗi code.
+- Còn dang dở / TODO tiếp theo: chạy `npm run build` + kiểm lại V8 trên `origin` trước khi mở PR; F-09 còn `favorites`,
+  `support_messages`, `notifications`; hướng phát triển: kiểm duyệt AI, admin sửa từ điển trên giao diện.
+- Plan liên quan: `.agents/plans/completed/review-product.md`
+
+### 2026-10-31 — Người 4 (Claude Code) — promotion: lối vào khuyến mãi cho khách (Phần 5b, PM-30 → PM-33)
+- Đã làm (người dùng yêu cầu thêm; vẫn CHƯA add/commit/push): docs (`api.md`: `onSale` ở `GET /products`, `GET /campaigns`;
+  `pages.md`: `/promotions`). Backend: `ProductQuery.onSale` (`salePrice < price`), `GET /campaigns` (`CampaignService.listActive`,
+  `productCount` = sản phẩm đang bán). Frontend: menu "Dọn Kho 70%" → "Khuyến mãi" (`/promotions`, sửa `mocks/data/menu.json`);
+  trang `/promotions` (`getPromotionsListing`: mọi sản phẩm đang giảm, mức giảm lớn nhất; cột trái = chiến dịch đang chạy);
+  `ListingView` thêm prop tuỳ chọn `priceFilter`, `pageSize`, `sideTitle`, `hideSaleFilter` — mặc định tắt nên trang danh mục/
+  thương hiệu không đổi; Flash sale trang chủ lấy `onSale` (giảm nhiều trước, 15 sản phẩm) + nút "Xem tất cả" → `/promotions`;
+  PromoBar xen kẽ slide chiến dịch (tên escape HTML) và voucher (`interleave`, `campaignPromoSlide`).
+- Kiểm chứng: `CampaignPricingIntegrationTest` 7/7 (thêm: `onSale` không trùng dòng khi chồng chiến dịch + lọc giá; `/campaigns` chỉ
+  chiến dịch đang chạy, đếm sản phẩm đang bán), `ProductControllerTest` 6/6; frontend tsc + lint sạch. Chạy thật (DB tạm, đã xoá):
+  menu "Khuyến mãi" → `/promotions` 200, PromoBar xen kẽ đúng, Flash sale 8 sản phẩm thật + nút "Xem tất cả".
+- Lưu ý: KHÔNG chạy dev server thứ hai trong `frontend/` khi người dùng đang chạy `npm run dev` — dùng chung `.next` (lỗi EPERM
+  `.next/trace`, trang trả 404 sai sau hot-reload). Phân trang `/promotions` chưa kiểm được trên trình duyệt vì lý do này.
+- Còn dang dở / TODO tiếp theo: người dùng thử tay (PM-17, PM-27 + trang `/promotions`: lọc giá, sắp xếp, phân trang > 24 sản phẩm);
+  bộ đếm "Chỉ còn hh:mm:ss" của khối Flash sale vẫn là đếm tới nửa đêm (dữ liệu mẫu), không theo hạn chiến dịch.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
+### 2026-10-31 — Người 4 (Claude Code) — promotion: chiến dịch (Phần 4–5 / điểm dừng 2)
+- Đã làm: nhánh `feature/promotion` (vẫn CHƯA add/commit/push). Backend: `Product.salePrice` (`@Formula`, D-30) — nguồn duy nhất
+  của giá bán sản phẩm; `PricingService.unitPrice` = salePrice, `activeCampaigns(ids)` (chiến dịch tốt nhất cho trường `campaign`);
+  `ItemSummary`/`ProductDetail` (+ `campaign`)/`ProductCombo.getItemsTotal` dùng salePrice; `GET /products` lọc `minPrice`/`maxPrice`
+  và `price_asc|desc` theo salePrice; `CampaignService`/`CampaignController` (`GET /campaigns/{slug}`, chỉ đang hiệu lực);
+  `promotion/admin/` CRUD chiến dịch + `GET /admin/campaigns/overlaps`. Frontend: `catalogApi.getCampaign`, `getPromo` đọc API
+  (bỏ mock promos), trang `/promotions/[slug]` (banner, giờ kết thúc), `ProductInfo` nhãn chiến dịch + đếm ngược có số ngày,
+  `adminCampaignService`, `/admin/campaigns` (`CampaignListView`), `/admin/campaigns/new` + `[id]` (`CampaignForm`,
+  `CampaignProductPicker` — giá dự kiến, cảnh báo chồng chiến dịch, banner tải lên/dán link). Không tạo `PriceTag` (đã có sẵn
+  giá gạch + badge % trong `catalogService`) — ghi trong plan.
+- Kiểm chứng: `CampaignPricingIntegrationTest` (5: bảng ca BR-6 + làm tròn khớp `Discounts`, lọc/sắp xếp/chi tiết, đặt hàng dùng giá
+  sau giảm + combo không đổi, trang chiến dịch 404 khi chưa/hết hạn, admin CRUD + overlaps + 403) xanh; cả bộ backend 202/203 (lỗi còn
+  lại là KI-10 có sẵn). Frontend tsc + lint sạch. Chạy thật trên DB tạm (backend 8099 + frontend 3099, đã xoá DB tạm): giá 925.000 →
+  740.000, `/promotions/xa-hang-cuoi-mua` 200 (giờ VN đúng), chiến dịch sắp diễn ra 404, PDP có nhãn chiến dịch, các trang admin 200.
+- Còn dang dở / TODO tiếp theo:
+  - PM-17, PM-27: người dùng thử tay trên trình duyệt (voucher + chiến dịch, mobile 375px).
+  - PM-28 (email chào mừng) chờ người dùng cho phép rebase lên `dev`. PM-29: tick roadmap, chuyển plan sang `completed/` khi xong.
+  - Link `/promotions/...` trong dữ liệu mock (home.json, menu.json) trỏ slug không có trong DB → 404 cho đến khi thay bằng chiến dịch thật.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
+### 2026-10-31 — Người 4 (Claude Code) — promotion: voucher (Phần 1–3 / điểm dừng 1)
+- Đã làm: nhánh `feature/promotion` (tạo từ `origin/feature/order-payment-service`; người dùng chốt: không merge/rebase/đụng nhánh
+  khác, CHƯA add/commit/push). Docs trước: api.md (`/vouchers/available`, `/vouchers/public`, `/admin/campaigns/overlaps`, kiểu admin,
+  mã `VOUCHER_CODE_ALREADY_EXISTS`), database.md (`is_public`, index, seed V7), D-29 (mã công khai + danh sách, không ví cá nhân),
+  D-30 (`Product.salePrice` @Formula — chưa code), features FR-16, pages. Backend: `V6__promotion.sql` (3 bảng + FK `fk_orders_voucher`),
+  `db/seed/V7__seed_promotions.sql`, entity `Voucher`/`DiscountCampaign` (+ `Discounts`, `VoucherRules` thứ tự lỗi BR-5),
+  `VoucherService.quote/consume/release/available/publicList`, nối `OrderService` (preview/ước tính = quote, create = consume sau khoá
+  products/combos, `Order` có `voucherId`) và `OrderStateService` (trả lượt), `VoucherController`, `promotion/admin/*` CRUD voucher.
+  Frontend: `types/api/promotion.ts`, `promotionService`, `adminVoucherService`, `lib/promotion.ts`, `/admin/vouchers`
+  (`VoucherListView` + `VoucherFormModal`), `VoucherList` trong popup `/cart`, PromoBar đọc `/vouchers/public` (SSR, cache 60s).
+- Kiểm chứng: `PromotionSchemaTest` (9), `VoucherRulesTest` (20), `VoucherFlowIntegrationTest` (10: trừ/trả lượt khi huỷ/IPN lỗi/hết hạn,
+  dùng 2 lần, hết lượt, rollback khi PRICE_CHANGED, 20 luồng còn 1 lượt → 1 đơn, 1 khách 2 đơn song song → 1, API khách + admin) xanh.
+  Cả bộ backend: 147/148 xanh — lỗi còn lại có sẵn từ trước (KI-10). Lỗi phát hiện khi test đồng thời: voucher đã đọc lúc ước tính phí
+  ship nên `FOR UPDATE` trả entity cũ → đã thêm `em.refresh` sau khoá. Frontend: tsc + lint sạch. Chạy thật trên DB tạm `campvivo_verify`
+  (backend 8099, frontend 3099): API khách/admin đúng, PromoBar hiện mã thật, `/`, `/cart`, `/admin/vouchers` trả 200.
+- Còn dang dở / TODO tiếp theo:
+  - PM-17: người dùng thử tay trên trình duyệt (popup voucher, trang admin, mobile 375px). DB `campvivo` của người dùng sẽ chạy V6, V7
+    khi khởi động lại backend. DB tạm `campvivo_verify` còn giữ để test Phần 4 — xoá khi xong.
+  - Phần 4–5: chiến dịch (PM-18 → PM-27). PM-28 (email chào mừng) chờ người dùng cho phép rebase lên `dev`.
+- Plan liên quan: `.agents/plans/active/promotion-voucher-campaign.md`
+
 ### 2026-10-29 — Người 3 — frontend (giao diện đăng ký + xác thực email, đi kèm N3-02)
 - Đã làm: nhánh `feature/auth-n3-02-register-ui` (tách từ `dev`). Trang `/register` (`RegisterForm`) và `/verify-email?email=` (`VerifyEmailForm`:
   ô mã 6 số, nút "Gửi lại mã" đếm ngược 60 giây bắt đầu khi vào trang). `authService.register/verifyEmail/resendCode` (đều `skipAuth`);
@@ -36,6 +112,118 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - `/forgot-password` và liên kết "Quên mật khẩu?" thuộc N3-04. `EMAIL_ALREADY_EXISTS` hiện chỉ gợi ý "Đăng nhập" (chưa có trang quên mật khẩu).
   - Email nằm trên URL `/verify-email?email=` theo đúng docs.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-02)
+
+### 2026-11-04 — Người 3 — backend + frontend (N3-07: chi tiết, sửa người dùng của Admin; giao diện `/admin/users`)
+- Đã làm (CÙNG nhánh `feature/user-n3-06-admin-user-list`, theo lựa chọn của người phát triển để thử được trên trình duyệt): `GET /api/admin/users/{id}` (thêm `address`, `orderCount` = mọi đơn, `completedOrderCount`, `totalSpent` = tổng đơn COMPLETED;
+  đơn RETURNED / CANCELLED không tính) và `PATCH /api/admin/users/{id}` (`AdminUpdateUserRequest`: sửa TỪNG PHẦN, vắng hoặc null = giữ nguyên, `phone` rỗng = xoá; `role` / `isActive` đổi giá trị THẬT thì `UserRepository.changeAccess` tăng `token_version`
+  trong cùng một câu UPDATE nguyên tử nên token người đó bị từ chối ngay; gửi lại giá trị cũ hoặc chỉ sửa tên / SĐT thì không tăng; tự khoá mình hoặc tự đổi role của mình → `CANNOT_MODIFY_SELF` và từ chối trọn gói; vẫn tự sửa được tên / SĐT). Chỉ ADMIN.
+  Thêm vào module của Người 1 (CHỈ THÊM MỚI): `OrderQueryService.statsForUser` + `UserOrderStats` + 3 hàm trong `OrderRepository` (`countByUserId`, `countByUserIdAndStatus`, `sumFinalAmountByUserIdAndStatus`) — cần báo Người 1.
+  Test `AdminUserDetailIntegrationTest` (14, PostgreSQL thật; đơn chèn bằng SQL tối thiểu). Kiểm tra "đột biến" 7 cơ chế (không tăng `token_version`, bỏ chặn tự sửa, tăng cả khi không đổi, bỏ chặn ADMIN, chi tiêu tính mọi trạng thái, SĐT rỗng không xoá, đếm đơn người khác) → đúng các test tương ứng đỏ;
+  M3 / M5 / M7 phải chạy RIÊNG vì khi gộp với M1 bị che khuất.
+  Giao diện `/admin/users` (thay trang "đang xây dựng"): `UserListView` (Ant Design Table, tìm, lọc vai trò / trạng thái, phân trang, bộ lọc và `?user=` trên URL) và `UserDrawer` (chi tiết + form sửa, hộp xác nhận khi đổi vai trò / khoá, vô hiệu hoá vai trò và công tắc ở dòng của chính mình),
+  `adminUserService.ts`, `types/api/adminUser.ts`, `userLabels.ts`. Người phát triển đã tự thử trên trình duyệt (danh sách, tìm, lọc, chi tiết, sửa, đổi vai trò, khoá / mở khoá, tự sửa mình, nhân viên bị chặn) và xác nhận ổn.
+  Lỗi giao diện do người phát triển phát hiện khi thử: ngăn kéo hiện họ tên / SĐT của người mở ĐẦU TIÊN khi mở người khác — Ant Design Form giữ giá trị của đối tượng `form` (nằm ở thành phần cha) và để nó ghi đè `initialValues` khi dựng lại (`rc-field-form` `setInitialValues`: `merge(initialValues, store)`);
+  đã sửa bằng `useEffect` đồng bộ `setFieldsValue(toForm(detail))` + `preserve={false}`.
+  Docs: `api.md` (kiểu `AdminUserDetail` + hành vi), `local-development.md`, `pages.md`, `troubleshooting.md` (bẫy mã hoá dòng lệnh với `curl` trong Git Bash).
+- Còn dang dở / TODO tiếp theo:
+  - Chưa chặn trường hợp hai admin đồng thời hạ quyền / khoá lẫn nhau khiến hệ thống không còn admin (đã ghi trong `api.md`). Kết nối WebSocket đang mở của người bị khoá không tự đóng.
+  - Nhân viên (EMPLOYEE/ADMIN) vẫn chưa có giao diện sửa hồ sơ / đổi mật khẩu của chính mình (`/account` chỉ dành cho khách); backend đã cho phép từ N3-05.
+  - Chưa thử giao diện admin users trên tablet; dự án chưa có công cụ test giao diện (lỗi ngăn kéo ở trên lẽ ra bị test giao diện bắt được).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-07)
+
+### 2026-11-04 — Người 3 — backend (N3-06: danh sách người dùng của Admin)
+- Đã làm: nhánh `feature/user-n3-06-admin-user-list` (tách từ `dev`). `GET /api/admin/users` (`user/admin/`: `AdminUserController` `@PreAuthorize("hasRole('ADMIN')")` — `SecurityConfig` cho `/api/admin/**` qua cả EMPLOYEE nên phải chặn ở endpoint;
+  `AdminUserService`, `AdminUserQuery`, `AdminUserResponses.Summary`) và `UserSpecifications` + `UserRepository extends JpaSpecificationExecutor` theo mẫu `ProductSpecifications` của Người 2. Tham số: `q` (email HOẶC họ tên chứa từ khoá,
+  không phân biệt hoa thường kể cả chữ hoa có dấu; `trim`; rỗng = không lọc; ≤ 100 ký tự; `%`, `_`, `\` là chữ thường — thoát bằng `ESCAPE`, khác `UserService.findIdsByKeyword` vốn xoá các ký tự này), `role`, `isActive`, `page` ≥ 1,
+  `limit` 1–100 (mặc định 12). Mới nhất trước (`createdAt` rồi `id` giảm dần). Mỗi dòng: `id, email, fullName, phone, role, isActive, emailVerified, createdAt` (+07:00); KHÔNG có `address`, mật khẩu, OTP, `token_version`.
+  Giữ nguyên `UserService.findIdsByKeyword` vì `AdminOrderService` của Người 1 đang dùng. Test: `AdminUserIntegrationTest` (11, PostgreSQL thật; cô lập bằng nhãn riêng mỗi test). Kiểm tra "đột biến": bỏ chặn ADMIN, đảo sắp xếp, bỏ lọc role và
+  `isActive`, bỏ `trim`, bỏ thoát ký tự đại diện → đúng các test tương ứng đỏ; bỏ riêng nhánh tìm theo họ tên / theo email → đúng các test tìm kiếm đỏ. (Bỏ `lower()` trên cột email KHÔNG làm test nào đỏ vì email luôn lưu chữ thường — đột biến tương đương.)
+  Docs: `api.md` (kiểu `AdminUserSummary` + hành vi), `local-development.md`.
+- Còn dang dở / TODO tiếp theo:
+  - N3-07 (`GET/PATCH /admin/users/{id}`: số đơn, tổng chi tiêu qua `OrderQueryService` — đã có trên `dev`; đổi role / khoá phải tăng `token_version`, chặn `CANNOT_MODIFY_SELF`) và giao diện `/admin/users` (danh sách + chi tiết + sửa, làm cùng N3-07). Trang hiện là "đang xây dựng".
+  - Chưa tìm không dấu ("nguyen" không ra "Nguyễn"): cần `unaccent` của PostgreSQL (migration `CREATE EXTENSION`); `pg_trgm` nếu bảng lớn và chậm (`database.md` dòng 384). Không dùng Elasticsearch (quá nặng, phải đồng bộ chỉ mục).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-06)
+
+### 2026-11-05 — Người 3 — backend (N3-05: sửa hồ sơ, đổi mật khẩu)
+- Đã làm: nhánh `feature/user-n3-05-profile` (tách từ `dev`). `PUT /users/me` (`UpdateProfileRequest`: CHỈ `fullName` 2–100 sau `trim`, `phone` tuỳ chọn `^0\d{9}$` — cùng luật với SĐT khi đặt hàng,
+  `address` ≤ 500; phone/address rỗng = xoá; email, role và mọi trường khác trong body bị bỏ qua, mọi role đã đăng nhập dùng được; không làm token hết hiệu lực) và
+  `PUT /users/me/password` (`ChangePasswordRequest`; mật khẩu mới theo `PasswordPolicy` và được kiểm TRƯỚC khi so mật khẩu cũ; sai mật khẩu hiện tại → `INVALID_CURRENT_PASSWORD`;
+  được phép trùng mật khẩu cũ). `UserRepository.changePassword`: một câu UPDATE nguyên tử đổi hash + tăng `token_version`, chỉ ghi khi hash trong DB vẫn là bản vừa xác nhận
+  (compare-and-set) và tài khoản còn hoạt động → lần đổi / đặt lại khác chen vào thì `INVALID_CURRENT_PASSWORD`, không ghi đè. Thành công thì MỌI token cũ (kể cả của thiết bị đang đổi)
+  hết hiệu lực, không trả token mới. `UserService` nhận thêm `PasswordEncoder`. Test: `ProfileIntegrationTest` (17, PostgreSQL thật: sửa đúng, trim, rỗng thành null, `fieldErrors`,
+  email/role/isActive/tokenVersion trong body bị bỏ qua, không đụng user khác, 401 khi chưa đăng nhập, nhân viên cũng sửa được, đổi mật khẩu đúng/sai/yếu/quá 72 byte, token cũ 401,
+  mật khẩu mới đăng nhập được, đổi song song chỉ một yêu cầu thắng, và một test xác định cho compare-and-set). Kiểm tra "đột biến": bỏ tăng `token_version`, bỏ kiểm mật khẩu cũ, bỏ kiểm 72 byte,
+  không đổi rỗng thành null → đúng 6 test đỏ; bỏ riêng compare-and-set → đúng 2 test đỏ (test xác định và test song song). Docs: `api.md` (hành vi đã hiện thực), `local-development.md`.
+- Giao diện (CÙNG PR, theo lựa chọn của người phát triển để thử được trên trình duyệt): tab "Hồ sơ" (`ProfileForm`: email chỉ đọc, họ tên, SĐT tuỳ chọn, địa chỉ mặc định tuỳ chọn; lưu xong
+  `AuthProvider.setProfile` cập nhật tên/SĐT ở menu và form giao hàng) và tab "Đổi mật khẩu" (`ChangePasswordForm`: lỗi mật khẩu cũ hiện ngay dưới ô đó; thành công thì `clearSession()` — không gọi API vì token đã
+  vô hiệu — rồi về `/login?changed=1` kèm thông báo). `userService`, `types/api/user.ts`, `validatePhone`/`validateAddress` (cùng luật backend), `LoginForm` nhận `notice: "reset" | "changed"`.
+  Kiểm chứng: `lint`, `tsc` xanh; `npm run build` KHÔNG backend (như CI) exit 0; script hàm thuần ngoài repo; chạy thật backend 8081 + Next 3100, người phát triển tự thử các kịch bản trên trình duyệt và xác nhận ổn.
+  Phát hiện khi thử bằng PowerShell 5.1: gửi tiếng Việt không đúng UTF-8 (`Nguy?n Van An`) và không đọc được thân lỗi 4xx → đã ghi vào `troubleshooting.md` và sửa hướng dẫn trong `local-development.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Nhân viên (EMPLOYEE/ADMIN) chưa có giao diện sửa hồ sơ / đổi mật khẩu của mình (`/account` chỉ dành cho khách); backend đã cho phép. Hoãn tới phần giao diện admin user (N3-07).
+  - Chưa thử giao diện trên tablet.
+  - Chưa có giới hạn số lần thử mật khẩu hiện tại: ai có token đánh cắp có thể đoán mật khẩu không giới hạn (nợ rate limit chung của auth).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-05)
+
+### 2026-11-03 — Người 3 — backend (N3-08: WebSocket STOMP + RealtimeSender)
+- Đã làm: nhánh `feature/realtime-n3-08-websocket` (tách từ `dev`). `WebSocketConfig` (endpoint `/ws` có SockJS, simple broker `/queue`, tiền tố `/user`, origin lấy từ
+  `app.cors.allowed-origins`, khung tối đa 8 KB), `StompAuthChannelInterceptor` (xác thực JWT ở khung CONNECT; SUBSCRIBE chỉ `/user/queue/notifications` và `/user/queue/support`;
+  mọi khung SEND bị từ chối — client chỉ nhận), `TokenAuthenticator` (tách từ `JwtAuthenticationFilter`, dùng chung HTTP và WebSocket nên hai nơi không lệch nhau),
+  `RealtimeSender` (`toUser`, `toStaff`: chỉ nhân viên EMPLOYEE/ADMIN còn hoạt động VÀ đang kết nối; gửi lỗi chỉ ghi log, kênh sai là `IllegalArgumentException`) và
+  `StompRealtimeSender`, `UserRepository.findActiveIdsByRoleIn`. Test: `RealtimeIntegrationTest` (12, client STOMP thật qua SockJS + PostgreSQL thật: token hợp lệ nhận tin,
+  không token / token rác / sai chữ ký / thiếu Bearer / `token_version` cũ / tài khoản khoá bị `ERROR`, A không nhận tin của B, `toStaff` tới EMPLOYEE và ADMIN không tới CUSTOMER,
+  SUBSCRIBE kênh lạ và client SEND bị chặn, origin) và `StompRealtimeSenderTest` (5, Mockito). Kiểm tra "đột biến": gỡ xác thực CONNECT, bỏ kiểm `token_version`, cho SUBSCRIBE mọi kênh,
+  cho client SEND, gộp khách vào `toStaff`, đặt origin cho phép sai → đúng các test tương ứng đỏ. Chạy thật `spring-boot:run` cổng 8081 + kịch bản Node gửi khung STOMP bằng tay:
+  token hợp lệ nhận CONNECTED, các ca vi phạm đều nhận ERROR rồi bị đóng. Docs: `api.md` mục 4.9, `architecture.md` (mục Realtime), `local-development.md`, `lessons-learned.md`.
+- Còn dang dở / TODO tiếp theo:
+  - Người 4 (N4-04 thông báo, N4-06 chat) gọi `RealtimeSender` qua `RealtimeDestinations.NOTIFICATIONS` / `SUPPORT`; chưa có module nào gọi nên chưa thấy tin thật trên giao diện.
+  - Kết nối đang mở KHÔNG tự đóng khi token hết hạn (24 giờ), đăng xuất hay tài khoản bị khoá — chỉ kiểm lúc CONNECT (đã ghi trong `api.md`); muốn chặt hơn phải ngắt chủ động khi `token_version` đổi.
+  - Broker trong bộ nhớ: chỉ đúng khi chạy MỘT instance backend.
+  - Thư viện STOMP phía trình duyệt (`@stomp/stompjs`, `sockjs-client`) và trang chat `/account/support`, `/admin/support` chưa làm; cần chốt ai làm giao diện chat (AGENTS.md §9 và roadmap chưa khớp).
+  - Chưa thử trên trình duyệt thật.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-08)
+
+### 2026-11-04 — Người 3 — frontend (giao diện quên / đặt lại mật khẩu, đi kèm N3-04)
+- Đã làm: nhánh `feature/auth-n3-04-reset-password-ui` (tách từ `dev`). Trang `/forgot-password` (`ForgotPasswordForm`: nhập email → luôn sang bước sau khi server
+  trả 200, không báo email có tồn tại hay không) và `/reset-password?email=` (`ResetPasswordForm`: mã 6 số + mật khẩu mới có nút Hiện/Ẩn, "Gửi lại mã" đếm ngược 60 giây
+  qua `resend-code` purpose `RESET_PASSWORD`; thành công về `/login?reset=1` kèm thông báo xanh, KHÔNG đăng nhập luôn). `authService.forgotPassword/resetPassword` (đều
+  `skipAuth`). Hook `useResendCountdown` tách ra dùng chung với `VerifyEmailForm`. `LoginForm`: liên kết "Quên mật khẩu?" + thông báo `?reset=1`; `RegisterForm`: gợi ý "Quên mật khẩu?"
+  khi email đã tồn tại. `authHref` giữ `?redirect=` xuyên suốt. Docs: `pages.md`.
+  Kiểm chứng: `npm run lint`, `tsc --noEmit` xanh; `npm run build` KHÔNG backend (như CI) exit 0; script ngoài repo kiểm tra `authHref`/luật mật khẩu/OTP; chạy thật backend 8081 + Mailpit:
+  email lạ → 200; email thật → mã trong thư; xin lại ngay vẫn 200 nhưng không có thư thứ hai; mật khẩu yếu → `VALIDATION_ERROR` ở `newPassword`; mã sai → `INVALID_OTP`; mã đúng → 200;
+  dùng lại mã → `INVALID_OTP`; đăng nhập mật khẩu mới 200, mật khẩu cũ `INVALID_CREDENTIALS`, token cũ 401; token cũ gửi kèm `forgot-password` bị 401 (lý do cần `skipAuth`).
+- Còn dang dở / TODO tiếp theo:
+  - Giao diện trên trình duyệt thật cần người thử (agent không có trình duyệt); mobile/tablet chưa xem.
+  - Gửi thư tới hộp thư thật (Gmail...) vẫn chưa kiểm chứng (mới thử qua Mailpit).
+  - Xin lại mã reset bằng `resend-code` vẫn báo `OTP_RESEND_TOO_SOON` cho email thật (lộ email có tồn tại, có từ N3-02); chưa có rate limit theo IP.
+  - Việc kế tiếp của Người 3: N3-05 (hồ sơ, đổi mật khẩu), N3-08 (WebSocket, Người 4 đang chờ).
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-04)
+
+### 2026-11-02 — Người 3 — backend (N3-04: quên và đặt lại mật khẩu)
+- Đã làm: nhánh `feature/auth-n3-04-reset-password` (tách từ `dev`). `POST /auth/forgot-password` (luôn 200: email lạ / tài khoản khoá / gửi lại < 60 giây
+  đều im lặng không gửi thư; chỉ `EMAIL_SEND_FAILED` vẫn báo; tài khoản chưa xác thực email vẫn được gửi mã) và `POST /auth/reset-password`
+  (`PasswordResetService`: mật khẩu > 72 byte bị từ chối TRƯỚC khi đụng tới mã; email lạ và mã sai cùng `INVALID_OTP`; một câu UPDATE nguyên tử
+  `UserRepository.resetPassword` đổi hash + tăng `token_version` + đặt `email_verified = true`, chỉ với tài khoản còn hoạt động; không trả token).
+  `PasswordPolicy` gom luật mật khẩu dùng chung với đăng ký. Test: `PasswordResetIntegrationTest` (20, PostgreSQL thật + GreenMail + đồng hồ chỉnh tay,
+  gồm reset song song cùng mã chỉ một yêu cầu thắng, token cũ → 401, mã `VERIFY_EMAIL` không dùng để reset). Kiểm tra "đột biến": cố ý bỏ tăng
+  `token_version`, bỏ `email_verified`, bỏ điều kiện tài khoản hoạt động, ném lỗi gửi-quá-sớm, bỏ kiểm 72 byte → đúng 6 test đỏ, rồi hoàn lại.
+  Docs: `api.md` (hành vi đã hiện thực), `local-development.md` (thử bằng PowerShell), `lessons-learned.md`. `mvn clean test` toàn bộ: 269 test xanh.
+  CÙNG PR có sửa hạ tầng test (phát hiện khi chạy mốc trên `dev`): `SecurityIntegrationTest` mong `/api/admin/orders` là 404 nhưng Người 1 đã thêm
+  controller thật (200) → đổi sang đường dẫn thăm dò không có controller; mỗi context test giữ ~10 kết nối nên cả bộ test cạn `max_connections` (100) của
+  PostgreSQL dùng chung (`too many clients already`) → giới hạn Hikari pool = 5 trong `PostgresTestContainerConfig`.
+  CI GitHub báo thêm 41 lỗi: test đơn hàng/khuyến mãi (`OrderPaymentFlowIntegrationTest`, `AdminOrderIntegrationTest`, `CampaignPricingIntegrationTest`,
+  `VoucherFlowIntegrationTest`) không dọn giỏ/đơn nên test catalog/combo (`DELETE FROM products`) lỗi `cart_items_product_id_fkey` khi chạy sau chúng
+  (Windows chạy catalog trước nên không thấy). Đã tái hiện bằng `-Dsurefire.runOrder=reversealphabetical` và sửa bằng `@AfterEach` `TRUNCATE ... CASCADE`
+  trong 4 lớp test đó (chạm test của Người 1 và promotion, chỉ thêm hàm dọn).
+- Còn dang dở / TODO tiếp theo:
+  - Frontend `/forgot-password`, `/reset-password` + liên kết "Quên mật khẩu?" (PR riêng sau PR này).
+  - `dev` (b145ae3) trước PR này có 1 test đỏ (`SecurityIntegrationTest.employeeAndAdminPassAdminPathRule`) nên CI backend của các PR khác có thể đỏ cho
+    tới khi PR này merge; ai thêm lớp test tích hợp mới cũng sẽ gặp cạn kết nối nếu thiếu giới hạn pool.
+  - Dò email: `resend-code` với purpose `RESET_PASSWORD` vẫn lộ `OTP_RESEND_TOO_SOON`/`EMAIL_SEND_FAILED` cho email thật (có từ N3-02); độ trễ
+    `forgot-password` khác nhau giữa email có và không có (gửi mail). Chưa có rate limit theo IP.
+  - Mỗi user chỉ một ô OTP: xin mã đặt lại mật khẩu ghi đè mã xác thực email đang chờ (và ngược lại).
+  - `CartService`: Người 1 đã hiện thực `createForUser` và xoá `StubCartService` (PR #19) — mục nợ cũ đã đóng.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-04)
 
 ### 2026-10-29 — Người 3 — frontend (sửa `next build` lỗi NETWORK_ERROR trên CI)
 - Đã làm: nhánh `fix/frontend-server-api-dynamic-build` (tách từ `dev`). Nguyên nhân (đã chứng minh bằng cách in lỗi gốc): `services/serverApi.ts`
@@ -91,6 +279,67 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   - Mặc định SMTP `localhost:1025` ở môi trường thật sẽ gây `EMAIL_SEND_FAILED` nếu quên đặt `SMTP_*`.
   - Test OTP dùng `MutableTestClock` lồng riêng trong test; khi F-04 (Người 4) có `MutableClock` chung thì gom lại.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N3-01)
+
+### 2026-10-26 — Người 1 (Claude Code) — order admin + đơn của khách (Phần 3/3)
+- Đã làm: backend `GET /api/orders` (lọc, phân trang), `POST /api/orders/{id}/cancel` (`OrderService.cancelByCustomer`);
+  `order/admin/` (`AdminOrderController`, `AdminOrderService`, `AdminOrderResponses`): `GET /api/admin/orders` (trạng thái, phương thức,
+  ngày theo giờ VN, tìm mã đơn/SĐT/email/họ tên qua `UserService.findIdsByKeyword`), `GET /{id}` (+ `allowedStatuses`,
+  `canCreateShipment`), `PATCH /{id}/status` (chỉ COD được xác nhận/huỷ tay, huỷ bắt buộc note, SHIPPING tự ghi mã vận đơn),
+  `POST|GET /{id}/shipment` (tạo lại vận đơn GHN / xem hành trình). `@BatchSize` cho items/history. `UserService.profiles`.
+  Frontend: `npm install` (antd/tiptap còn thiếu), `/admin/orders` (`OrderListView`), `/admin/orders/[id]` (`OrderDetailView`:
+  nút theo `allowedStatuses`, modal ghi chú, vận đơn + hành trình GHN, lịch sử), `lib/orderStatus.ts` (nhãn dùng chung),
+  tab "Đơn hàng của tôi" dùng API (`MyOrders`), `/account/orders/[id]` (`MyOrderDetail`, huỷ đơn); bỏ đơn mock (`OrderCard`,
+  `Order`/`CartItem` trong `types/shop.ts`, `orders` trong ShopProvider). Docs: api.md 4.5/4.10, pages.md, user-flows mục 7.
+- Kiểm chứng: compile + unit test xanh; `AdminOrderIntegrationTest` (5 ca) biên dịch được, CHƯA chạy (Docker tắt). Chạy thật trên DB tạm
+  (đã xoá): 24/24 bước (list/huỷ của khách, lọc/tìm admin, máy trạng thái, COD → vận đơn GHN tự tạo, xem hành trình, hoàn tất → COD
+  đã thu) + nhánh lỗi GHN (lỗi lưu lại → tạo lại 502 khi còn sai → sửa xong tạo lại OK). Sửa lỗi LazyInitialization ở tạo lại vận đơn.
+  Vận đơn GHN thử nghiệm đã huỷ. Frontend: tsc + lint sạch; các trang mới trả 200 trên dev server.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy `./scripts/agent-test.sh` khi bật Docker; thử trên trình duyệt (admin + employee + khách).
+  - Trả hàng (FR-19), đánh giá, thông báo/email theo sự kiện đơn — module khác / Tier 2.
+  - Chưa có webhook trạng thái GHN (nhân viên vẫn chuyển SHIPPING/COMPLETED tay, "Xem hành trình" đọc trực tiếp GHN).
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
+
+### 2026-10-26 — Người 1 (Claude Code) — cart, order, payment, inventory (Phần 2/3: đơn hàng + VNPay)
+- Đã làm: `V5__order_schema.sql` (7 bảng mua hàng + cột GHN trên `orders`; `voucher_id` chưa FK). Viết lại `cart`/`order` (xoá code
+  khung lệch docs + `OrderServiceIT` rỗng). `InventoryService` (khoá theo thứ tự, reserve/commit/release, refresh sau khoá),
+  `CartService`/`CartController`, `OrderService` (preview + create đúng database.md mục 6; hỏi GHN trước khi khoá),
+  `OrderStateService` (nơi duy nhất đổi trạng thái), `OrderQueryService`, `OrderTimeoutJob` (BR-3), `OrderShipmentService` +
+  `OrderShipmentListener` (vận đơn GHN @Async sau commit khi CONFIRMED). `payment`: `Payment`, `PaymentGateway`, `VnpayService`
+  (2.1.0, HMAC-SHA512, ×100), `PaymentResultService.handlePaymentResult` (Return URL + IPN), `VnpayController`
+  (`/api/vnpay/return|ipn`). `promotion`: `PricingService` (giá = giá gốc), `VoucherService` (mọi mã INVALID_VOUCHER) làm điểm cắm.
+  Cấu hình deploy: `VNP_*`, `APP_CORS_ALLOWED_ORIGINS`, `APP_FRONTEND_URL`, `PORT`, `forward-headers-strategy`.
+  Frontend: `ShopProvider` dùng giỏ API, `cartService`/`orderService`, `CartPage` tách `CartLines`/`DeliveryInfoModal`/`useOrderPreview`,
+  đặt hàng thật (PRICE_CHANGED hỏi xác nhận), `/checkout/success` đọc đơn thật, route `/payment/vnpay-return`, nút mua ở trang combo.
+  Docs: D-28, api.md, database.md, architecture, pages, user-flows, features FR-11, known-issues KI-07..09, deployment, `.env.example`.
+- Kiểm chứng: unit test xanh (`VnpayServiceTest`, `OrderStatusTest`, GHN/shipping/config/error code); `OrderPaymentFlowIntegrationTest`
+  (9 ca) biên dịch được nhưng CHƯA chạy (Docker tắt). Chạy thật trên DB tạm `campvivo_verify` (đã xoá): `ddl-auto=validate` OK; 26/26
+  bước end-to-end (giỏ, preview, PRICE_CHANGED, COD, VNPay URL được sandbox chấp nhận, Return/IPN thành công/lặp/sai chữ ký/sai tiền/
+  thất bại, vận đơn GHN tự tạo); 10 khách đặt song song hàng còn 3 → đúng 3 đơn, không deadlock; job hết hạn huỷ đơn + trả giữ chỗ.
+  Vận đơn GHN thử nghiệm đã huỷ. Frontend: lint + tsc sạch (trừ admin thiếu antd), các trang trả 200.
+- Còn dang dở / TODO tiếp theo:
+  - Chạy `./scripts/agent-test.sh` khi bật Docker. Thử trên trình duyệt (đăng nhập khách → giỏ → đặt COD/VNPay với thẻ test).
+  - DB `campvivo` của người dùng sẽ chạy V5 khi khởi động lại backend.
+  - Phần 3: `GET /orders` + huỷ đơn (khách, tab đơn hàng /account đang còn mock), admin/employee `/admin/orders` (lọc, chi tiết,
+    đổi trạng thái, xác nhận COD → tạo vận đơn, tạo lại vận đơn khi lỗi).
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
+
+### 2026-10-26 — Người 1 (Claude Code) — shipping (Phần 1/3: GHN)
+- Đã làm: nhánh `feature/order-payment-service`. Module backend `shipping`: `GhnService` (tỉnh/quận/phường có cache, gói dịch vụ,
+  tính phí, tạo vận đơn, chi tiết vận đơn), `ShippingService` (cân = số món × `app.ghn.default-weight`, miễn phí từ
+  `app.shipping.free-threshold`), `ShippingController` `/api/shipping/*` (công khai). `app.ghn.*` ← `GHN_*`; backend nạp `.env`
+  gốc qua `spring.config.import`, tự bỏ nháy ở giá trị chuỗi. Mã lỗi `SHIPPING_GATEWAY_ERROR` (502). Bỏ `app.shipping.fee`.
+  Frontend: `services/shippingService.ts`, `types/api/shipping.ts`, `AddressSelects` (3 dropdown GHN), `useShippingFee` (tự tính lại
+  khi đổi địa chỉ/số món/giá trị đơn); `/cart` dùng 2 thứ này, xoá `geo.ts`. Docs: D-27, `api.md` 4.12, tech-stack, `.env.example`,
+  local-development. Plan: `.agents/plans/active/order-payment-shipping.md`.
+- Kiểm chứng: `GhnServiceTest` (HTTP server giả), `ShippingServiceTest`, `AppPropertiesTest`, `ErrorCodeTest` xanh; lint frontend sạch,
+  tsc sạch ở file đã sửa (lỗi còn lại do `node_modules` thiếu antd/tiptap — cần `npm install`). Smoke test với GHN staging thật:
+  tỉnh/quận/phường, gói dịch vụ, phí ship, miễn phí, địa chỉ sai → 502. Đã tạo + huỷ 1 vận đơn thử trên staging (`L8EAQ4`).
+- Còn dang dở / TODO tiếp theo:
+  - `ShippingControllerTest` CHƯA chạy được (Docker Desktop tắt — Testcontainers).
+  - Chưa thử trên trình duyệt (người dùng test theo checklist).
+  - Phần 2: F-08 migration + giỏ/đơn hàng API + VNPay (`handlePaymentResult` cho Return URL + IPN) + tạo vận đơn GHN. Phần 3: quản lý đơn.
+- Plan liên quan: `.agents/plans/active/order-payment-shipping.md`
 
 ### 2026-10-24 — Người 3 — docs/config (hướng dẫn chạy local để đăng nhập được)
 - Đã làm: nhánh `docs/local-dev-setup`. `application-dev.yml.example` đổi mặc định `ddl-auto: validate` → `none` (kèm chú thích

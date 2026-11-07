@@ -2,6 +2,7 @@ package vn.campvivo.combo;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Formula;
 import vn.campvivo.catalog.Category;
 import vn.campvivo.catalog.Product;
 
@@ -48,6 +49,13 @@ public class ProductCombo {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /** Điểm TB đánh giá đang hiện, làm tròn 1 chữ số; null = chưa có (BR-10, D-35). */
+    @Formula("(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private BigDecimal averageRating;
+
+    @Formula("(SELECT COUNT(*) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private Long reviewCount;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -117,7 +125,7 @@ public class ProductCombo {
     }
 
     /**
-     * Xuất tay bộ combo hỏng/mất (FR-08). Chỉ được giảm — muốn tăng thì đóng gói để trừ hàng lẻ (D-27); không được làm
+     * Xuất tay bộ combo hỏng/mất (FR-08). Chỉ được giảm — muốn tăng thì đóng gói để trừ hàng lẻ (D-36); không được làm
      * tồn kho thấp hơn số đang giữ chỗ. Gọi khi đã khoá dòng. Trả về tồn kho sau thay đổi.
      */
     public int writeOff(int sets, OffsetDateTime now) {
@@ -134,10 +142,31 @@ public class ProductCombo {
         return stockQuantity - reservedQuantity;
     }
 
-    /** Tổng giá lẻ của các sản phẩm thành phần (giá hiện tại × số lượng) — để so với giá combo. */
+    // Vòng đời đơn hàng (BR-2) — PHẢI gọi trong transaction đã khoá dòng (InventoryService).
+
+    /** Tạo đơn: giữ chỗ `quantity` bộ. */
+    public void reserve(int quantity) {
+        if (getAvailableQuantity() < quantity) {
+            throw new IllegalStateException("Không đủ bộ combo khả dụng: " + name);
+        }
+        this.reservedQuantity += quantity;
+    }
+
+    /** Đơn CANCELLED / PAYMENT_FAILED: trả phần giữ chỗ. */
+    public void release(int quantity) {
+        this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
+    }
+
+    /** Đơn CONFIRMED: trừ thật tồn kho và phần giữ chỗ. */
+    public void commit(int quantity) {
+        this.stockQuantity -= quantity;
+        this.reservedQuantity = Math.max(0, this.reservedQuantity - quantity);
+    }
+
+    /** Tổng giá lẻ của các sản phẩm thành phần (giá bán hiện tại — sau chiến dịch, D-30 — × số lượng) — để so với giá combo. */
     public BigDecimal getItemsTotal() {
         return items.stream()
-                .map(i -> i.getProduct().getPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
+                .map(i -> i.getProduct().getSalePrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
@@ -150,6 +179,8 @@ public class ProductCombo {
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }
+    public Double getAverageRating() { return averageRating == null ? null : averageRating.doubleValue(); }
+    public long getReviewCount() { return reviewCount == null ? 0 : reviewCount; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public List<ComboItem> getItems() { return items; }

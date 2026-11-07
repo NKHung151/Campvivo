@@ -15,7 +15,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import vn.campvivo.common.config.AppProperties;
-import vn.campvivo.user.UserRepository;
 
 import java.util.List;
 
@@ -30,8 +29,8 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtService jwtService,
-                                            UserRepository userRepository, ObjectMapper objectMapper)
+    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenAuthenticator tokenAuthenticator,
+                                            ObjectMapper objectMapper)
             throws Exception {
         JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
 
@@ -49,22 +48,25 @@ public class SecurityConfig {
                         // Auth: đăng xuất cần đăng nhập, còn lại công khai
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
-                        // VNPay IPN/return: công khai nhưng service vẫn bắt buộc kiểm chữ ký (BR-12)
-                        .requestMatchers("/api/payments/vnpay/**").permitAll()
+                        // VNPay Return URL / IPN: công khai nhưng luôn kiểm chữ ký trong handlePaymentResult (BR-12, D-28)
+                        .requestMatchers("/api/vnpay/**").permitAll()
+                        // Địa chỉ GHN + tính thử phí ship ở trang thanh toán (D-27); token GHN chỉ nằm ở server
+                        .requestMatchers("/api/shipping/**").permitAll()
                         // Nội dung công khai (chỉ GET)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/categories", "/api/brands", "/api/search",
-                                "/api/products/**", "/api/combos/**", "/api/articles/**", "/api/campaigns/**")
+                                "/api/products/**", "/api/combos/**", "/api/articles/**", "/api/campaigns/**",
+                                "/api/vouchers/public")
                         .permitAll()
                         // Nhân viên: EMPLOYEE hoặc ADMIN
                         .requestMatchers("/api/admin/**").hasAnyRole("EMPLOYEE", "ADMIN")
                         // Khách hàng: chỉ CUSTOMER
                         .requestMatchers("/api/cart/**", "/api/orders/**", "/api/reviews/**",
                                 "/api/favorites/**", "/api/support/**", "/api/vouchers/**",
-                                "/api/users/me/reviews", "/api/users/me/favorites").hasRole("CUSTOMER")
+                                "/api/users/me/favorites").hasRole("CUSTOMER")
                         // Còn lại (vd. /api/users/me, /api/notifications, /api/auth/logout): mọi role đã đăng nhập
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthenticationFilter(jwtService, userRepository, errorHandler),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenAuthenticator, errorHandler),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

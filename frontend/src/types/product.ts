@@ -1,4 +1,4 @@
-import type { LinkItem, Review } from "@/types/shop";
+import type { LinkItem } from "@/types/shop";
 
 export interface SidebarItem {
   slug: string | null;
@@ -7,7 +7,8 @@ export interface SidebarItem {
   img: string;
   brand: string;
   price: string;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface RelatedItem {
@@ -19,7 +20,8 @@ export interface RelatedItem {
   oldPrice: number | null;
   discount: string | null;
   discountClass: string | null;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface FbtItem {
@@ -33,6 +35,8 @@ export interface FbtItem {
 }
 
 export interface ProductFull {
+  /** id sản phẩm (API) — dùng cho giỏ hàng. */
+  id: number;
   slug: string;
   name: string;
   brand: string;
@@ -47,6 +51,8 @@ export interface ProductFull {
   oldPrice: number | null;
   savePct: string | null;
   saleEnds: string | null;
+  /** Chiến dịch đang áp cho giá (FR-17) — link tới /promotions/[slug]. */
+  campaign?: { name: string; slug: string } | null;
   warranty: string | null;
   maxQty: number | null;
   variantLabel: string | null;
@@ -59,7 +65,6 @@ export interface ProductFull {
   descriptionHtml: string | null;
   specsHtml: string | null;
   guideHtml: string | null;
-  reviews: Review[];
   social: { sold: number; rating: number; satisf: number } | null;
   fbt: FbtItem[];
   articles: { title: string; url: string }[];

@@ -133,13 +133,14 @@ class SecurityIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
-    // --- Được phép đi qua security (không có controller nên là 404, nhưng KHÔNG phải 401/403) ---
+    // --- Được phép đi qua security (đường dẫn thăm dò không có controller nên là 404, nhưng KHÔNG phải 401/403) ---
 
     @Test
     void employeeAndAdminPassAdminPathRule() throws Exception {
         for (Role role : new Role[] {Role.EMPLOYEE, Role.ADMIN}) {
             User staff = saveUser(role.name().toLowerCase() + "@campvivo.vn", role);
-            mvc.perform(get("/api/admin/orders").header(HttpHeaders.AUTHORIZATION, bearer(staff)))
+            // Cố ý dùng đường dẫn không bao giờ có controller: /api/admin/orders đã có controller thật (N1) nên trả 200.
+            mvc.perform(get("/api/admin/path-rule-probe").header(HttpHeaders.AUTHORIZATION, bearer(staff)))
                     .andExpect(status().isNotFound());
         }
     }

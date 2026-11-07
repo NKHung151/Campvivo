@@ -28,6 +28,7 @@ public record AppProperties(
         @Valid @DefaultValue Shipping shipping,
         @Valid @DefaultValue Inventory inventory,
         @Valid @DefaultValue Vnpay vnpay,
+        @Valid @DefaultValue Ghn ghn,
         @Valid @DefaultValue Cloudinary cloudinary,
         @Valid @DefaultValue Mail mail,
         @Valid @DefaultValue Cors cors,
@@ -47,9 +48,10 @@ public record AppProperties(
             @NotNull @DefaultValue("60s") Duration resendInterval
     ) {}
 
-    /** BR-3. */
+    /** BR-3: đơn cổng thanh toán quá `paymentTimeout` bị huỷ; job quét mỗi `timeoutJobDelay`. */
     public record Order(
-            @NotNull @DefaultValue("15m") Duration paymentTimeout
+            @NotNull @DefaultValue("15m") Duration paymentTimeout,
+            @NotNull @DefaultValue("60s") Duration timeoutJobDelay
     ) {}
 
     /** BR-9. */
@@ -57,9 +59,8 @@ public record AppProperties(
             @Min(1) @DefaultValue("7") int windowDays
     ) {}
 
-    /** D-17. Tiền là số nguyên VND. */
+    /** D-27: phí ship tính qua GHN; đơn đạt ngưỡng (sau voucher) được miễn phí. Tiền là số nguyên VND. */
     public record Shipping(
-            @Min(0) @DefaultValue("30000") long fee,
             @Min(0) @DefaultValue("1000000") long freeThreshold
     ) {}
 
@@ -68,14 +69,79 @@ public record AppProperties(
             @Min(0) @DefaultValue("5") int lowStockThreshold
     ) {}
 
-    /** Giá trị thật lấy từ biến môi trường VNPAY_*; để trống khi chưa dùng cổng thanh toán. */
+    /**
+     * VNPay 2.1.0 (D-08, D-28). Giá trị thật lấy từ biến môi trường VNP_*; thiếu thì đặt hàng VNPay báo
+     * PAYMENT_GATEWAY_ERROR. `returnUrl` = trang frontend /payment/vnpay-return; IPN URL khai báo ở cổng quản trị
+     * merchant của VNPay (trỏ tới {backend}/api/vnpay/ipn), `ipnUrl` chỉ để ghi lại/tham khảo.
+     */
     public record Vnpay(
             @DefaultValue("") String tmnCode,
             @DefaultValue("") String hashSecret,
             @DefaultValue("") String payUrl,
             @DefaultValue("") String returnUrl,
-            @DefaultValue("") String ipnUrl
-    ) {}
+            @DefaultValue("") String ipnUrl,
+            @NotBlank @DefaultValue("vn") String locale,
+            @NotBlank @DefaultValue("other") String orderType
+    ) {
+        public Vnpay {
+            tmnCode = unquote(tmnCode);
+            hashSecret = unquote(hashSecret);
+            payUrl = unquote(payUrl);
+            returnUrl = unquote(returnUrl);
+            ipnUrl = unquote(ipnUrl);
+        }
+
+        public boolean configured() {
+            return !tmnCode.isBlank() && !hashSecret.isBlank() && !payUrl.isBlank() && !returnUrl.isBlank();
+        }
+    }
+
+    /**
+     * GHN (D-27). Giá trị thật lấy từ biến môi trường GHN_*; để trống thì API vận chuyển trả SHIPPING_GATEWAY_ERROR.
+     * Kích thước kiện (cm) dùng chung cho mọi đơn vì sản phẩm chưa có cân nặng/kích thước riêng.
+     */
+    public record Ghn(
+            @DefaultValue("") String token,
+            @DefaultValue("") String shopId,
+            @NotBlank @DefaultValue("https://dev-online-gateway.ghn.vn") String baseUrl,
+            @DefaultValue("0") int fromDistrictId,
+            @DefaultValue("") String fromWardCode,
+            @Min(1) @DefaultValue("2") int serviceTypeId,
+            @Min(1) @DefaultValue("500") int defaultWeight,
+            @Min(1) @DefaultValue("20") int parcelLength,
+            @Min(1) @DefaultValue("15") int parcelWidth,
+            @Min(1) @DefaultValue("10") int parcelHeight,
+            @NotBlank @DefaultValue("CHOXEMHANGKHONGTHU") String requiredNote,
+            @NotNull @DefaultValue("12h") Duration masterDataCacheTtl,
+            @NotNull @DefaultValue("10s") Duration timeout,
+            @DefaultValue("true") boolean autoCreateShipment
+    ) {
+        public Ghn {
+            token = unquote(token);
+            shopId = unquote(shopId);
+            baseUrl = unquote(baseUrl);
+            fromWardCode = unquote(fromWardCode);
+        }
+
+        public boolean configured() {
+            return !token.isBlank() && !shopId.isBlank() && fromDistrictId > 0 && !fromWardCode.isBlank();
+        }
+    }
+
+    /**
+     * File .env cho phép viết KEY="giá trị", nhưng khi Spring nạp .env dạng properties (spring.config.import) dấu nháy
+     * bị giữ lại trong giá trị. Bỏ một cặp nháy bao ngoài và khoảng trắng thừa ở các chuỗi secret/mã đọc từ .env.
+     */
+    static String unquote(String value) {
+        if (value == null) {
+            return "";
+        }
+        String v = value.strip();
+        if (v.length() >= 2 && (v.startsWith("\"") && v.endsWith("\"") || v.startsWith("'") && v.endsWith("'"))) {
+            return v.substring(1, v.length() - 1).strip();
+        }
+        return v;
+    }
 
     public record Cloudinary(
             @DefaultValue("") String cloudName,

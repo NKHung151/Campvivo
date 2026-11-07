@@ -13,6 +13,158 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Tồn kho (2026-10-31, đánh số lại sau khi gộp dev)
+
+### 2026-10-31 — D-36: Combo chỉ giảm tay ở trang Tồn kho; đóng gói/tháo ghi nhật ký kho
+- **Bối cảnh:** kho combo tăng bằng đóng gói (trừ hàng lẻ — D-22). Nếu trang Tồn kho cho nhập tay combo như sản phẩm, kho
+  combo tăng mà kho lẻ không giảm → có bộ combo "không có nguồn", bán ra là thiếu hàng lẻ thật.
+- **Quyết định:**
+  - Sản phẩm: nhập (IMPORT +), xuất (EXPORT −), kiểm kê (ADJUST ±).
+  - Combo: KHÔNG nhập tay; chỉ xuất/giảm tay khi bộ combo hỏng/mất (kho lẻ không đổi). Thêm bộ combo bằng Đóng gói, bớt
+    bằng Tháo — làm được ngay ở trang Tồn kho; ADMIN và EMPLOYEE đều dùng được (việc của kho).
+  - Đóng gói/tháo ghi `inventory_logs` (BR-8 mở rộng): combo ± số bộ và từng sản phẩm thành phần ∓ số lượng, ghi chú
+    "Đóng gói/Tháo N bộ combo …" — truy được vì sao hàng lẻ giảm.
+- **Ảnh hưởng:** migration `V9__inventory_logs.sql` (bảng có trong báo cáo, thêm `combo_id`). `/admin/combos/{id}/pack|unpack`
+  mở cho EMPLOYEE.
+
+## Đánh giá sản phẩm / combo (2026-11-06)
+
+Bổ sung cho D-09 (D-09 vẫn giữ nguyên: 1 đánh giá / user / mặt hàng, chỉ khi đã mua, chủ sửa/xoá cứng được).
+
+### 2026-11-06 — D-35: Điểm trung bình và số lượt đánh giá tính bằng `@Formula`
+- **Bối cảnh:** BR-10 cấm lưu cột tổng hợp. `averageRating`/`reviewCount` cần có ở `ItemSummary` (mọi danh sách), `ProductDetail`,
+  `ComboSummary`, `ComboDetail`, giỏ hàng — đang trả cứng `null`/0.
+- **Quyết định:** `Product` và `ProductCombo` có 2 thuộc tính chỉ đọc (`@Formula`): `averageRating` =
+  `ROUND(AVG(rating), 1)` và `reviewCount` = `COUNT(*)` trên `reviews` của mặt hàng, **bỏ đánh giá bị ẩn**. Cùng cách với
+  `salePrice` (D-30). Endpoint `.../reviews/summary` dùng cùng điều kiện nên không lệch.
+- **Lý do:** đúng BR-10; catalog/combo/cart không gọi sang module `review`; mọi nơi map DTO dùng được ngay, không N+1.
+- **Đánh đổi:** entity của `catalog`/`combo` chứa SQL đọc bảng `reviews`; mỗi dòng thêm 2 subquery (có index
+  `idx_reviews_product_id_created_at`, `idx_reviews_combo_id_created_at`).
+- **Phương án khác:** cột tổng hợp + cập nhật khi viết/xoá (trái BR-10, dễ lệch); gọi `ReviewQueryService` theo lô ở từng nơi
+  map DTO (phụ thuộc chéo nhiều module, dễ quên một nơi).
+
+### 2026-11-06 — D-34: Bỏ trang "Đánh giá của tôi" (`/account/reviews`, `GET /users/me/reviews`)
+- **Bối cảnh:** use case *Manage review* (báo cáo Phase1_v4) gắn với trang `/account/reviews`. Người dùng (Người 4) thấy trang
+  này thừa vì khách luôn đánh giá từ đơn hàng hoặc trang mặt hàng.
+- **Quyết định:** không làm `/account/reviews` và `GET /users/me/reviews`. *Manage review* thực hiện ở 2 nơi:
+  trang chi tiết sản phẩm/combo (khối "Đánh giá của bạn": sửa/xoá) và từng dòng hàng ở `/account/orders/[id]` (nút "Xem đánh giá").
+  Thêm `GET /reviews/mine?productId=|comboId=` để lấy đánh giá của chính mình cho 1 mặt hàng, và `OrderDetail.items[].myReviewId`.
+- **Lý do:** bớt 1 trang + 1 endpoint, chức năng của use case vẫn đủ. Khi bảo vệ: nêu *Manage review* được dời sang 2 trang trên.
+- **Phương án khác:** giữ trang riêng như báo cáo (thêm việc, trùng chức năng).
+
+### 2026-11-06 — D-33: Tự làm mờ đánh giá có ngôn từ không phù hợp bằng từ điển
+- **Bối cảnh:** người dùng muốn hệ thống tự phát hiện nội dung không lành mạnh và làm mờ, người xem bấm "Hiển thị" mới đọc.
+  Upload ảnh/video trong đánh giá đã bị bỏ, chỉ còn chữ.
+- **Quyết định:**
+  - Chỉ dùng **từ điển từ cấm tiếng Việt** là file trong code (`backend/src/main/resources/moderation/vi-banned-words.txt`), nhóm sửa
+    và commit; không có giao diện sửa từ điển. Từ điển chia `[accented]` (so trên chữ còn dấu — từ bỏ dấu sẽ trùng từ thường,
+    vd. `lồn`/`lon`, `ngu`/`ngủ`), `[plain]` (so sau khi bỏ dấu), `[abbr]` (teencode, khớp nguyên token), `[allow]` (cụm hay bắt nhầm).
+  - Trước khi so: chuẩn hoá Unicode NFC, bỏ ký tự vô hình, chữ thường, nối chữ cái đơn bị chèn ký tự (`đ.m` → `đm`), đổi leetspeak
+    trên token lẫn chữ–số, gộp chữ lặp ≥ 3. So theo ranh giới từ (`dm` không khớp trong `admin`).
+  - Chạy đồng bộ mỗi lần viết/sửa; bắt được → `moderation_status = SENSITIVE`, lưu `flagged_terms`. **Không chặn đăng.**
+  - Giao diện **làm mờ cả nội dung** (tên, sao, ngày vẫn hiện) + cảnh báo + nút "Hiển thị" (CSS blur — mục đích tránh vô tình đọc,
+    không phải giấu dữ liệu). Chủ đánh giá thấy rõ kèm ghi chú. Đánh giá bị mờ vẫn tính điểm.
+  - Từ điển chỉ chứa từ thô tục, tình dục (nghĩa tục), lăng mạ, kỳ thị, đe doạ — **không** chứa từ chê bai sản phẩm.
+- **Lý do:** miễn phí, chạy offline, kết quả xác định nên viết test được; dễ trình bày khi bảo vệ.
+- **Giới hạn đã biết:** không hiểu ngữ cảnh; bỏ sót câu xúc phạm không dùng từ tục và từ tục viết không dấu trùng từ thường →
+  nhân viên xử lý bằng "Ẩn" (D-31).
+- **Phương án khác:** API AI kiểm duyệt (hiểu ngữ cảnh nhưng cần API key, tốn phí, chậm) — để ở hướng phát triển, cắm thêm sau
+  interface `ContentModerator`; thay từ cấm bằng `***` (mất ngữ cảnh); chặn không cho đăng (khách bị chặn nhầm).
+
+### 2026-11-06 — D-32: Lọc đánh giá theo số sao; tách danh sách và tổng quan
+- **Bối cảnh:** api.md cũ trả `{averageRating, reviewCount, items}` từ `GET /products/{id}/reviews` — không khớp format phân trang
+  chung (`data` là mảng + `pagination`) và không có phân bố sao để làm bộ lọc.
+- **Quyết định:** `GET /products|combos/{id}/reviews?rating=1..5&page&limit` trả `[Review]` + `pagination`;
+  `GET /products|combos/{id}/reviews/summary` trả `{averageRating, reviewCount, ratingCounts}`. Giao diện: thanh phân bố 5★→1★
+  bấm để lọc + nút lọc "Tất cả · 5★ … 1★". Chỉ sắp xếp mới nhất trước.
+- **Lý do:** giữ đúng format phân trang chung; lọc không làm đổi tổng quan.
+- **Phương án khác:** nhét tổng quan vào mỗi trang danh sách (lặp dữ liệu, trái format chung).
+
+### 2026-11-06 — D-31: Nhân viên ẩn/hiện lại/đánh dấu an toàn đánh giá; chỉ Admin xoá
+- **Bối cảnh:** báo cáo không có chức năng quản trị đánh giá. Người dùng yêu cầu làm trong đợt này, cùng với làm mờ tự động (D-33).
+- **Quyết định:**
+  - Trang `/admin/reviews` (Employee + Admin): lọc theo khách/mặt hàng, loại, số sao, trạng thái (`VISIBLE`/`HIDDEN`/`SENSITIVE`).
+  - **Ẩn** (bắt buộc lý do ≤ 500 ký tự), **Hiện lại**, **Đánh dấu an toàn** (`SENSITIVE` → `CLEARED`): Employee + Admin.
+    **Xoá cứng**: chỉ Admin (khách viết lại được).
+  - Thêm cột `reviews.is_hidden`, `hidden_reason`, `hidden_by`, `hidden_at`, `moderation_status`, `flagged_terms` (vẫn 22 bảng).
+  - Đánh giá bị ẩn: không hiện công khai, không tính điểm; chủ thấy kèm lý do, **không sửa được** (`REVIEW_HIDDEN`), chỉ xoá;
+    xoá rồi viết lại thì đi qua kiểm duyệt như mới (chấp nhận khả năng lách, nhân viên ẩn tiếp được).
+  - Hành động của nhân viên không đổi `updated_at` (để "(đã chỉnh sửa)" chỉ phản ánh chủ sửa). Không gửi thông báo khi bị ẩn.
+- **Lý do:** "Ẩn" giữ lại dấu vết để đối chiếu, xoá chỉ dành cho spam; cột trên `reviews` đủ dùng, không cần bảng nhật ký.
+- **Phương án khác:** chỉ có xoá (mất dấu vết); bảng `review_moderation_logs` (vượt 22 bảng).
+
+## Khuyến mãi — voucher và chiến dịch (2026-10-31)
+
+### 2026-10-31 — D-30: Giá sau chiến dịch tính bằng một biểu thức SQL (`Product.salePrice`)
+- **Bối cảnh:** BR-6 yêu cầu một hàm tính giá dùng cho hiển thị và đặt hàng; N2-14 yêu cầu `GET /products` lọc `minPrice`/`maxPrice`
+  và sắp xếp theo **giá sau chiến dịch**. Danh sách sản phẩm đang dùng JPA `Specification` + `Sort` trên cột `price`.
+- **Quyết định:**
+  - Entity `Product` có thuộc tính chỉ đọc `salePrice` (`@Formula`): subquery lấy `MIN` giá sau giảm trên các chiến dịch hiệu lực chứa
+    sản phẩm (PERCENTAGE → `ROUND(price × (100 − value) / 100)`, FIXED_AMOUNT → `GREATEST(price − value, 0)`), không có thì `price`.
+  - `PricingService.unitPrice(Product)` trả `salePrice`; lọc/sắp xếp dùng thuộc tính `salePrice` trong `Specification`/`Sort`.
+    Chỉ có một công thức (SQL) nên danh sách, chi tiết, giỏ, đặt hàng không thể lệch nhau.
+  - "Hiệu lực" theo giờ của PostgreSQL (`now()`), không theo `Clock` của ứng dụng.
+- **Lý do:** lọc/sắp xếp đúng khi có phân trang mà không viết lại query thành native; giá luôn đúng thời gian thực, không cần job.
+- **Đánh đổi:** entity của `catalog` chứa SQL đọc bảng của `promotion`; mỗi lần đọc sản phẩm chạy thêm một subquery có index
+  (`idx_discount_campaign_products_product_id`). Test liên quan thời gian đặt mốc tương đối với giờ DB.
+- **Phương án khác:** cột `products.sale_price` tính sẵn + job (trễ, dễ lệch giá); tính trong Java sau khi lấy trang (sai khi lọc/sắp xếp).
+
+### 2026-10-31 — D-29: Voucher công khai — khách nhập mã hoặc chọn từ danh sách; không có ví voucher cá nhân
+- **Bối cảnh:** báo cáo chỉ có "Apply promotion code" (khách tự nhập). Không có kênh nào cho khách biết mã đang có.
+- **Quyết định:**
+  - Cột mới `vouchers.is_public` (mặc định `true`). Mã công khai hiện ở popup voucher trang `/cart` (`GET /vouchers/available`,
+    tính trên giỏ hiện tại, kèm lý do chưa dùng được) và thanh PromoBar (`GET /vouchers/public`). Mã ẩn chỉ dùng được khi
+    khách tự nhập (mã gửi riêng qua email, kênh ngoài).
+  - Vẫn giữ ô nhập mã; luật áp dụng giữ nguyên BR-5 (ai có mã đều dùng được, mỗi khách 1 lần).
+  - Không làm ví voucher cá nhân (`user_vouchers`), voucher tặng theo sự kiện, admin tặng mã cho từng khách — ghi vào hướng phát triển.
+- **Lý do:** trải nghiệm gần với sàn TMĐT thật, chỉ thêm 1 cột + 2 endpoint, không đổi luật BR-5.
+- **Phương án khác:** chỉ nhập mã (đúng báo cáo, nhưng khách không biết có mã nào); ví voucher cá nhân (thêm bảng, đổi BR-5, vượt Tier 2).
+
+## Đặt hàng – thanh toán – giao hàng (2026-10-26)
+
+### 2026-10-26 — D-28: Xử lý kết quả VNPay dùng chung cho Return URL và IPN; vận đơn GHN sau khi CONFIRMED
+- **Bối cảnh:** BR-12 cũ: chỉ IPN đổi trạng thái, Return URL chỉ đọc. Khi chạy localhost, VNPay không gọi được IPN nên đơn
+  không bao giờ được xác nhận. Người dùng (Người 1) yêu cầu một hàm dùng chung, gọi ở Return URL trước, chuẩn bị sẵn IPN.
+- **Quyết định:**
+  - `PaymentResultService.handlePaymentResult(method, params)` dùng chung cho `GET /api/vnpay/return` và `GET /api/vnpay/ipn`:
+    kiểm chữ ký → tìm và khoá đơn theo `vnp_TxnRef` → số tiền khớp → payment ≠ PENDING thì bỏ qua (idempotent) → thành công
+    (`vnp_ResponseCode` = `vnp_TransactionStatus` = `00`): payment `SUCCESS`, đơn `PENDING → CONFIRMED` (trừ kho); thất bại:
+    payment `FAILED`, đơn `PAYMENT_FAILED`. Không thêm trạng thái "PAID": "đã thanh toán" = `payments.status = SUCCESS`.
+  - Route theo yêu cầu: trang frontend `/payment/vnpay-return` (= `VNP_RETURN_URL`) gửi nguyên query cho
+    `GET /api/vnpay/return`; IPN `GET /api/vnpay/ipn` trả `{RspCode, Message}` (00, 01, 02, 04, 97, 99). Thay
+    `/payments/vnpay/return|ipn` cũ.
+  - Return URL và IPN về cùng lúc: khoá dòng `orders` khiến chúng chạy lần lượt; lần sau nhận `ALREADY_PROCESSED` / `02`.
+  - `vnp_TxnRef` = `orders.order_code` (duy nhất, mỗi đơn thanh toán một lần); `vnp_ExpireDate` = tạo đơn + `app.order.payment-timeout`.
+  - Đơn chuyển `CONFIRMED` (VNPay đã trả / nhân viên xác nhận COD) phát `OrderStatusChangedEvent`; `OrderShipmentListener`
+    (`@Async`, `AFTER_COMMIT`) tạo vận đơn GHN: COD thu hộ `final_amount`, VNPay thu hộ 0. Lỗi GHN không ảnh hưởng đơn — ghi
+    `orders.shipping_order_error`, tạo lại được (`OrderShipmentService.createShipment`). Tắt bằng `app.ghn.auto-create-shipment`.
+  - Cột bổ sung trên `orders`: `shipping_district_id`, `shipping_ward_code`, `shipping_order_code`, `shipping_order_error`.
+- **Khi deploy:** khai báo IPN URL `https://<backend>/api/vnpay/ipn` ở cổng merchant VNPay; IPN là đường xử lý chính, Return URL
+  chỉ là đường dự phòng (cùng hàm, an toàn khi lặp). Khách tự gọi lại Return URL không làm gì được vì phải có chữ ký đúng.
+- **Phương án khác:** chỉ IPN (đúng BR-12 cũ) — không thử được ở localhost nếu không có ngrok.
+
+
+### 2026-10-26 — D-27: Tích hợp GHN (giao hàng nhanh) cho địa chỉ, phí ship và vận đơn
+- **Bối cảnh:** Người dùng (Người 1) yêu cầu tích hợp GHN staging: dropdown Tỉnh/Quận/Phường ở trang thanh toán, phí ship
+  tự tính theo địa chỉ, tạo vận đơn khi đơn đã thanh toán. Thay thế D-17 (phí cố định) và quyết định 2025 "Không tích hợp
+  API vận chuyển thật".
+- **Quyết định:**
+  - Module backend mới `shipping`: `GhnService` (tỉnh, quận, phường, gói dịch vụ, tính phí, tạo vận đơn, chi tiết vận
+    đơn), `ShippingService` (quy tắc phí), API công khai `/api/shipping/*` (`api.md` 4.12). Token/ShopId chỉ ở backend
+    (`app.ghn.*` ← biến `GHN_*` trong `.env`, backend nạp `.env` qua `spring.config.import`), không bao giờ ra frontend.
+  - Danh mục địa chỉ dùng mã GHN (`ProvinceID`, `DistrictID`, `WardCode`); cache trong bộ nhớ `app.ghn.master-data-cache-ttl`.
+  - Phí ship = phí GHN gói `app.ghn.service-type-id` từ kho (`GHN_FROM_DISTRICT_ID`, `GHN_FROM_WARD_CODE`). Sản phẩm chưa
+    có cân nặng → cân kiện = tổng số món × `app.ghn.default-weight` (gram), kích thước kiện cố định `app.ghn.parcel-*`.
+  - Giữ ngưỡng miễn phí của D-17: `subtotal − discount ≥ app.shipping.free-threshold` → khách trả 0, shop vẫn trả GHN.
+    Bỏ `app.shipping.fee` (phí cố định).
+  - Vận đơn GHN: shop trả phí GHN (`payment_type_id = 1`), mã đơn Campvivo làm `client_order_code`; thời điểm tạo vận đơn
+    và các cột lưu trên `orders` chốt ở phần VNPay/đơn hàng (D-28).
+  - Lỗi GHN (mạng, 4xx/5xx, chưa cấu hình, địa chỉ không giao được) → `502 SHIPPING_GATEWAY_ERROR`; chi tiết chỉ ghi log.
+- **Lý do:** Phí ship thật theo vùng, có mã vận đơn để theo dõi — sát thực tế hơn cho demo; GHN có môi trường staging miễn phí.
+- **Hạn chế:** cân nặng ước lượng theo số món; địa chỉ khách lưu ở trình duyệt (`users.address` chỉ có chuỗi, D-02) nên
+  địa chỉ cũ không có mã GHN phải chọn lại.
+- **Phương án khác:** giữ phí cố định (D-17) — đơn giản nhưng người dùng yêu cầu GHN; gọi GHN từ frontend — lộ token.
+
 ## Đồng bộ theo báo cáo Phase1_v4 (2026-10-17)
 
 ### 2026-10-17 — D-00: Báo cáo Phase1 là nguồn yêu cầu gốc
@@ -141,6 +293,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 - **Lý do:** Frontend đã có các trang này; báo cáo không có bảng tương ứng; thêm cột rẻ hơn thêm bảng.
 
 ### 2026-10-17 — D-17: Phí vận chuyển cố định qua cấu hình
+- **Đã bị thay thế bởi D-27 (2026-10-26):** phí ship lấy từ GHN; chỉ giữ ngưỡng miễn phí `app.shipping.free-threshold`.
 - **Quyết định:** `shipping_fee` = phí cố định (`app.shipping.fee`, mặc định 30000); miễn phí khi
   `subtotal − discount_amount ≥ app.shipping.free-threshold` (mặc định 1000000). Không tính theo
   vùng/khối lượng.
@@ -264,18 +417,6 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   lưu sang combo — đổi ảnh sản phẩm thì combo hiển thị theo.
 - **Dữ liệu:** không đổi cấu trúc bảng. Seed V5 không còn chèn ảnh riêng cho combo (dùng ảnh sản phẩm).
 
-### 2026-10-31 — D-27: Combo chỉ giảm tay ở trang Tồn kho; đóng gói/tháo ghi nhật ký kho
-- **Bối cảnh:** kho combo tăng bằng đóng gói (trừ hàng lẻ — D-22). Nếu trang Tồn kho cho nhập tay combo như sản phẩm, kho
-  combo tăng mà kho lẻ không giảm → có bộ combo "không có nguồn", bán ra là thiếu hàng lẻ thật.
-- **Quyết định:**
-  - Sản phẩm: nhập (IMPORT +), xuất (EXPORT −), kiểm kê (ADJUST ±).
-  - Combo: KHÔNG nhập tay; chỉ xuất/giảm tay khi bộ combo hỏng/mất (kho lẻ không đổi). Thêm bộ combo bằng Đóng gói, bớt
-    bằng Tháo — làm được ngay ở trang Tồn kho; ADMIN và EMPLOYEE đều dùng được (việc của kho).
-  - Đóng gói/tháo ghi `inventory_logs` (BR-8 mở rộng): combo ± số bộ và từng sản phẩm thành phần ∓ số lượng, ghi chú
-    "Đóng gói/Tháo N bộ combo …" — truy được vì sao hàng lẻ giảm.
-- **Ảnh hưởng:** migration `V6__inventory_logs.sql` (bảng có trong báo cáo, thêm `combo_id`). `/admin/combos/{id}/pack|unpack`
-  mở cho EMPLOYEE.
-
 ---
 
 ## Quyết định trước đó
@@ -302,6 +443,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   thêm biến thể chỉ tốn effort mà không tăng điểm kỹ thuật tương xứng.
 
 ### 2025 — Không tích hợp API vận chuyển thật
+- **Đã bị thay thế bởi D-27 (2026-10-26): tích hợp GHN staging.**
 - **Quyết định:** Mô phỏng trạng thái vận đơn (nhân viên cập nhật thủ công
   CONFIRMED→SHIPPING→COMPLETED), không gọi API thật của đơn vị vận chuyển.
 - **Lý do:** Tích hợp bên thứ ba rủi ro thời gian cao (cần đăng ký doanh nghiệp, chờ duyệt),

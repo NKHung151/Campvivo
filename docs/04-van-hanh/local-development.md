@@ -32,7 +32,7 @@ Làm theo thứ tự. Lệnh dạng PowerShell (Windows); trên macOS/Linux dùn
 ```bash
 cd backend
 cp src/main/resources/application-dev.yml.example src/main/resources/application-dev.yml
-# điền DB url/user/pass, JWT_SECRET, SMTP, VNPAY_*; không commit file đã điền secret thật
+# điền DB url/user/pass, JWT_SECRET; VNP_*, GHN_*, SMTP... đặt ở .env gốc (backend tự nạp); không commit secret thật
 mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 Flyway tự chạy migration khi khởi động. Mặc định `application.yml` đặt `ddl-auto=validate`, nhưng `application-dev.yml.example`
@@ -61,15 +61,83 @@ Invoke-RestMethod -Method Post "$u/auth/verify-email" -ContentType $j -Body '{"e
 # Gửi lại mã (chờ ít nhất 60 giây kể từ thư trước)
 Invoke-RestMethod -Method Post "$u/auth/resend-code" -ContentType $j -Body '{"email":"ban@example.com","purpose":"VERIFY_EMAIL"}'
 ```
-Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`. Xoá tài khoản thử:
+Chưa xác thực mà đăng nhập sẽ nhận `EMAIL_NOT_VERIFIED`.
+
+**Thử quên mật khẩu bằng PowerShell** (tài khoản đã đăng ký ở trên, Mailpit đang bật):
+```powershell
+# 1. Xin mã (luôn 200, kể cả email không tồn tại) → thư "Mã đặt lại mật khẩu Campvivo" ở http://localhost:8025
+Invoke-RestMethod -Method Post "$u/auth/forgot-password" -ContentType $j -Body '{"email":"ban@example.com"}'
+# 2. Đặt mật khẩu mới bằng mã trong thư → 200 (không trả token)
+Invoke-RestMethod -Method Post "$u/auth/reset-password" -ContentType $j -Body '{"email":"ban@example.com","code":"123456","newPassword":"MatKhauMoi9"}'
+# 3. Đăng nhập bằng mật khẩu mới (mật khẩu cũ và token cũ không còn dùng được)
+Invoke-RestMethod -Method Post "$u/auth/login" -ContentType $j -Body '{"email":"ban@example.com","password":"MatKhauMoi9"}'
+```
+Xin mã lần hai trong vòng 60 giây vẫn trả 200 nhưng **không** có thư mới (chủ ý, chống dò email): chờ đủ 60 giây.
+
+**Thử sửa hồ sơ và đổi mật khẩu bằng PowerShell** (tài khoản ĐÃ xác thực; dùng tài khoản thử vì mật khẩu sẽ bị đổi). PowerShell 5.1 gửi chuỗi
+tiếng Việt bằng bảng mã không phải UTF-8 (tên bị lưu thành `Nguy?n Van An`) và không hiện nội dung lỗi 4xx, nên dùng hàm `Call` dưới đây (gửi UTF-8, in đủ thân lỗi):
+```powershell
+$u = "http://localhost:8080/api"
+function Call($method, $path, $json, $headers) {
+  $p = @{ Method = $method; Uri = "$u$path"; ContentType = "application/json; charset=utf-8"; UseBasicParsing = $true }
+  if ($json) { $p.Body = [System.Text.Encoding]::UTF8.GetBytes($json) }
+  if ($headers) { $p.Headers = $headers }
+  try { $r = Invoke-WebRequest @p; return @{ status = [int]$r.StatusCode; body = [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) } }
+  catch { $resp = $_.Exception.Response; $ms = New-Object IO.MemoryStream; $resp.GetResponseStream().CopyTo($ms)
+          return @{ status = [int]$resp.StatusCode; body = [System.Text.Encoding]::UTF8.GetString($ms.ToArray()) } }
+}
+function Show($label, $r) { "$label -> $($r.status) $($r.body)" }
+$login = Call Post "/auth/login" '{"email":"ban@example.com","password":"MatKhauMoi9"}'
+$h = @{ Authorization = "Bearer " + ($login.body | ConvertFrom-Json).data.accessToken }
+# Sửa hồ sơ: thay thế fullName, phone, address (phone/address rỗng = xoá). Email và role trong body bị bỏ qua
+Show "PUT hồ sơ" (Call Put "/users/me" '{"fullName":"Nguyễn Văn An","phone":"0912345678","address":"12 Lê Lợi, Quận 1"}' $h)
+Show "GET hồ sơ" (Call Get "/users/me" $null $h)
+# Sai mật khẩu hiện tại → 400 INVALID_CURRENT_PASSWORD; mật khẩu mới yếu → 400 VALIDATION_ERROR
+Show "Sai mật khẩu cũ" (Call Put "/users/me/password" '{"currentPassword":"SaiRoi99","newPassword":"MatKhauCuoi7"}' $h)
+# Đổi đúng → 200; sau đó token $h hết hiệu lực (GET /users/me trả 401), phải đăng nhập lại bằng mật khẩu mới
+Show "Đổi mật khẩu" (Call Put "/users/me/password" '{"currentPassword":"MatKhauMoi9","newPassword":"MatKhauCuoi7"}' $h)
+Show "Token cũ" (Call Get "/users/me" $null $h)
+```
+
+**Thử danh sách người dùng của Admin bằng PowerShell** (cần tài khoản ADMIN: bảng "Tài khoản mẫu" bên dưới; dùng lại hàm `Call` / `Show` ở mục trên):
+```powershell
+$login = Call Post "/auth/login" '{"email":"admin@campvivo.local","password":"Admin@123"}'
+$h = @{ Authorization = "Bearer " + ($login.body | ConvertFrom-Json).data.accessToken }
+Show "Tất cả (trang 1)" (Call Get "/admin/users" $null $h)
+Show "Tìm 'admin' không phân biệt hoa thường" (Call Get "/admin/users?q=ADMIN" $null $h)
+Show "Chỉ khách hàng đang bị khoá" (Call Get "/admin/users?role=CUSTOMER&isActive=false" $null $h)
+Show "Trang 2, 5 dòng" (Call Get "/admin/users?limit=5&page=2" $null $h)
+```
+```powershell
+# Chi tiết (thêm địa chỉ, số đơn, tổng chi tiêu) và sửa từng phần; thay 2 bằng id thật (cột "id" ở danh sách)
+Show "Chi tiết" (Call Get "/admin/users/2" $null $h)
+Show "Đổi tên + SĐT" (Call Patch "/admin/users/2" '{"fullName":"Nguyễn Văn An","phone":"0912345678"}' $h)
+Show "Khoá" (Call Patch "/admin/users/2" '{"isActive":false}' $h)       # người đó bị đăng xuất ngay, đăng nhập báo ACCOUNT_DISABLED
+Show "Tự khoá mình" (Call Patch "/admin/users/1" '{"isActive":false}' $h)  # id của chính admin → 400 CANNOT_MODIFY_SELF
+```
+Hàm `Call` ở mục "Thử sửa hồ sơ" chỉ cần thêm `Patch` vào tham số `$method` (đã dùng được: nó truyền thẳng vào `Invoke-WebRequest`).
+Token của EMPLOYEE hoặc CUSTOMER gọi endpoint này nhận 403 `FORBIDDEN`. `q` có khoảng trắng hoặc chữ có dấu thì để hàm `Call` gửi UTF-8 (xem bẫy PowerShell 5.1 ở `troubleshooting.md`); gõ thẳng vào URL cần mã hoá `%20`.
+
+Xoá tài khoản thử:
 `docker exec campvivo-postgres psql -U campvivo -d campvivo -c "delete from users where email='ban@example.com'"`.
 
-**VNPay sandbox:**
-1. Đăng ký tài khoản merchant sandbox tại VNPay, lấy `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`.
-2. `ngrok http 8080` → lấy URL public, đặt `app.vnpay.ipn-url = https://<ngrok>/api/payments/vnpay/ipn`
-   và khai báo IPN URL này trong trang quản trị sandbox của VNPay.
-3. `app.vnpay.return-url = http://localhost:3000/checkout/success`.
-4. Dùng thẻ test do VNPay cung cấp trong tài liệu sandbox.
+**Biến môi trường từ `.env`:** backend tự nạp file `.env` ở gốc repo khi chạy từ thư mục `backend/`
+(`spring.config.import`), nên `GHN_*`, `VNP_*`... không cần khai lại trong `application-dev.yml`.
+
+**GHN staging (D-27):** điền `GHN_TOKEN`, `GHN_SHOP_ID`, `GHN_FROM_DISTRICT_ID`, `GHN_FROM_WARD_CODE` trong `.env` (mẫu
+`.env.example`). Kiểm tra nhanh: `GET http://localhost:8080/api/shipping/provinces` trả danh sách tỉnh; trang `/cart` → "Thông
+tin giao hàng" có 3 dropdown Tỉnh/Quận/Phường và dòng "Phí vận chuyển" tự tính lại. Lỗi `SHIPPING_GATEWAY_ERROR` → xem log
+backend (dòng `GHN ... trả HTTP ...`), thường do thiếu biến hoặc mã phường/quận kho sai.
+
+**VNPay sandbox (D-28):**
+1. Đăng ký merchant sandbox, điền `VNP_TMN_CODE`, `VNP_HASH_SECRET`, `VNP_URL`, `VNP_RETURN_URL=http://localhost:3000/payment/vnpay-return`
+   trong `.env`.
+2. Ở localhost không cần IPN: trang `/payment/vnpay-return` gửi kết quả cho `GET /api/vnpay/return`, backend kiểm chữ ký và
+   ghi nhận bằng cùng hàm với IPN. Muốn thử IPN thật: `ngrok http 8080` rồi khai báo `https://<ngrok>/api/vnpay/ipn` ở cổng
+   quản trị sandbox VNPay.
+3. Thẻ test (tài liệu sandbox VNPay): ngân hàng NCB, số thẻ `9704198526191432198`, tên `NGUYEN VAN A`, ngày phát hành `07/15`,
+   OTP `123456`.
+4. Thanh toán xong, đơn chuyển CONFIRMED và vận đơn GHN staging được tạo tự động (xem mã vận đơn ở trang kết quả).
 
 ## Frontend
 ```bash
@@ -79,7 +147,9 @@ npm install
 npm run dev
 ```
 Mặc định chạy ở `http://localhost:3000`, gọi API tại `NEXT_PUBLIC_API_URL`
-(`http://localhost:8080/api`), WebSocket tại `NEXT_PUBLIC_WS_URL` (`http://localhost:8080/ws`).
+(`http://localhost:8080/api`), WebSocket tại `NEXT_PUBLIC_WS_URL` (`http://localhost:8080/ws`). Kiểm tra nhanh WebSocket mà không cần giao diện:
+chạy test `mvn test -Dtest=RealtimeIntegrationTest` (client STOMP thật, PostgreSQL qua Testcontainers). Origin của trình duyệt phải nằm trong
+`app.cors.allowed-origins` (mặc định `http://localhost:3000`); chạy frontend ở cổng khác thì đặt `APP_CORS_ALLOWED_ORIGINS` cho backend.
 
 ## Tài khoản mẫu (seed profile dev — `database.md` mục 7, khi đã có; hiện chèn tay, xem bên dưới)
 | Role | Email | Mật khẩu |

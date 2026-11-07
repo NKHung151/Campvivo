@@ -36,11 +36,12 @@ public class ProductController {
             @RequestParam(required = false) @Size(max = 100, message = "Tối đa 100 slug.") List<String> slugs,
             @RequestParam(required = false) @Min(value = 0, message = "Giá không hợp lệ.") BigDecimal minPrice,
             @RequestParam(required = false) @Min(value = 0, message = "Giá không hợp lệ.") BigDecimal maxPrice,
+            @RequestParam(defaultValue = "false") boolean onSale,
             @RequestParam(defaultValue = "newest") ProductQuery.SortBy sortBy,
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "Trang phải từ 1.") int page,
             @RequestParam(defaultValue = "12") @Min(value = 1, message = "Số sản phẩm mỗi trang từ 1 đến 100.")
             @Max(value = 100, message = "Số sản phẩm mỗi trang từ 1 đến 100.") int limit) {
-        return productService.list(new ProductQuery(category, brand, q, slugs, minPrice, maxPrice, sortBy, page, limit));
+        return productService.list(new ProductQuery(category, brand, q, slugs, minPrice, maxPrice, onSale, sortBy, page, limit));
     }
 
     @GetMapping("/{slug}")

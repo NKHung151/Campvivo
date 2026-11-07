@@ -74,7 +74,7 @@ function AvailableTag({ item }: { item: InventoryItem }) {
 /**
  * Trang Tồn kho (FR-08, BR-8) — ADMIN và EMPLOYEE.
  * - Sản phẩm: Nhập (+), Xuất (−), Kiểm kê (gõ số đếm thực tế → hệ thống tự tính chênh lệch).
- * - Combo: thêm bộ bằng Đóng gói (trừ hàng lẻ), Tháo (trả hàng lẻ), Xuất bộ hỏng/mất; KHÔNG nhập tay (D-27).
+ * - Combo: thêm bộ bằng Đóng gói (trừ hàng lẻ), Tháo (trả hàng lẻ), Xuất bộ hỏng/mất; KHÔNG nhập tay (D-36).
  * - Nhật ký: mọi lần nhập/xuất/kiểm kê/đóng gói/tháo, lọc theo mặt hàng, lý do, khoảng ngày.
  * Tab, bộ lọc, trang nằm trên URL.
  */

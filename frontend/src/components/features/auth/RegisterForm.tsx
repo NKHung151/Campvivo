@@ -77,7 +77,8 @@ export function RegisterForm({ redirect }: { redirect: string | null }) {
           {emailTaken && (
             <>
               {" "}
-              <Link href={authHref("/login", {}, redirect)}>Đăng nhập</Link>
+              <Link href={authHref("/login", {}, redirect)}>Đăng nhập</Link> ·{" "}
+              <Link href={authHref("/forgot-password", {}, redirect)}>Quên mật khẩu?</Link>
             </>
           )}
         </div>

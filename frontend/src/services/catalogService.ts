@@ -21,7 +21,9 @@ import type { CategoryNode, ComboSummary, ItemSummary, ProductDetail } from "@/t
 import { cleanMock } from "@/services/mockContent";
 import {
   getBrandList,
+  getCampaign,
   getCategoryTree,
+  listCampaigns,
   getProductDetail,
   listAllCombos,
   listAllProducts,
@@ -76,14 +78,9 @@ export const getCampvivology = cache(() => {
   return cleanMock({ ...raw, html });
 });
 export const getSkuMap = cache(() => readJson<Record<string, string>>("sku-map.json") ?? {});
-const getMockPromos = cache(
-  () =>
-    readJson<Record<string, { title: string; desc: string; items: ProductCard[] }>>(
-      "promos.json"
-    ) ?? {}
-);
 export const getCartData = cache(() =>
-  readJson<{ csvcHtml: string; pvcHtml: string; provinces: { v: string; n: string }[] }>(
+  // Danh sách tỉnh trong cart.json không còn dùng: địa chỉ lấy từ GHN (/api/shipping/*)
+  readJson<{ csvcHtml: string; pvcHtml: string }>(
     "cart.json"
   )!
 );
@@ -166,7 +163,7 @@ function toRelated(p: ItemSummary): RelatedItem {
     oldPrice: c.oldPrice,
     discount: c.discount,
     discountClass: null,
-    rating: c.rating ?? 100,
+    rating: c.rating,
   };
 }
 
@@ -178,7 +175,7 @@ function toSidebar(p: ItemSummary): SidebarItem {
     img: p.primaryImageUrl ?? "",
     brand: p.brand ?? "",
     price: vnd(p.price),
-    rating: 100,
+    rating: p.averageRating === null ? null : p.averageRating * 20,
   };
 }
 
@@ -190,6 +187,7 @@ function toProductFull(
   const images = [...d.images].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
   const sale = d.originalPrice > d.price;
   return {
+    id: d.id,
     slug: d.slug,
     name: d.name,
     brand: d.brand ?? "",
@@ -207,6 +205,7 @@ function toProductFull(
     oldPrice: sale ? d.originalPrice : null,
     savePct: sale ? `${Math.round((1 - d.price / d.originalPrice) * 100)}%` : null,
     saleEnds: d.campaign?.endDate ?? null,
+    campaign: d.campaign ? { name: d.campaign.name, slug: d.campaign.slug } : null,
     // DB không lưu bảo hành → không hiện dòng "Bảo hành" trên trang sản phẩm
     warranty: null,
     maxQty: d.availableQuantity,
@@ -224,7 +223,6 @@ function toProductFull(
     descriptionHtml: d.description,
     specsHtml: specsTable(d.specs),
     guideHtml: null,
-    reviews: [],
     social: null,
     fbt: [],
     articles: [],
@@ -479,25 +477,59 @@ export async function getBrandIndex() {
 
 /* ───────────── Trang chủ & khuyến mãi ───────────── */
 
-/** Khối sản phẩm trang chủ: giữ danh sách chọn sẵn của dữ liệu mẫu, giá/ảnh/tồn kho lấy từ DB. */
+/** Số sản phẩm trong khối Flash sale trang chủ (giảm nhiều nhất trước). */
+const FLASH_SALE_SIZE = 15;
+
+/**
+ * Khối sản phẩm trang chủ. Flash sale = sản phẩm đang giảm giá thật (chiến dịch — FR-17), "Xem tất cả" → /promotions;
+ * các dải khác giữ danh sách chọn sẵn của dữ liệu mẫu, giá/ảnh/tồn kho lấy từ DB.
+ */
 export async function getHomeProducts() {
   const home = getHome();
-  const [flash, ...groups] = await Promise.all([
-    cardsFor(home.flashSale.items.map((c) => c.slug)),
+  const [onSale, campaigns, ...groups] = await Promise.all([
+    listProducts({ onSale: true, limit: 100 }).then((r) => r.data),
+    listCampaigns(),
     ...home.groups.map((g) => cardsFor(g.items.map((c) => c.slug))),
   ]);
+  const off = (p: ItemSummary) => (p.originalPrice > 0 ? 1 - p.price / p.originalPrice : 0);
+  const flash = [...onSale].sort((a, b) => off(b) - off(a)).slice(0, FLASH_SALE_SIZE).map(toCard);
+  // Bộ đếm: hạn của chiến dịch đang chạy (có sản phẩm đang bán) kết thúc sớm nhất — API đã sắp theo endDate tăng dần
+  const endsAt = campaigns.find((c) => c.productCount > 0)?.endDate ?? null;
   return {
-    flashSale: { ...home.flashSale, items: flash },
+    flashSale: { ...home.flashSale, href: "/promotions", items: flash, endsAt },
     groups: home.groups
       .map((g, i) => ({ ...g, items: groups[i] }))
       .filter((g) => g.items.length > 0),
   };
 }
 
+/**
+ * Trang /promotions: mọi sản phẩm đang giảm giá (gộp các chiến dịch; giá = mức giảm lớn nhất — BR-6), lọc thương hiệu;
+ * cột trái là các chiến dịch đang chạy.
+ */
+export async function getPromotionsListing() {
+  const [items, campaigns] = await Promise.all([listAllProducts({ onSale: true }), listCampaigns()]);
+  const brands = Array.from(new Set(items.map((p) => p.brand).filter((b): b is string => Boolean(b)))).sort((a, b) =>
+    a.localeCompare(b, "vi")
+  );
+  return {
+    sideCats: campaigns.map((c) => ({ name: c.name, href: `/promotions/${c.slug}` })),
+    filters: brands.length > 1 ? [{ title: "Thương hiệu", options: brands }] : [],
+    products: items.map(toCard),
+  };
+}
+
+/** Trang chiến dịch /promotions/[slug] (FR-17): chỉ chiến dịch đang hiệu lực, ngược lại null (404). */
 export async function getPromo(slug: string) {
-  const p = getMockPromos()[slug];
-  if (!p) return null;
-  return { ...p, items: await cardsFor(p.items.map((c) => c.slug)) };
+  const c = await getCampaign(slug);
+  if (!c) return null;
+  return {
+    title: c.name,
+    desc: c.description ?? "",
+    bannerUrl: c.bannerUrl,
+    endDate: c.endDate,
+    items: c.products.map(toCard),
+  };
 }
 
 /* ───────────── Tìm kiếm bài viết ───────────── */

@@ -28,6 +28,13 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** Thử khôi phục phiên lại (khi status = "error"). */
   retry: () => void;
+  /** Thay hồ sơ hiện tại bằng bản server vừa trả (sau khi sửa hồ sơ) để header, form giao hàng... thấy ngay. */
+  setProfile: (profile: UserProfile) => void;
+  /**
+   * Kết thúc phiên chỉ phía client, KHÔNG gọi API: dùng khi server đã làm token hết hiệu lực (vd. vừa đổi mật khẩu,
+   * gọi `logout()` lúc này chỉ sinh thêm một lỗi 401 vô ích).
+   */
+  clearSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -115,9 +122,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const retry = useCallback(() => void restore(), [restore]);
 
+  const setProfile = useCallback((profile: UserProfile) => setUser(profile), []);
+
+  const clearSession = useCallback(() => {
+    clearToken();
+    setUser(null);
+    setStatus("unauthenticated");
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, login, verifyEmail, logout, retry }),
-    [status, user, login, verifyEmail, logout, retry],
+    () => ({ status, user, login, verifyEmail, logout, retry, setProfile, clearSession }),
+    [status, user, login, verifyEmail, logout, retry, setProfile, clearSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

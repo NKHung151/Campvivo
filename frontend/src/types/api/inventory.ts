@@ -55,7 +55,7 @@ export interface InventoryLogQuery extends PageQuery {
 
 /**
  * Đúng một trong productId / comboId. IMPORT phải dương, EXPORT phải âm, ADJUST tuỳ dấu.
- * Combo chỉ được giảm — thêm bộ combo bằng "Đóng gói" (D-27).
+ * Combo chỉ được giảm — thêm bộ combo bằng "Đóng gói" (D-36).
  */
 export interface AdjustmentRequest {
   productId?: number;

@@ -50,7 +50,8 @@ export interface HomeData {
   hero: { href: string; img: string; alt: string; hotspots: { left: string; top: string; href: string }[] };
   slogan: { text: string; em: string };
   brandLogos: { name: string; href: string; img: string }[];
-  flashSale: { title: string; href: string; items: ProductCard[] };
+  /** `endsAt`: hạn của chiến dịch đang chạy kết thúc sớm nhất (bộ đếm "Chỉ còn"); null = không hiện bộ đếm. */
+  flashSale: { title: string; href: string; items: ProductCard[]; endsAt?: string | null };
   groups: { title: string; href: string; desc: string; items: ProductCard[] }[];
   topCategories: { title: string; items: { name: string; href: string; img: string }[]; more: { text: string; btn: string; href: string } };
   banners: { col: string; href: string; title: string; img: string }[];
@@ -99,13 +100,6 @@ export interface VariantOption {
   sku?: string;
 }
 
-export interface Review {
-  name: string;
-  date: string;
-  rating: number;
-  text: string;
-}
-
 export interface ProductDetail extends ProductCard {
   sku: string;
   breadcrumbs: LinkItem[];
@@ -117,7 +111,6 @@ export interface ProductDetail extends ProductCard {
   variantLabel: string | null;
   variants: VariantOption[];
   reviewCount: number;
-  reviews: Review[];
   descriptionHtml: string;
   specsHtml: string | null;
   guideHtml: string | null;
@@ -170,22 +163,6 @@ export interface InfoPages {
   pages: Record<string, InfoPage>;
 }
 
-export interface CartItem {
-  key: string;
-  slug: string;
-  name: string;
-  img: string;
-  sku: string;
-  variant: string | null;
-  /** All variant names of the product, so the cart can switch "Phân loại". */
-  options?: string[];
-  variantLabel?: string | null;
-  /** Stock for the chosen variant (drives "Sắp bán hết" note and qty max). */
-  stock?: number | null;
-  price: number;
-  qty: number;
-}
-
 export interface Customer {
   gender: "Anh" | "Chị";
   name: string;
@@ -194,21 +171,12 @@ export interface Customer {
   province: string;
   district: string;
   ward: string;
+  /** Mã địa chỉ GHN (api.md 4.12) để tính phí ship và tạo vận đơn. Địa chỉ lưu từ bản cũ không có mã → phải chọn lại. */
+  provinceId?: number;
+  districtId?: number;
+  wardCode?: string;
   street: string;
   note: string;
-}
-
-export interface Order {
-  id: string;
-  date: string;
-  items: CartItem[];
-  subtotal: number;
-  voucher: number;
-  shipping: string;
-  total: number;
-  payment: string;
-  customer: Customer;
-  status: string;
 }
 
 export interface User {

@@ -12,9 +12,11 @@ import vn.campvivo.catalog.dto.ProductDetailResponse;
 import vn.campvivo.common.dto.PageResponse;
 import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
+import vn.campvivo.promotion.PricingService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -31,12 +33,14 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductImageRepository imageRepository;
     private final CategoryRepository categoryRepository;
+    private final PricingService pricingService;
 
     public ProductService(ProductRepository productRepository, ProductImageRepository imageRepository,
-                          CategoryRepository categoryRepository) {
+                          CategoryRepository categoryRepository, PricingService pricingService) {
         this.productRepository = productRepository;
         this.imageRepository = imageRepository;
         this.categoryRepository = categoryRepository;
+        this.pricingService = pricingService;
     }
 
     /** Danh sách có lọc + phân trang (page bắt đầu từ 1). Danh mục không tồn tại → danh sách rỗng. */
@@ -48,8 +52,11 @@ public class ProductService {
                 .and(hasBrand(q.brand()))
                 .and(matchesKeyword(q.q()))
                 .and(q.slugs() == null || q.slugs().isEmpty() ? null : (root, query, cb) -> root.get("slug").in(q.slugs()))
-                .and(q.minPrice() == null ? null : (root, query, cb) -> cb.ge(root.get("price"), q.minPrice()))
-                .and(q.maxPrice() == null ? null : (root, query, cb) -> cb.le(root.get("price"), q.maxPrice()));
+                // Khoảng giá theo giá sau chiến dịch (BR-6, D-30)
+                .and(q.minPrice() == null ? null : (root, query, cb) -> cb.ge(root.get("salePrice"), q.minPrice()))
+                .and(q.maxPrice() == null ? null : (root, query, cb) -> cb.le(root.get("salePrice"), q.maxPrice()))
+                // Đang giảm giá: giá sau chiến dịch (mức giảm lớn nhất) thấp hơn giá gốc
+                .and(!q.onSale() ? null : (root, query, cb) -> cb.lessThan(root.get("salePrice"), root.get("price")));
 
         // Có từ khoá: xếp theo mức liên quan trước rồi theo sortBy (đặt trong Specification, Pageable không kèm sort)
         boolean byRelevance = q.q() != null && !q.q().isBlank();
@@ -72,6 +79,16 @@ public class ProductService {
         return PageResponse.of(result.map(p -> ItemSummary.from(p, primaryUrls.get(p.getId()))));
     }
 
+    /** Ảnh chính của nhiều sản phẩm (giỏ hàng, đơn hàng dùng — tránh N+1). */
+    @Transactional(readOnly = true)
+    public Map<Long, String> primaryImageUrls(Collection<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return imageRepository.findPrimaryByProductIds(productIds).stream()
+                .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
+    }
+
     @Transactional(readOnly = true)
     public ProductDetailResponse getBySlug(String slug) {
         Product product = productRepository.findBySlugAndActiveTrue(slug)
@@ -81,7 +98,8 @@ public class ProductService {
         List<Category> path = categoryRepository.findAllById(pathIds).stream()
                 .sorted(Comparator.comparingInt(c -> pathIds.indexOf(c.getId())))
                 .toList();
-        return ProductDetailResponse.from(product, path);
+        return ProductDetailResponse.from(product, path,
+                pricingService.activeCampaigns(List.of(product.getId())).get(product.getId()));
     }
 
     /** Thương hiệu đang có sản phẩm bán (GET /brands). */
