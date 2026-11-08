@@ -27,7 +27,6 @@ import vn.campvivo.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -197,9 +196,12 @@ class ArticleIntegrationTest {
         return m;
     }
 
-    /** Cùng thời điểm, bỏ khác biệt múi giờ/độ chính xác giữa giá trị vừa tạo và giá trị đọc lại từ DB (micro giây). */
+    /**
+     * So theo thời điểm (bỏ khác biệt múi giờ khi ghi ra JSON). Không làm tròn: service đã cắt về micro giây trước khi lưu
+     * nên giá trị vừa tạo phải trùng hệt giá trị đọc lại từ DB.
+     */
     private static Instant instant(String iso) {
-        return OffsetDateTime.parse(iso).toInstant().truncatedTo(ChronoUnit.MICROS);
+        return OffsetDateTime.parse(iso).toInstant();
     }
 
     private String json(Object o) throws Exception {

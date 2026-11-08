@@ -18,6 +18,7 @@ import vn.campvivo.user.UserRepository;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,7 +78,7 @@ public class AdminArticleService {
             requireReadyToPublish(f);
         }
         String slug = isBlank(req.slug()) ? uniqueSlugFrom(f.title()) : requireFreeSlug(req.slug(), null);
-        OffsetDateTime now = OffsetDateTime.now(clock);
+        OffsetDateTime now = now();
         Article article = new Article(users.getReferenceById(authorId), now);
         article.updateDetails(f.title(), slug, f.summary(), f.content(), f.thumbnailUrl(), req.category(), now);
         article.setPublished(req.isPublished(), now);
@@ -92,7 +93,7 @@ public class AdminArticleService {
             requireReadyToPublish(f);
         }
         String slug = isBlank(req.slug()) ? article.getSlug() : requireFreeSlug(req.slug(), id);
-        OffsetDateTime now = OffsetDateTime.now(clock);
+        OffsetDateTime now = now();
         article.updateDetails(f.title(), slug, f.summary(), f.content(), f.thumbnailUrl(), req.category(), now);
         article.setPublished(req.isPublished(), now);
         return Detail.from(article);
@@ -106,7 +107,7 @@ public class AdminArticleService {
             requireReadyToPublish(new Fields(article.getTitle(), article.getSummary(), article.getContent(),
                     article.getThumbnailUrl()));
         }
-        article.setPublished(published, OffsetDateTime.now(clock));
+        article.setPublished(published, now());
         return Summary.from(article);
     }
 
@@ -116,6 +117,14 @@ public class AdminArticleService {
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Thời điểm hiện tại cắt về micro giây — đúng độ chính xác PostgreSQL lưu (timestamptz làm TRÒN phần nano giây),
+     * để giá trị trả về ngay sau khi lưu trùng với giá trị đọc lại từ DB.
+     */
+    private OffsetDateTime now() {
+        return OffsetDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
+    }
 
     private record Fields(String title, String summary, String content, String thumbnailUrl) {}
 
