@@ -30,17 +30,29 @@ function useCountdown(iso: string | null) {
 export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
   const { addToCart, wishlist, toggleWishlist, notify, markViewed } = useShop();
   const router = useRouter();
-  const firstAvail = p.variants.findIndex((v) => v.inv > 0);
-  const showVariants = Boolean(p.variantLabel) && p.variants.length > 0;
-  const [variant, setVariant] = useState<number>(p.variants.length === 1 ? 0 : -1);
+  // Biến thể (D-37): chọn lần lượt từng tuỳ chọn (vd. Màu sắc rồi Size); tuỳ chọn chỉ 1 giá trị thì chọn sẵn
+  const hasOptions = p.options.length > 0;
+  const [picked, setPicked] = useState<(string | null)[]>(() => p.options.map((o) => (o.values.length === 1 ? o.values[0] : null)));
   const [qty, setQty] = useState(1);
   const [warn, setWarn] = useState(false);
   const [popup, setPopup] = useState<"voucher" | "policy" | null>(null);
   const left = useCountdown(p.saleEnds);
-  // Sản phẩm từ DB không có phân loại (D-24): hết hàng khi tồn kho khả dụng = 0
-  const allSoldOut = p.variants.length > 0 ? firstAvail === -1 : p.maxQty === 0;
+  /** Biến thể khớp với các giá trị đã chọn ở những tuỳ chọn khác (bỏ qua tuỳ chọn `skip`). */
+  const matchesOthers = (v: ProductFull["variants"][number], skip: number) =>
+    v.values.every((x, j) => j === skip || !picked[j] || x === picked[j]);
+  /** Giá trị có tổ hợp nào đang bán / còn hàng với các lựa chọn hiện tại không. */
+  const exists = (i: number, value: string) => p.variants.some((v) => v.values[i] === value && matchesOthers(v, i));
+  const inStock = (i: number, value: string) => p.variants.some((v) => v.values[i] === value && v.inv > 0 && matchesOthers(v, i));
+  const chosen = hasOptions && picked.every(Boolean) ? (p.variants.find((v) => v.values.every((x, i) => x === picked[i])) ?? null) : null;
+  const missing = p.options.filter((_, i) => !picked[i]).map((o) => o.name.toLowerCase());
+  const allSoldOut = hasOptions ? !p.variants.some((v) => v.inv > 0) : p.maxQty === 0;
   const fav = wishlist.includes(p.slug);
-  const max = p.variants[variant]?.inv || p.maxQty || 1000;
+  const max = Math.max(1, chosen ? chosen.inv : p.maxQty || 1000);
+  const pick = (i: number, value: string) => {
+    setPicked((prev) => prev.map((x, j) => (j === i ? (x === value ? null : value) : x)));
+    setWarn(false);
+    setQty(1);
+  };
 
   useEffect(() => {
     markViewed(p.slug);
@@ -49,15 +61,16 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
 
   const [adding, setAdding] = useState(false);
   const add = async (go: boolean) => {
-    if (p.variants.length > 1 && variant < 0) {
+    if (hasOptions && !chosen) {
       setWarn(true);
       return false;
     }
     if (!p.price || adding) return false;
-    if (p.variants[variant] && p.variants[variant].inv <= 0) {
-      notify(`${p.variantLabel ?? "Sản phẩm"} này đã hết hàng`);
+    if (chosen && chosen.inv <= 0) {
+      notify(`${chosen.values.join(" / ")} đã hết hàng`);
       return false;
     }
+    // TODO(Người 1): giỏ hàng chưa lưu biến thể (cart_items.variant_id) — gửi thêm chosen.id khi API giỏ hàng hỗ trợ (D-37)
     // Giỏ hàng ở server (FR-09): lỗi hết hàng/ngừng bán/chưa đăng nhập đã được ShopProvider báo
     setAdding(true);
     const ok = await addToCart({ productId: p.id }, qty);
@@ -234,28 +247,32 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
       </div>
       <div className="wrap-product-option">
         <form id="DatHang" className="bgtool" style={{ position: "relative", zIndex: 1 }} onSubmit={(e) => e.preventDefault()}>
-          {showVariants && (
-            <div className={`variants${warn ? " warning" : ""}`}>
-              <label>{p.variantLabel || "Phân loại"}:</label>
+          {p.options.map((o, i) => (
+            <div key={o.name} className={`variants${warn && !picked[i] ? " warning" : ""}`}>
+              <label>
+                {o.name}: {picked[i] && <b>{picked[i]}</b>}
+              </label>
               <div className="list">
-                {p.variants.map((v, i) => (
-                  <button
-                    type="button"
-                    key={v.name + i}
-                    className={`${variant === i ? "active" : ""}${v.inv <= 0 ? " soldout" : ""}`}
-                    onClick={() => {
-                      setVariant(i);
-                      setWarn(false);
-                      setQty(1);
-                    }}
-                  >
-                    {v.name}
-                  </button>
-                ))}
+                {o.values.map((value) => {
+                  const ok = exists(i, value);
+                  return (
+                    <button
+                      type="button"
+                      key={value}
+                      // Hết hàng: gạch chéo; không có tổ hợp với lựa chọn hiện tại: khoá hẳn
+                      className={`${picked[i] === value ? "active" : ""}${ok && !inStock(i, value) ? " soldout" : ""}${ok ? "" : " soldout cv-unavail"}`}
+                      aria-pressed={picked[i] === value}
+                      onClick={() => pick(i, value)}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
-          <div className={`wrn${warn ? " show" : ""}`}>{warn ? `Vui lòng chọn ${(p.variantLabel || "phân loại").toLowerCase()}` : ""}</div>
+          ))}
+          {chosen && <div className="cv-var-note">{chosen.inv > 0 ? `Còn ${chosen.inv} sản phẩm` : "Hết hàng — chọn màu / size khác"}</div>}
+          <div className={`wrn${warn ? " show" : ""}`}>{warn ? `Vui lòng chọn ${missing.join(", ")}` : ""}</div>
           <div>
             <div className="propertyname">Số lượng:</div>
             <div className="bgtextbox">

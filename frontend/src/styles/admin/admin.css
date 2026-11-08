@@ -315,6 +315,23 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Cột Tồn kho ở danh sách sản phẩm: số biến thể + tooltip tồn từng biến thể (D-37) */
+.cv-variant-count {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--cv-text-muted, #8c8c8c);
+  cursor: help;
+}
+.cv-variant-unallocated {
+  color: #d46b08;
+}
+.cv-variant-stock-tip > div:first-child {
+  margin-bottom: 4px;
+  opacity: 0.75;
+}
+.cv-variant-stock-tip .is-off {
+  opacity: 0.6;
+}
 .cv-price {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
@@ -663,4 +680,109 @@ textarea.cv-rte-html {
 }
 .cv-combo-gallery .is-cover {
   border-color: #2f6a3f;
+}
+
+/* Dashboard (FR-24) */
+.cv-dash-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.cv-dash-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+.cv-dash-status {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cv-dash-status-row {
+  display: grid;
+  grid-template-columns: 10px 130px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+.cv-dash-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.cv-dash-status-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-dash-status-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #f0f0f0;
+  overflow: hidden;
+}
+.cv-dash-status-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.cv-dash-status-n {
+  text-align: right;
+}
+
+/* ───────────── Bài viết (FR-21b) ───────────── */
+.cv-article-thumb-empty {
+  width: 80px;
+  height: 45px;
+  flex: none;
+}
+.cv-article-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cv-article-category .ant-radio-wrapper {
+  align-items: flex-start;
+}
+.cv-article-category-name {
+  display: block;
+  font-weight: 500;
+}
+.cv-article-category-hint {
+  display: block;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+.cv-article-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.cv-article-preview h1 {
+  font-size: 26px;
+  line-height: 1.3;
+  margin: 8px 0 12px;
+}
+.cv-article-preview-summary {
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 16px;
+}
+.cv-article-preview-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.cv-article-preview .cv-rte-content {
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+.cv-article-preview .cv-rte-content img {
+  max-width: 100%;
+  height: auto;
 }

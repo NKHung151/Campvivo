@@ -47,7 +47,7 @@ export function ComboStockCard({ combo, onChange }: { combo: AdminComboDetail; o
     const now = i.productAvailableQuantity;
     return {
       key: i.productId,
-      name: i.productName,
+      name: i.variantTitle ? `${i.productName} — ${i.variantTitle}` : i.productName,
       perSet: i.quantity,
       change,
       now,

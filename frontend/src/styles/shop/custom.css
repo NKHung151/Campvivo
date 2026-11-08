@@ -388,6 +388,12 @@ body {
   overflow-anchor: none;
 }
 
+/* Thanh tab trang sản phẩm: chia đều theo số tab thật (đã bỏ tab "Hướng dẫn") thay vì cố định 25% mỗi tab */
+.pg-shop #SubProductTabInfo a.tab {
+  width: auto;
+  flex: 1 1 0;
+}
+
 /* Khối Flash sale trang chủ: nút "Xem tất cả" → /promotions (khối có chiều cao cố định nên đặt ở góc trên) */
 .pg-home .ChuongTrinhGiamGiaTrangChu {
   position: relative;
@@ -490,4 +496,68 @@ body {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/*
+ * Khối "Danh mục" bên trái trang danh mục — cùng kiểu với các nhóm lọc bên dưới (Khoảng giá, Thương hiệu…):
+ * tiêu đề in hoa đậm + mũi tên xổ / thu gọn, mục chữ đen không thụt, mục đang xem tô xanh có vạch trái.
+ */
+.pg-shop #SubProductLeftCategory .TopBar.cv-side-toggle {
+  margin-bottom: 0;
+  padding: 8px 22px 8px 0;
+  cursor: pointer;
+  user-select: none;
+  background: url(/assets/css/icon/chevrons-down.svg) no-repeat right center;
+}
+.pg-shop #SubProductLeftCategory .TopBar.cv-side-toggle.active {
+  background-image: url(/assets/css/icon/chevrons-up.svg);
+}
+.pg-shop #SubProductLeftCategory .ddsmoothmenu-v ul {
+  width: 100%;
+  padding-bottom: 4px;
+}
+.pg-shop #SubProductLeftCategory .item_categoryLeft > span:empty {
+  display: none;
+}
+.pg-shop #SubProductLeftCategory .ddsmoothmenu-v ul li a.cate {
+  padding: 5px 0 5px 10px;
+  color: #333;
+  border-left: 2px solid transparent;
+}
+.pg-shop #SubProductLeftCategory .ddsmoothmenu-v ul li a.cate:hover {
+  color: #026632;
+}
+.pg-shop #SubProductLeftCategory .ddsmoothmenu-v ul li a.cate.current {
+  color: #026632;
+  font-weight: 700;
+  border-left-color: #026632;
+  background: #f2f7f4;
+  cursor: default;
+}
+
+/* Đường dẫn trang danh mục: mục cuối = trang đang xem (chữ, không phải link) */
+#Breadcrumb .cv-crumb-current {
+  color: #1f2a24;
+  font-weight: 600;
+}
+/* Mũi tên phân cách giống các mục link (CSS gốc chỉ gắn cho a.arrow) */
+#Breadcrumb span.arrow {
+  padding-left: 16px;
+  background: url(/assets/css/icon/arrow.gif) no-repeat 6px center;
+}
+/* Trang danh mục không còn tiêu đề lớn → ô "Sắp xếp theo" vẫn nằm bên phải */
+.pageSort.cv-no-title .sortList {
+  margin-left: auto;
+}
+/* Ẩn khỏi màn hình nhưng trình đọc màn hình vẫn đọc (tiêu đề h1 của trang danh mục) */
+.cv-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

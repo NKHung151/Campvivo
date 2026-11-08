@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import vn.campvivo.catalog.dto.CategoryBestSellers;
 import vn.campvivo.catalog.dto.ItemSummary;
 import vn.campvivo.catalog.dto.ProductDetailResponse;
 import vn.campvivo.common.dto.ApiResponse;
@@ -42,6 +43,14 @@ public class ProductController {
             @RequestParam(defaultValue = "12") @Min(value = 1, message = "Số sản phẩm mỗi trang từ 1 đến 100.")
             @Max(value = 100, message = "Số sản phẩm mỗi trang từ 1 đến 100.") int limit) {
         return productService.list(new ProductQuery(category, brand, q, slugs, minPrice, maxPrice, onSale, sortBy, page, limit));
+    }
+
+    /** Vài sản phẩm bán chạy của mỗi danh mục cấp 2 — menu cửa hàng hiện thay danh mục cấp 3 (D-38). */
+    @GetMapping("/best-sellers")
+    public ApiResponse<List<CategoryBestSellers>> bestSellers(
+            @RequestParam(defaultValue = "3") @Min(value = 1, message = "Số sản phẩm mỗi danh mục từ 1 đến 6.")
+            @Max(value = 6, message = "Số sản phẩm mỗi danh mục từ 1 đến 6.") int limit) {
+        return ApiResponse.of(productService.bestSellersBySubcategory(limit));
     }
 
     @GetMapping("/{slug}")

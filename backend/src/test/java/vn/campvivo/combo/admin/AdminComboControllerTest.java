@@ -66,6 +66,7 @@ class AdminComboControllerTest {
     @BeforeEach
     void setUp() {
         mvc = AdminMockMvc.admin(context, users, jwt);
+        jdbc.update("DELETE FROM inventory_logs");
         jdbc.update("DELETE FROM product_combos");
         jdbc.update("DELETE FROM images");
         jdbc.update("DELETE FROM products");
@@ -246,7 +247,57 @@ class AdminComboControllerTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.items").exists());
     }
 
+    @Test
+    void productWithOptionsNeedsVariantAndPackingTakesThatVariant() throws Exception {
+        long large = addSizeOption(shirt, 4);
+        long medium = jdbc.queryForObject("SELECT id FROM product_variants WHERE product_id = ? AND id <> ?",
+                Long.class, shirt, large);
+
+        post(combo("Combo áo thiếu size", 1_000_000, item(tent, 1), item(shirt, 2)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.items").exists());
+        Map<String, Object> wrong = new HashMap<>(item(shirt, 2));
+        wrong.put("variantId", jdbc.queryForObject("SELECT id FROM product_variants WHERE product_id = ?", Long.class, tent));
+        post(combo("Combo áo sai biến thể", 1_000_000, item(stove, 1), wrong))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.items").exists());
+
+        Map<String, Object> shirtL = new HashMap<>(item(shirt, 2));
+        shirtL.put("variantId", large);
+        JsonNode created = data(post(combo("Combo áo size L", 1_000_000, item(tent, 1), shirtL)).andExpect(status().isCreated()));
+        assertThat(created.get("items").get(1).get("variantTitle").asText()).isEqualTo("L");
+        assertThat(created.get("items").get(1).get("productAvailableQuantity").asInt()).isEqualTo(4);
+        assertThat(created.get("maxPackable").asInt()).isEqualTo(2);
+
+        JsonNode packed = data(pack(created.get("id").asLong(), "pack", 2).andExpect(status().isOk()));
+        assertThat(packed.get("stockQuantity").asInt()).isEqualTo(2);
+        assertThat(variantStock(large)).isZero();
+        assertThat(variantStock(medium)).isEqualTo(10);
+    }
+
     // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Gắn tuỳ chọn "Size" (M, L) cho sản phẩm bằng SQL: biến thể mặc định thành "M" (giữ tồn kho), thêm biến thể "L"
+     * với `stockL`. Trả về id biến thể "L".
+     */
+    private long addSizeOption(long productId, int stockL) {
+        Long option = jdbc.queryForObject(
+                "INSERT INTO product_options (product_id, name, position) VALUES (?, 'Size', 1) RETURNING id", Long.class, productId);
+        Long m = jdbc.queryForObject(
+                "INSERT INTO product_option_values (option_id, value, position) VALUES (?, 'M', 0) RETURNING id", Long.class, option);
+        Long l = jdbc.queryForObject(
+                "INSERT INTO product_option_values (option_id, value, position) VALUES (?, 'L', 1) RETURNING id", Long.class, option);
+        jdbc.update("UPDATE product_variants SET option1_value_id = ? WHERE product_id = ?", m, productId);
+        long large = jdbc.queryForObject("""
+                INSERT INTO product_variants (product_id, option1_value_id, stock_quantity, position)
+                VALUES (?, ?, ?, 1) RETURNING id""", Long.class, productId, l, stockL);
+        // Tồn sản phẩm = tổng các biến thể (D-37)
+        jdbc.update("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?", stockL, productId);
+        return large;
+    }
+
+    private int variantStock(long variantId) {
+        return jdbc.queryForObject("SELECT stock_quantity FROM product_variants WHERE id = ?", Integer.class, variantId);
+    }
 
     private Map<String, Object> combo(String name, long price, Map<?, ?>... items) {
         Map<String, Object> m = new HashMap<>();
@@ -268,6 +319,7 @@ class AdminComboControllerTest {
 
     private void setStock(long productId, int stock) {
         jdbc.update("UPDATE products SET stock_quantity = ? WHERE id = ?", stock, productId);
+        jdbc.update("UPDATE product_variants SET stock_quantity = ? WHERE product_id = ?", stock, productId);
     }
 
     private int stock(long productId) {
@@ -288,8 +340,10 @@ class AdminComboControllerTest {
     }
 
     private long insertProduct(String name, String slug, long price) {
-        return jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price) VALUES (?, ?, ?, ?) RETURNING id",
-                Long.class, tentId, name, slug, price);
+        return jdbc.queryForObject("""
+                WITH p AS (INSERT INTO products (category_id, name, slug, price) VALUES (?, ?, ?, ?) RETURNING id),
+                v AS (INSERT INTO product_variants (product_id) SELECT id FROM p)
+                SELECT id FROM p""", Long.class, tentId, name, slug, price);
     }
 
     private ResultActions post(Map<String, Object> body) throws Exception {

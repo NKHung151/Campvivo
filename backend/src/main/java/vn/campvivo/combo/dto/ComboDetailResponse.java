@@ -36,7 +36,8 @@ public record ComboDetailResponse(
 
     public record Image(String url, boolean isPrimary) {}
 
-    public record Item(ItemSummary product, int quantity) {}
+    /** `variantTitle` vd. "Tím / S/M"; null = sản phẩm không có tuỳ chọn. */
+    public record Item(ItemSummary product, String variantTitle, int quantity) {}
 
     public static ComboDetailResponse from(ProductCombo c, List<Item> items) {
         List<String> urls = Stream.concat(

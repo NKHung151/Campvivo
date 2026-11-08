@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.campvivo.catalog.dto.BrandResponse;
+import vn.campvivo.catalog.dto.CategoryBestSellers;
 import vn.campvivo.catalog.dto.ItemSummary;
 import vn.campvivo.catalog.dto.ProductDetailResponse;
 import vn.campvivo.common.dto.PageResponse;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -100,6 +102,27 @@ public class ProductService {
                 .toList();
         return ProductDetailResponse.from(product, path,
                 pricingService.activeCampaigns(List.of(product.getId())).get(product.getId()));
+    }
+
+    /** Sản phẩm bán chạy theo từng danh mục cấp 2 (menu cửa hàng — D-38). Danh mục không có sản phẩm đang bán thì bỏ qua. */
+    @Transactional(readOnly = true)
+    public List<CategoryBestSellers> bestSellersBySubcategory(int limit) {
+        List<Object[]> rows = productRepository.findBestSellerIdsPerSubcategory(limit);
+        List<Long> ids = rows.stream().map(r -> ((Number) r[1]).longValue()).toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Product> products = productRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+        Map<Long, String> primaryUrls = imageRepository.findPrimaryByProductIds(ids).stream()
+                .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
+        Map<Long, List<ItemSummary>> byCategory = new LinkedHashMap<>();
+        for (Object[] r : rows) {
+            Product p = products.get(((Number) r[1]).longValue());
+            byCategory.computeIfAbsent(((Number) r[0]).longValue(), k -> new ArrayList<>())
+                    .add(ItemSummary.from(p, primaryUrls.get(p.getId())));
+        }
+        return byCategory.entrySet().stream().map(e -> new CategoryBestSellers(e.getKey(), e.getValue())).toList();
     }
 
     /** Thương hiệu đang có sản phẩm bán (GET /brands). */

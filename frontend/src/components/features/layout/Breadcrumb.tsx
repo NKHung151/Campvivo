@@ -21,7 +21,8 @@ export function ShareIcons() {
   );
 }
 
-export function Breadcrumb({ items }: { items: LinkItem[] }) {
+/** `current`: tên trang đang xem, thêm cuối đường dẫn dạng chữ (không phải link). */
+export function Breadcrumb({ items, current }: { items: LinkItem[]; current?: string }) {
   return (
     <nav id="Breadcrumb" aria-label="Breadcrumb">
       <ol className="road">
@@ -32,6 +33,13 @@ export function Breadcrumb({ items }: { items: LinkItem[] }) {
             </SmartLink>
           </li>
         ))}
+        {current && (
+          <li>
+            <span className={`lv1 cv-crumb-current${items.length ? " arrow" : ""}`} aria-current="page">
+              {current}
+            </span>
+          </li>
+        )}
       </ol>
       <ShareIcons />
     </nav>

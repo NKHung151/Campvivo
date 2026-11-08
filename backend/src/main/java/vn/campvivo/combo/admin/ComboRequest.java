@@ -62,6 +62,8 @@ public record ComboRequest(
 
     public record ItemRequest(
             @NotNull(message = "Thiếu sản phẩm.") Long productId,
+            /* Bắt buộc khi sản phẩm có tuỳ chọn; null = biến thể mặc định (D-37) */
+            Long variantId,
             @Min(value = 1, message = "Số lượng từ 1 đến 99.") @Max(value = 99, message = "Số lượng từ 1 đến 99.") int quantity
     ) {}
 }

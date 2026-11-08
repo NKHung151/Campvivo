@@ -86,7 +86,8 @@ public class ComboService {
                         .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
         List<ComboDetailResponse.Item> items = combo.getItems().stream().map(i -> {
             Product p = i.getProduct();
-            return new ComboDetailResponse.Item(ItemSummary.from(p, images.get(p.getId())), i.getQuantity());
+            return new ComboDetailResponse.Item(ItemSummary.from(p, images.get(p.getId())), i.getVariant().getTitle(),
+                    i.getQuantity());
         }).toList();
         return ComboDetailResponse.from(combo, items);
     }

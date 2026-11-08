@@ -16,7 +16,7 @@ class AdminProductJsonTest {
     @Test
     void summarySerializesIsActiveAndIntegerPrice() throws Exception {
         var summary = new AdminProductResponses.Summary(1L, "Lều", "leu", null, 2L, "Lều trại", java.util.List.of("Cắm trại", "Lều trại"),
-                new BigDecimal("450000"), 5, 1, 4, true, null, OffsetDateTime.parse("2026-10-23T10:00:00+07:00"));
+                new BigDecimal("450000"), 5, 1, 4, 1, java.util.List.of(), 0, true, null, OffsetDateTime.parse("2026-10-23T10:00:00+07:00"));
 
         JsonNode json = mapper.readTree(mapper.writeValueAsString(summary));
 

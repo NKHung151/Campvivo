@@ -58,10 +58,10 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/orders/[id]` | Chi tiết đơn + lịch sử; chỉ hiện nút chuyển trạng thái server cho phép (kèm ghi chú, huỷ bắt buộc lý do); vận đơn GHN: tạo lại khi lỗi, xem hành trình ✅ | Staff | `/admin/orders/{id}`, `PATCH .../status`, `.../shipment` |
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
 | `/admin/reviews` | Đánh giá: bảng (mặt hàng, khách, sao, nội dung, từ bị bắt, trạng thái), lọc khách/mặt hàng, loại, số sao, trạng thái (đang hiện / đã ẩn / bị làm mờ); Ẩn (bắt buộc lý do) / Hiện lại / Đánh dấu an toàn; Xoá chỉ Admin (D-31) ✅ Bộ lọc + trang nằm trên URL; thao tác gom vào menu "⋯" mỗi dòng (mục Xoá chỉ Admin thấy, có hộp xác nhận); rê chuột vào "Đã ẩn" xem lý do, người ẩn, thời điểm | Staff | `/admin/reviews/*` |
-| `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
+| `/admin/inventory` | Tồn kho: tab Sản phẩm (Nhập / Xuất / Kiểm kê), tab Combo (Đóng gói / Tháo / Xuất bộ hỏng), lọc "sắp hết", tab Nhật ký kho (lọc mặt hàng, lý do, ngày) — đã làm (N2-24, N2-25) | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
-| `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
+| `/admin/categories` | Cây danh mục 2 cấp (D-38): thêm, sửa (đổi danh mục cha ngay trong form, chỉ chọn cấp 1), xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
 | `/admin/combos`, `/admin/combos/new`, `/admin/combos/[id]` | Combo | Admin | `/admin/combos` |
 | `/admin/vouchers` | Voucher: danh sách (lọc trạng thái, tìm mã), thêm/sửa (modal, có "Hiển thị công khai"), xoá/tắt (đã có đơn dùng → chỉ tắt) | Admin | `/admin/vouchers` |

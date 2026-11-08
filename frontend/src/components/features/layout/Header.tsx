@@ -138,7 +138,14 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
               </SmartLink>
               {m.groups.length > 0 && (
                 <div className="submenumain">
-                  <div className="leftmenu">
+                  <div
+                    className={
+                      // Menu danh mục (D-38): không banner phải, sản phẩm bán chạy kèm ảnh → lưới 4 cột chiếm hết chiều ngang
+                      m.groups.some((g) => g.links.some((l) => l.img))
+                        ? `leftmenu leftmenu-grid${m.rightHtml ? "" : " leftmenu-full"}`
+                        : "leftmenu"
+                    }
+                  >
                     {m.groups.map((g) => (
                       <div className="cate" key={g.href + g.name}>
                         {g.img && (
@@ -153,11 +160,19 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                           </SmartLink>
                           {(g.links.length > 0 || g.more.length > 0) && (
                             <div className="head">
-                              {g.links.map((l) => (
-                                <SmartLink key={l.href + l.name} className="subcate2" title={l.name} href={l.href}>
-                                  {l.name}
-                                </SmartLink>
-                              ))}
+                              {g.links.map((l) =>
+                                l.img ? (
+                                  <SmartLink key={l.href + l.name} className="subcate2 withPic" title={l.name} href={l.href}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img loading="lazy" alt="" width={44} height={44} src={l.img} />
+                                    <span>{l.name}</span>
+                                  </SmartLink>
+                                ) : (
+                                  <SmartLink key={l.href + l.name} className="subcate2" title={l.name} href={l.href}>
+                                    {l.name}
+                                  </SmartLink>
+                                ),
+                              )}
                               {g.more.length > 0 && (
                                 <div className="more">
                                   <span className="subcate2 moreBt">More...</span>

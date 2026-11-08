@@ -19,12 +19,13 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Quản lý danh mục đa cấp — FR-05, BR-13 (docs/02-ky-thuat/database.md mục 5).
+ * Quản lý danh mục — FR-05, BR-13 (docs/02-ky-thuat/database.md mục 5). Tối đa 2 cấp (D-38): danh mục cha chỉ được là
+ * danh mục cấp 1; mỗi loại hàng một chỗ.
  * <ul>
  *   <li>Slug bỏ trống: tạo mới thì sinh từ tên (thêm -2, -3 nếu trùng); sửa thì giữ slug cũ. Tự nhập mà trùng → 409.</li>
- *   <li>Đổi cha: chặn chọn chính nó/danh mục con của nó (CIRCULAR_CATEGORY_DEPENDENCY); path cả cây con đổi theo.</li>
+ *   <li>Đổi cha ngay trong form sửa: chặn chọn chính nó (CIRCULAR_CATEGORY_DEPENDENCY); danh mục đang có danh mục con
+ *       hoặc combo phải ở cấp 1; path cả cây con đổi theo.</li>
  *   <li>Xoá: chặn nếu còn danh mục con, sản phẩm hoặc combo (CATEGORY_NOT_EMPTY).</li>
- *   <li>Khung thông số (D-21): danh sách tên, rỗng = thừa hưởng từ danh mục cha gần nhất.</li>
  * </ul>
  */
 @Service
@@ -60,6 +61,7 @@ public class AdminCategoryService {
     @Transactional
     public Node create(CategoryRequest req) {
         Category parent = req.parentId() == null ? null : findParent(req.parentId());
+        requireRootParent(parent);
         String slug = isBlank(req.slug()) ? uniqueSlugFrom(req.name()) : requireFreeSlug(req.slug(), null);
         Category c = repository.saveAndFlush(new Category(parent, req.name().trim(), slug, OffsetDateTime.now(clock)));
         c.assignPath();
@@ -77,6 +79,13 @@ public class AdminCategoryService {
             Category parent = req.parentId() == null ? null : findParent(req.parentId());
             if (parent != null && parent.getPath().startsWith(c.getPath())) {
                 throw new BusinessException(ErrorCode.CIRCULAR_CATEGORY_DEPENDENCY);
+            }
+            requireRootParent(parent);
+            if (parent != null && repository.existsByParent_Id(c.getId())) {
+                throw fieldError("Danh mục đang có danh mục con nên phải là danh mục cấp 1 (tối đa 2 cấp).");
+            }
+            if (parent != null && repository.hasCombos(c.getId())) {
+                throw fieldError("Danh mục đang gắn combo — combo chỉ gắn danh mục cấp 1, hãy chuyển combo trước.");
             }
             String oldPrefix = c.getPath();
             String newPrefix = (parent == null ? "/" : parent.getPath()) + c.getId() + "/";
@@ -121,6 +130,18 @@ public class AdminCategoryService {
 
     private Category findParent(Long parentId) {
         return repository.findById(parentId).orElseThrow(() -> new BusinessException(ErrorCode.PARENT_CATEGORY_NOT_FOUND));
+    }
+
+    /** Tối đa 2 cấp (D-38): danh mục cha phải là danh mục cấp 1. */
+    private static void requireRootParent(Category parent) {
+        if (parent != null && parent.getParentId() != null) {
+            throw fieldError("Chỉ chọn được danh mục cấp 1 làm danh mục cha (tối đa 2 cấp).");
+        }
+    }
+
+    private static BusinessException fieldError(String message) {
+        return new BusinessException(ErrorCode.VALIDATION_ERROR, ErrorCode.VALIDATION_ERROR.getMessage(),
+                Map.of("fieldErrors", Map.of("parentId", message)));
     }
 
 

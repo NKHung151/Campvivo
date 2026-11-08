@@ -6,7 +6,6 @@ import { ReviewSection } from "@/components/features/review/ReviewSection";
 const TABS = [
   { id: "tabcontent1", label: "Chi tiết" },
   { id: "tabcontent2", label: "Đặc tính" },
-  { id: "tabcontent3", label: "Hướng dẫn" },
   { id: "tabcontent4", label: "Đánh giá" },
 ];
 
@@ -22,7 +21,7 @@ const HtmlPanel = memo(function HtmlPanel({ id, className, html }: { id: string;
 });
 
 /**
- * campvivo.vn renders all four tab panels one after another under a sticky tab bar;
+ * campvivo.vn renders the tab panels (Chi tiết, Đặc tính, Đánh giá) one after another under a sticky tab bar;
  * tabs scroll to their panel and highlight as you scroll.
  * - Bấm tab: sáng ngay tab đó, cuộn tới mục (xa thì nhảy gần tới rồi trượt đoạn cuối cho nhanh).
  * - Người dùng tự cuộn/chạm/bấm phím trong lúc đang trượt → dừng trượt ngay, không bị kéo ngược lại.
@@ -34,12 +33,10 @@ export function ProductTabs({
   productId,
   descriptionHtml,
   specsHtml,
-  guideHtml,
 }: {
   productId: number;
   descriptionHtml: string | null;
   specsHtml: string | null;
-  guideHtml: string | null;
 }) {
   const [current, setCurrent] = useState("tabcontent1");
   const barRef = useRef<HTMLDivElement>(null);
@@ -161,7 +158,6 @@ export function ProductTabs({
       </div>
       <HtmlPanel id="tabcontent1" className="tabcontent contentview" html={description} />
       {specsHtml && <HtmlPanel id="tabcontent2" className="tabcontent" html={specsHtml} />}
-      {guideHtml && <HtmlPanel id="tabcontent3" className="tabcontent" html={guideHtml} />}
       <div id="tabcontent4" className="tabcontent">
         <ReviewSection itemType="PRODUCT" itemId={productId} />
       </div>
