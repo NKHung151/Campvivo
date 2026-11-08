@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { App, Button, Card, Col, Empty, Form, Input, Modal, Popconfirm, Row, Space, Spin, Tag, Tooltip, Tree, Typography } from "antd";
+import { App, Button, Card, Col, Empty, Form, Input, Popconfirm, Row, Select, Space, Spin, Tag, Tooltip, Tree } from "antd";
 import type { TreeDataNode } from "antd";
-import { DeleteOutlined, DragOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { ApiError } from "@/services/apiError";
 import { getErrorMessage } from "@/lib/errorMessages";
 import { SLUG_PATTERN, toSlug } from "@/lib/slug";
 import { createCategory, deleteCategory, getAdminCategoryTree, updateCategory } from "@/services/admin/adminCategoryService";
-import { CategoryCascadeSelect } from "@/components/admin/catalog/CategoryCascadeSelect";
 import { PageHeader } from "@/components/admin/common/PageHeader";
 import type { AdminCategoryNode } from "@/types/api/catalog";
 
@@ -39,12 +38,9 @@ function indexTree(nodes: AdminCategoryNode[], parents: AdminCategoryNode[] = []
 /** Tổng sản phẩm của danh mục và mọi danh mục con. */
 const totalProducts = (n: AdminCategoryNode): number => n.productCount + n.children.reduce((s, c) => s + totalProducts(c), 0);
 
-/** Bỏ nhánh `id` khỏi cây (không cho chọn chính nó / danh mục con làm cha). */
-const without = (nodes: AdminCategoryNode[], id: number): AdminCategoryNode[] =>
-  nodes.filter((n) => n.id !== id).map((n) => ({ ...n, children: without(n.children, id) }));
-
 /**
- * Quản lý danh mục đa cấp (FR-05, BR-13): cây bên trái, form bên phải.
+ * Quản lý danh mục (FR-05, BR-13): cây bên trái, form bên phải. Tối đa 2 cấp (D-38): danh mục cha chỉ chọn được trong các
+ * danh mục cấp 1 — đổi ngay trong form sửa. Danh mục đang có danh mục con hoặc gắn combo (D-23) phải ở cấp 1.
  */
 export function CategoryManager() {
   const { message } = App.useApp();
@@ -54,16 +50,15 @@ export function CategoryManager() {
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<React.Key[]>([]);
   const [saving, setSaving] = useState(false);
-  // Hộp thoại "Chuyển vị trí": danh mục cha mới (undefined = đưa lên gốc)
-  const [moveOpen, setMoveOpen] = useState(false);
-  const [moveTarget, setMoveTarget] = useState<number | undefined>(undefined);
   const index = useMemo(() => indexTree(tree ?? []), [tree]);
   const name = Form.useWatch("name", form) ?? "";
-  const parentId = Form.useWatch("parentId", form);
 
   const load = useCallback(async () => {
     try {
-      setTree(await getAdminCategoryTree());
+      const data = await getAdminCategoryTree();
+      setTree(data);
+      // Cây chỉ 2 cấp và ít nhóm → mở sẵn mọi danh mục cấp 1 lần đầu vào trang
+      setExpanded((k) => (k.length ? k : data.map((n) => n.id)));
     } catch (e) {
       setTree([]);
       message.error(`Không tải được danh mục: ${getErrorMessage(e)}`);
@@ -169,13 +164,19 @@ export function CategoryManager() {
         : null
     : null;
 
-  const parentTree = mode?.kind === "edit" ? without(tree ?? [], mode.id) : (tree ?? []);
-  /** Vị trí đang chọn trong form (có thể khác vị trí đã lưu nếu vừa "Chuyển vị trí"). */
-  const locationNames = (id?: number) => {
-    const hit = id ? index.get(id) : undefined;
-    return hit ? [...hit.parents, hit.node].map((n) => n.name) : [];
-  };
-  const moved = mode?.kind === "edit" && (parentId ?? null) !== (current?.parentId ?? null);
+  /** Danh mục cha chọn được: chỉ danh mục cấp 1, trừ chính nó. */
+  const parentOptions = (tree ?? [])
+    .filter((n) => !(mode?.kind === "edit" && n.id === mode.id))
+    .map((n) => ({ value: n.id, label: n.name }));
+  /** Lý do không đổi được danh mục cha (danh mục cấp 1 đang có con hoặc combo). */
+  const parentLocked = current
+    ? current.children.length
+      ? "Đang có danh mục con nên phải là danh mục cấp 1 (tối đa 2 cấp)."
+      : current.comboCount && !current.parentId
+        ? "Đang gắn combo — combo chỉ gắn danh mục cấp 1."
+        : null
+    : null;
+  const isRoot = current ? !current.parentId : false;
 
   return (
     <>
@@ -231,9 +232,11 @@ export function CategoryManager() {
             extra={
               mode.kind === "edit" && (
                 <Space>
-                  <Button icon={<PlusOutlined />} onClick={() => setMode({ kind: "create", parentId: mode.id })}>
-                    Danh mục con
-                  </Button>
+                  {isRoot && (
+                    <Button icon={<PlusOutlined />} onClick={() => setMode({ kind: "create", parentId: mode.id })}>
+                      Danh mục con
+                    </Button>
+                  )}
                   <Popconfirm
                     title={`Xoá danh mục “${current?.name}”?`}
                     okText="Xoá"
@@ -284,52 +287,34 @@ export function CategoryManager() {
                   </Form.Item>
                 </Col>
               </Row>
-              <Form.Item name="parentId" hidden>
-                <Input />
-              </Form.Item>
-              <Form.Item label="Vị trí" required>
-                <Space wrap>
-                  {parentId ? (
-                    <span>
-                      Nằm trong <b>{locationNames(parentId).join(" › ")}</b>
-                    </span>
-                  ) : (
-                    <b>Danh mục gốc</b>
-                  )}
-                  {moved && <Tag color="orange">Chưa lưu</Tag>}
-                  {mode.kind === "edit" && (
-                    <Button
-                      size="small"
-                      icon={<DragOutlined />}
-                      onClick={() => {
-                        setMoveTarget(parentId);
-                        setMoveOpen(true);
-                      }}
-                    >
-                      Chuyển vị trí
-                    </Button>
-                  )}
-                </Space>
-              </Form.Item>
-              <Modal
-                open={moveOpen}
-                title={`Chuyển “${current?.name ?? ""}” sang vị trí khác`}
-                okText="Chọn vị trí này"
-                cancelText="Huỷ"
-                onCancel={() => setMoveOpen(false)}
-                onOk={() => {
-                  form.setFieldValue("parentId", moveTarget);
-                  setMoveOpen(false);
-                  message.info("Bấm “Lưu thay đổi” để áp dụng vị trí mới.");
-                }}
-                destroyOnHidden
-              >
-                <CategoryCascadeSelect tree={parentTree} value={moveTarget} onChange={setMoveTarget} />
-                <Typography.Paragraph style={{ marginTop: 12, marginBottom: 0 }}>
-                  Vị trí mới:{" "}
-                  <b>{moveTarget ? `${locationNames(moveTarget).join(" › ")} › ${current?.name ?? ""}` : `${current?.name ?? ""} (danh mục gốc)`}</b>
-                </Typography.Paragraph>
-              </Modal>
+              {/* Đổi danh mục cha chỉ khi sửa; thêm gốc thì không có cha, thêm con thì cha cố định theo nút đã bấm */}
+              {mode.kind === "edit" ? (
+                <Form.Item
+                  name="parentId"
+                  label="Danh mục cha"
+                  extra={parentLocked ?? "Bỏ trống = danh mục cấp 1. Chỉ chọn được danh mục cấp 1 (tối đa 2 cấp)."}
+                >
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Không có — đây là danh mục cấp 1"
+                    options={parentOptions}
+                    disabled={!!parentLocked}
+                  />
+                </Form.Item>
+              ) : (
+                mode.parentId && (
+                  <>
+                    <Form.Item label="Danh mục cha">
+                      <Input value={index.get(mode.parentId)?.node.name ?? ""} disabled />
+                    </Form.Item>
+                    <Form.Item name="parentId" hidden>
+                      <Input />
+                    </Form.Item>
+                  </>
+                )
+              )}
 
               <Space>
                 <Button type="primary" htmlType="submit" loading={saving}>

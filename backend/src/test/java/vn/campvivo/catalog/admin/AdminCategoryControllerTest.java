@@ -89,22 +89,46 @@ class AdminCategoryControllerTest {
     }
 
     @Test
-    void moveUpdatesPathOfWholeSubtreeAndBlocksCycles() throws Exception {
+    void changingParentInEditFormUpdatesPathAndBlocksCycles() throws Exception {
         long a = id(post(body("A", null)));
         long b = id(post(body("B", null)));
         long a1 = id(post(body("A1", a)));
-        long a11 = id(post(body("A11", a1)));
 
         put(a1, body("A1", b)).andExpect(status().isOk());
         assertThat(path(a1)).isEqualTo("/" + b + "/" + a1 + "/");
-        assertThat(path(a11)).isEqualTo("/" + b + "/" + a1 + "/" + a11 + "/");
 
-        put(a1, body("A1", a11)).andExpect(status().isBadRequest())
+        put(a, body("A", a)).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("CIRCULAR_CATEGORY_DEPENDENCY"));
-        put(a1, body("A1", a1)).andExpect(status().isBadRequest());
 
         put(a1, body("A1", null)).andExpect(status().isOk());
-        assertThat(path(a11)).isEqualTo("/" + a1 + "/" + a11 + "/");
+        assertThat(path(a1)).isEqualTo("/" + a1 + "/");
+    }
+
+    @Test
+    void categoriesAreAtMostTwoLevels() throws Exception {
+        long a = id(post(body("A", null)));
+        long b = id(post(body("B", null)));
+        long a1 = id(post(body("A1", a)));
+
+        // Không tạo được cấp 3, không chọn được danh mục cấp 2 làm cha
+        post(body("A11", a1)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.fieldErrors.parentId").exists());
+        put(b, body("B", a1)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.fieldErrors.parentId").exists());
+
+        // Danh mục đang có con phải ở cấp 1
+        put(a, body("A", b)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.fieldErrors.parentId").exists());
+
+        // Danh mục gắn combo (D-23: combo chỉ ở cấp 1) không thành danh mục con được
+        jdbc.update("INSERT INTO product_combos (category_id, name, slug, combo_price) VALUES (?, 'Combo B', 'combo-b', 100000)", b);
+        long c = id(post(body("C", null)));
+        put(b, body("B", c)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.fieldErrors.parentId").exists());
+
+        // Danh mục cấp 1 không có con, không combo → chuyển xuống cấp 2 được
+        put(c, body("C", a)).andExpect(status().isOk());
+        assertThat(path(c)).isEqualTo("/" + a + "/" + c + "/");
     }
 
     @Test
@@ -144,8 +168,10 @@ class AdminCategoryControllerTest {
     }
 
     private void insertProduct(long categoryId, String slug) {
-        jdbc.update("INSERT INTO products (category_id, name, slug, price, created_at, updated_at) VALUES (?, ?, ?, 100000, now(), now())",
-                categoryId, slug, slug);
+        jdbc.update("""
+                WITH p AS (INSERT INTO products (category_id, name, slug, price, created_at, updated_at)
+                           VALUES (?, ?, ?, 100000, now(), now()) RETURNING id)
+                INSERT INTO product_variants (product_id) SELECT id FROM p""", categoryId, slug, slug);
     }
 
     private String path(long id) {

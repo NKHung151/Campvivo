@@ -8,7 +8,7 @@ import { ApiError } from "@/services/apiError";
 import { getErrorMessage } from "@/lib/errorMessages";
 import { vnd } from "@/lib/format";
 import { SLUG_PATTERN, foldText, toSlug } from "@/lib/slug";
-import { getCategoryTree, listProducts } from "@/services/admin/adminProductService";
+import { getCategoryTree, getProduct, listProducts } from "@/services/admin/adminProductService";
 import { ImageListField } from "@/components/admin/common/ImageListField";
 import { PageHeader } from "@/components/admin/common/PageHeader";
 import { RichTextEditor } from "@/components/admin/common/RichTextEditor";
@@ -22,10 +22,18 @@ interface ItemRow {
   imageUrl: string | null;
   price: number;
   active: boolean;
-  /** Tồn kho khả dụng của sản phẩm (đóng gói trừ kho này — D-22). */
+  /** Tồn kho khả dụng của biến thể đã chọn (đóng gói trừ kho này — D-22). */
   available: number;
   quantity: number;
+  /** Biến thể trong bộ (D-37); sản phẩm không có tuỳ chọn dùng biến thể mặc định. */
+  variantId?: number;
+  variantTitle: string | null;
+  /** Biến thể có thể chọn — chỉ có khi sản phẩm có tuỳ chọn (nạp khi cần). */
+  variants?: { id: number; title: string; available: number; active: boolean }[];
 }
+
+/** Sản phẩm có tuỳ chọn mà chưa chọn biến thể. */
+const needsVariant = (r: ItemRow) => r.variantId === undefined;
 
 interface FormValues {
   name: string;
@@ -101,6 +109,8 @@ export function ComboForm({
               active: i.productActive,
               available: i.productAvailableQuantity,
               quantity: i.quantity,
+              variantId: i.variantId,
+              variantTitle: i.variantTitle,
             })),
             images: initial.images,
           }
@@ -125,7 +135,7 @@ export function ComboForm({
         comboPrice: v.comboPrice!,
         isActive: v.isActive,
         images: v.images ?? [],
-        items: v.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: v.items.map((i) => ({ productId: i.productId, variantId: i.variantId ?? null, quantity: i.quantity })),
       });
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
@@ -188,6 +198,8 @@ export function ComboForm({
                   validator: async (_, rows: ItemRow[] = []) => {
                     if (rows.length < 2) throw new Error("Combo cần ít nhất 2 sản phẩm.");
                     if (rows.length > MAX_ITEMS) throw new Error(`Tối đa ${MAX_ITEMS} sản phẩm.`);
+                    const missing = rows.find(needsVariant);
+                    if (missing) throw new Error(`Chọn biến thể cho "${missing.name}".`);
                   },
                 },
               ]}
@@ -354,6 +366,29 @@ function ComboItemsField({ value = [], onChange, locked }: { value?: ItemRow[]; 
   const [searching, setSearching] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const chosen = new Set(value.map((r) => r.productId));
+  // Giá trị mới nhất cho các cập nhật bất đồng bộ (nạp biến thể)
+  const latest = useRef(value);
+  latest.current = value;
+
+  /** Nạp danh sách biến thể của sản phẩm (để chọn / đổi biến thể ở dòng đó). */
+  const loadVariants = (productId: number) =>
+    getProduct(productId)
+      .then((d) => {
+        const hasOptions = d.options.length > 0;
+        const variants = d.variants.map((v) => ({ id: v.id, title: v.title ?? "", available: v.availableQuantity, active: v.isActive }));
+        onChange?.(
+          latest.current.map((r) => {
+            if (r.productId !== productId) return r;
+            if (!hasOptions) {
+              // Không có tuỳ chọn → biến thể mặc định
+              return { ...r, variantId: variants[0]?.id, variantTitle: null, available: variants[0]?.available ?? r.available, variants: undefined };
+            }
+            const current = variants.find((v) => v.id === r.variantId);
+            return { ...r, variants, available: current?.available ?? r.available };
+          }),
+        );
+      })
+      .catch((e) => message.error(`Không tải được biến thể: ${getErrorMessage(e)}`));
 
   const search = (q: string) => {
     clearTimeout(timer.current);
@@ -394,8 +429,15 @@ function ComboItemsField({ value = [], onChange, locked }: { value?: ItemRow[]; 
         active: p.isActive,
         available: p.availableQuantity,
         quantity: 1,
+        variantTitle: null,
       },
     ]);
+    loadVariants(p.id);
+  };
+
+  const pickVariant = (r: ItemRow, variantId: number) => {
+    const v = r.variants?.find((x) => x.id === variantId);
+    if (v) update(r.productId, { variantId: v.id, variantTitle: v.title, available: v.available });
   };
 
   const update = (id: number, patch: Partial<ItemRow>) => onChange?.(value.map((r) => (r.productId === id ? { ...r, ...patch } : r)));
@@ -413,9 +455,29 @@ function ComboItemsField({ value = [], onChange, locked }: { value?: ItemRow[]; 
                 <Link href={`/admin/products/${r.productId}`} target="_blank" className="cv-prod-name">
                   {r.name}
                 </Link>
+                {(r.variants || r.variantTitle) && (
+                  <Select<number>
+                    size="small"
+                    style={{ minWidth: 180, margin: "4px 0" }}
+                    placeholder="Chọn biến thể"
+                    status={needsVariant(r) ? "warning" : undefined}
+                    disabled={locked}
+                    value={r.variantId}
+                    loading={!r.variants}
+                    onDropdownVisibleChange={(open) => open && !r.variants && loadVariants(r.productId)}
+                    onChange={(id) => pickVariant(r, id)}
+                    options={
+                      r.variants
+                        ? r.variants.map((v) => ({ value: v.id, label: `${v.title} · kho ${v.available}${v.active ? "" : " · tắt bán"}` }))
+                        : r.variantId !== undefined
+                          ? [{ value: r.variantId, label: r.variantTitle ?? "" }]
+                          : []
+                    }
+                  />
+                )}
                 <div className="cv-combo-item-meta">
                   <Tag color={r.available > 0 ? "default" : "red"} bordered={false}>
-                    Kho còn {r.available}
+                    {needsVariant(r) ? "Chưa chọn biến thể" : `Kho còn ${r.available}`}
                   </Tag>
                   {!r.active && (
                     <Tooltip title="Sản phẩm đang ẩn trên cửa hàng — vẫn đóng gói vào combo được">
@@ -487,6 +549,7 @@ function ComboItemsField({ value = [], onChange, locked }: { value?: ItemRow[]; 
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     {p.brand ? `${p.brand} · ` : ""}
                     {vnd(p.price, " ₫")} · kho {p.availableQuantity}
+                    {p.variantCount > 1 ? ` · ${p.variantCount} biến thể` : ""}
                   </Typography.Text>
                 </div>
                 {chosen.has(p.id) && <Tag color="green">Đã thêm</Tag>}

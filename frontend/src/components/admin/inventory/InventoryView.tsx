@@ -29,6 +29,7 @@ import {
 import type { TableProps } from "antd";
 import {
   ClearOutlined,
+  DownOutlined,
   GiftOutlined,
   HistoryOutlined,
   MinusOutlined,
@@ -36,7 +37,9 @@ import {
   PlusOutlined,
   ReloadOutlined,
   ScissorOutlined,
+  ShoppingOutlined,
   SyncOutlined,
+  UpOutlined,
 } from "@ant-design/icons";
 import { PageHeader } from "@/components/admin/common/PageHeader";
 import { useAdmin } from "@/components/admin/shell/AdminSession";
@@ -45,14 +48,72 @@ import { ApiError } from "@/services/apiError";
 import { adjustStock, listInventory, listInventoryLogs } from "@/services/admin/adminInventoryService";
 import { packCombo, unpackCombo } from "@/services/admin/adminComboService";
 import type { Pagination } from "@/types/api/common";
-import type { InventoryItem, InventoryItemType, InventoryLogEntry, InventoryReason } from "@/types/api/inventory";
+import type {
+  InventoryItem,
+  InventoryItemType,
+  InventoryLogEntry,
+  InventoryReason,
+  InventorySort,
+  InventoryVariant,
+} from "@/types/api/inventory";
 
 type TabKey = "products" | "combos" | "logs";
-type AdjustMode = "IMPORT" | "EXPORT" | "ADJUST";
+/** ALLOCATE: trừ hàng đã bán qua đơn vào đúng biến thể (tổng sản phẩm đã trừ khi đơn xác nhận — D-37). */
+type AdjustMode = "IMPORT" | "EXPORT" | "ADJUST" | "ALLOCATE";
 type PackMode = "pack" | "unpack";
+
+/** Thứ được nhập/xuất: một biến thể sản phẩm hoặc một combo. */
+interface StockTarget {
+  type: InventoryItemType;
+  /** Tên hiển thị, vd. "Áo mưa Coleman — Tím / S/M". */
+  name: string;
+  variantId?: number;
+  comboId?: number;
+  stockQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  /** Hàng đã bán chưa phân bổ của sản phẩm (chỉ có ý nghĩa với biến thể của sản phẩm có tuỳ chọn). */
+  unallocatedSold: number;
+}
+
+/** Sản phẩm có tuỳ chọn → hiện bảng biến thể; không có → thao tác ngay trên dòng sản phẩm (biến thể mặc định). */
+const hasVariants = (i: InventoryItem) => i.type === "PRODUCT" && (i.variants ?? []).some((v) => v.title);
+
+const variantName = (i: InventoryItem, v: InventoryVariant) => (v.title ? `${i.name} — ${v.title}` : i.name);
+
+function targetOf(i: InventoryItem, v?: InventoryVariant): StockTarget {
+  if (i.type === "COMBO") {
+    return {
+      type: "COMBO",
+      name: i.name,
+      comboId: i.id,
+      stockQuantity: i.stockQuantity,
+      reservedQuantity: i.reservedQuantity,
+      availableQuantity: i.availableQuantity,
+      unallocatedSold: 0,
+    };
+  }
+  // Không truyền biến thể = sản phẩm không có tuỳ chọn: số của biến thể mặc định chính là số của sản phẩm
+  const variant = v ?? i.variants?.[0];
+  return {
+    type: "PRODUCT",
+    name: variant ? variantName(i, variant) : i.name,
+    variantId: variant?.id,
+    stockQuantity: v ? v.stockQuantity : i.stockQuantity,
+    reservedQuantity: v ? v.reservedQuantity : i.reservedQuantity,
+    availableQuantity: v ? v.availableQuantity : i.availableQuantity,
+    unallocatedSold: v ? i.unallocatedSold : 0,
+  };
+}
 
 const PAGE_SIZES = [10, 20, 50];
 const DEFAULT_LIMIT = 20;
+const SORT_OPTIONS: { value: InventorySort; label: string }[] = [
+  { value: "AVAILABLE_ASC", label: "Khả dụng: ít → nhiều" },
+  { value: "AVAILABLE_DESC", label: "Khả dụng: nhiều → ít" },
+  { value: "NAME_ASC", label: "Tên A → Z" },
+  { value: "UPDATED_DESC", label: "Mới cập nhật" },
+];
 
 const REASONS: Record<InventoryReason, { label: string; color: string }> = {
   IMPORT: { label: "Nhập", color: "green" },
@@ -65,7 +126,7 @@ const fmtTime = (iso: string) =>
   new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Ô hiển thị khả dụng: hết / sắp hết / còn. */
-function AvailableTag({ item }: { item: InventoryItem }) {
+function AvailableTag({ item }: { item: { availableQuantity: number; isLowStock: boolean } }) {
   if (item.availableQuantity <= 0) return <Tag color="red">Hết hàng</Tag>;
   if (item.isLowStock) return <Tag color="orange">Sắp hết · {item.availableQuantity}</Tag>;
   return <Tag color="green">{item.availableQuantity}</Tag>;
@@ -73,7 +134,8 @@ function AvailableTag({ item }: { item: InventoryItem }) {
 
 /**
  * Trang Tồn kho (FR-08, BR-8) — ADMIN và EMPLOYEE.
- * - Sản phẩm: Nhập (+), Xuất (−), Kiểm kê (gõ số đếm thực tế → hệ thống tự tính chênh lệch).
+ * - Sản phẩm: Nhập (+), Xuất (−), Kiểm kê (gõ số đếm thực tế → hệ thống tự tính chênh lệch) theo từng biến thể (D-37);
+ *   sản phẩm có tuỳ chọn mở rộng dòng để thấy từng biến thể, không có tuỳ chọn thì thao tác ngay trên dòng.
  * - Combo: thêm bộ bằng Đóng gói (trừ hàng lẻ), Tháo (trả hàng lẻ), Xuất bộ hỏng/mất; KHÔNG nhập tay (D-36).
  * - Nhật ký: mọi lần nhập/xuất/kiểm kê/đóng gói/tháo, lọc theo mặt hàng, lý do, khoảng ngày.
  * Tab, bộ lọc, trang nằm trên URL.
@@ -97,9 +159,14 @@ export function InventoryView() {
     [params, pathname, router],
   );
 
-  /** Từ một dòng tồn kho mở tab Nhật ký lọc sẵn theo mặt hàng đó. */
-  const openLogs = (item: InventoryItem) =>
-    setQuery({ tab: "logs", item: `${item.type === "PRODUCT" ? "p" : "c"}${item.id}`, itemName: item.name }, true);
+  /** Từ một dòng tồn kho mở tab Nhật ký lọc sẵn theo mặt hàng (hoặc biến thể) đó. */
+  const openLogs = (item: InventoryItem, variant?: InventoryVariant) =>
+    setQuery(
+      variant
+        ? { tab: "logs", item: `v${variant.id}`, itemName: variantName(item, variant) }
+        : { tab: "logs", item: `${item.type === "PRODUCT" ? "p" : "c"}${item.id}`, itemName: item.name },
+      true,
+    );
 
   return (
     <>
@@ -122,12 +189,21 @@ export function InventoryView() {
 
 type SetQuery = (patch: Record<string, string | number | undefined>, replaceAll?: boolean) => void;
 
-function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQuery: SetQuery; onLogs: (item: InventoryItem) => void }) {
+function StockTable({
+  type,
+  setQuery,
+  onLogs,
+}: {
+  type: InventoryItemType;
+  setQuery: SetQuery;
+  onLogs: (item: InventoryItem, variant?: InventoryVariant) => void;
+}) {
   const params = useSearchParams();
   const { user } = useAdmin();
   const isAdmin = user?.role === "ADMIN";
   const q = params.get("q") ?? "";
   const lowStock = params.get("low") === "1";
+  const sort = (SORT_OPTIONS.find((o) => o.value === params.get("sort"))?.value ?? "AVAILABLE_ASC") as InventorySort;
   const page = Math.max(1, Number(params.get("page")) || 1);
   const limit = PAGE_SIZES.includes(Number(params.get("limit"))) ? Number(params.get("limit")) : DEFAULT_LIMIT;
 
@@ -136,48 +212,117 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState(q);
-  const [adjusting, setAdjusting] = useState<{ item: InventoryItem; mode: AdjustMode } | null>(null);
+  const [adjusting, setAdjusting] = useState<{ target: StockTarget; mode: AdjustMode } | null>(null);
   const [packing, setPacking] = useState<{ item: InventoryItem; mode: PackMode } | null>(null);
+  const [expanded, setExpanded] = useState<number[]>([]);
 
   useEffect(() => setSearch(q), [q]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    listInventory({ type, q: q || undefined, lowStock: lowStock || undefined, page, limit })
+    listInventory({ type, q: q || undefined, lowStock: lowStock || undefined, sort, page, limit })
       .then((res) => {
         setRows(res.data);
         setPagination(res.pagination);
       })
       .catch((e) => setError(getErrorMessage(e)))
       .finally(() => setLoading(false));
-  }, [type, q, lowStock, page, limit]);
+  }, [type, q, lowStock, sort, page, limit]);
 
   useEffect(load, [load]);
 
   const editHref = (i: InventoryItem) => (i.type === "PRODUCT" ? `/admin/products/${i.id}` : `/admin/combos/${i.id}`);
 
-  const productActions = (i: InventoryItem) => (
-    <Space size={4}>
-      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setAdjusting({ item: i, mode: "IMPORT" })}>
-        Nhập
-      </Button>
-      <Button size="small" icon={<MinusOutlined />} disabled={i.availableQuantity <= 0} onClick={() => setAdjusting({ item: i, mode: "EXPORT" })}>
-        Xuất
-      </Button>
-      <Dropdown
-        trigger={["click"]}
-        placement="bottomRight"
-        menu={{
-          items: [
-            { key: "count", icon: <SyncOutlined />, label: "Kiểm kê", onClick: () => setAdjusting({ item: i, mode: "ADJUST" }) },
-            { key: "logs", icon: <HistoryOutlined />, label: "Xem nhật ký", onClick: () => onLogs(i) },
-          ],
-        }}
-      >
-        <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`Thao tác khác với ${i.name}`} />
-      </Dropdown>
-    </Space>
+  /** Nhập / Xuất / Kiểm kê một biến thể (hoặc biến thể mặc định của sản phẩm không có tuỳ chọn). */
+  const stockActions = (i: InventoryItem, v?: InventoryVariant) => {
+    const target = targetOf(i, v);
+    return (
+      <Space size={4}>
+        <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setAdjusting({ target, mode: "IMPORT" })}>
+          Nhập
+        </Button>
+        <Button size="small" icon={<MinusOutlined />} disabled={target.availableQuantity <= 0} onClick={() => setAdjusting({ target, mode: "EXPORT" })}>
+          Xuất
+        </Button>
+        <Dropdown
+          trigger={["click"]}
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: "count", icon: <SyncOutlined />, label: "Kiểm kê", onClick: () => setAdjusting({ target, mode: "ADJUST" }) },
+              ...(target.unallocatedSold > 0
+                ? [
+                    {
+                      key: "allocate",
+                      icon: <ShoppingOutlined />,
+                      label: `Trừ hàng đã bán (${target.unallocatedSold})`,
+                      onClick: () => setAdjusting({ target, mode: "ALLOCATE" }),
+                    },
+                  ]
+                : []),
+              { key: "logs", icon: <HistoryOutlined />, label: "Xem nhật ký", onClick: () => onLogs(i, v) },
+            ],
+          }}
+        >
+          <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`Thao tác khác với ${target.name}`} />
+        </Dropdown>
+      </Space>
+    );
+  };
+
+  /** Mở / đóng bảng biến thể của một sản phẩm (thay cho dấu "+" mặc định của bảng). */
+  const toggleVariants = (id: number) =>
+    setExpanded((keys) => (keys.includes(id) ? keys.filter((k) => k !== id) : [...keys, id]));
+
+  /**
+   * Mọi dòng cùng một kiểu: [nút chính] [⋯]. Sản phẩm có biến thể nhập / xuất theo từng màu / size (D-37) → nút chính mở
+   * bảng biến thể, mỗi biến thể có Nhập / Xuất / ⋯ riêng.
+   */
+  const productActions = (i: InventoryItem) => {
+    if (!hasVariants(i)) return stockActions(i);
+    const open = expanded.includes(i.id);
+    return (
+      <Space size={4}>
+        <Button size="small" icon={open ? <UpOutlined /> : <DownOutlined />} iconPosition="end" onClick={() => toggleVariants(i.id)}>
+          Biến thể ({i.variants!.length})
+        </Button>
+        <Dropdown
+          trigger={["click"]}
+          placement="bottomRight"
+          menu={{ items: [{ key: "logs", icon: <HistoryOutlined />, label: "Xem nhật ký", onClick: () => onLogs(i) }] }}
+        >
+          <Button size="small" type="text" icon={<MoreOutlined />} aria-label={`Thao tác khác với ${i.name}`} />
+        </Dropdown>
+      </Space>
+    );
+  };
+
+  /** Bảng biến thể khi mở rộng dòng sản phẩm. */
+  const variantTable = (i: InventoryItem) => (
+    <Table<InventoryVariant>
+      rowKey="id"
+      size="small"
+      pagination={false}
+      dataSource={i.variants ?? []}
+      columns={[
+        {
+          title: "Biến thể",
+          key: "title",
+          render: (_, v) => (
+            <Space size={6}>
+              <span>{v.title}</span>
+              {v.sku && <Typography.Text type="secondary">{v.sku}</Typography.Text>}
+              {!v.isActive && <Tag bordered={false}>Tắt bán</Tag>}
+            </Space>
+          ),
+        },
+        { title: "Tồn kho", dataIndex: "stockQuantity", width: 100, align: "right" },
+        { title: "Giữ chỗ", dataIndex: "reservedQuantity", width: 100, align: "right" },
+        { title: "Khả dụng", key: "available", width: 130, render: (_, v) => <AvailableTag item={v} /> },
+        { key: "actions", width: 210, render: (_, v) => stockActions(i, v) },
+      ]}
+    />
   );
 
   const comboActions = (i: InventoryItem) => (
@@ -200,7 +345,7 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
               icon: <MinusOutlined />,
               label: "Xuất bộ hỏng / mất",
               disabled: i.availableQuantity <= 0,
-              onClick: () => setAdjusting({ item: i, mode: "EXPORT" }),
+              onClick: () => setAdjusting({ target: targetOf(i), mode: "EXPORT" }),
             },
             { key: "logs", icon: <HistoryOutlined />, label: "Xem nhật ký", onClick: () => onLogs(i) },
           ],
@@ -227,6 +372,13 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
               <span className="cv-prod-name" title={i.name}>
                 {i.name}
               </span>
+            )}
+            {i.unallocatedSold > 0 && (
+              <Tooltip title="Đơn hàng chỉ trừ tổng sản phẩm. Bấm “Biến thể”, chọn ⋯ → Trừ hàng đã bán ở đúng màu/size khách mua.">
+                <Tag color="orange" bordered={false} style={{ width: "fit-content" }}>
+                  {i.unallocatedSold} đã bán chưa phân bổ
+                </Tag>
+              </Tooltip>
             )}
             {!i.isActive && (
               <Typography.Text type="secondary" className="cv-prod-slug">
@@ -279,6 +431,13 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
             onChange={(e) => setSearch(e.target.value)}
             onSearch={(v) => setQuery({ q: v.trim(), page: 1 })}
           />
+          <Select<InventorySort>
+            value={sort}
+            style={{ width: 210 }}
+            options={SORT_OPTIONS}
+            onChange={(v) => setQuery({ sort: v === "AVAILABLE_ASC" ? undefined : v, page: 1 })}
+            aria-label="Sắp xếp"
+          />
           <Space size={6}>
             <Switch size="small" checked={lowStock} onChange={(v) => setQuery({ low: v ? "1" : undefined, page: 1 })} />
             <span>Chỉ hàng sắp hết</span>
@@ -309,6 +468,17 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
           dataSource={rows}
           loading={loading}
           scroll={{ x: 760 }}
+          expandable={
+            type === "PRODUCT"
+              ? {
+                  rowExpandable: hasVariants,
+                  expandedRowRender: variantTable,
+                  expandedRowKeys: expanded,
+                  onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
+                  showExpandColumn: false,
+                }
+              : undefined
+          }
           locale={{ emptyText: <Empty description={q || lowStock ? "Không có mặt hàng nào khớp bộ lọc." : "Chưa có mặt hàng nào."} /> }}
           pagination={{
             current: pagination?.currentPage ?? page,
@@ -324,7 +494,7 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
 
       {adjusting && (
         <AdjustModal
-          item={adjusting.item}
+          target={adjusting.target}
           mode={adjusting.mode}
           onClose={() => setAdjusting(null)}
           onDone={() => {
@@ -348,18 +518,25 @@ function StockTable({ type, setQuery, onLogs }: { type: InventoryItemType; setQu
   );
 }
 
-/** Nhập / xuất / kiểm kê một mặt hàng. Kiểm kê: gõ số đếm thực tế, hệ thống tự tính chênh lệch. */
-function AdjustModal({ item, mode, onClose, onDone }: { item: InventoryItem; mode: AdjustMode; onClose: () => void; onDone: () => void }) {
+/** Nhập / xuất / kiểm kê một biến thể hoặc combo. Kiểm kê: gõ số đếm thực tế, hệ thống tự tính chênh lệch. */
+function AdjustModal({ target: item, mode, onClose, onDone }: { target: StockTarget; mode: AdjustMode; onClose: () => void; onDone: () => void }) {
   const { message } = App.useApp();
   const [form] = Form.useForm<{ quantity?: number; note?: string }>();
   const [saving, setSaving] = useState(false);
   const quantity = Form.useWatch("quantity", form);
   const isCombo = item.type === "COMBO";
 
-  const change = quantity == null ? 0 : mode === "IMPORT" ? quantity : mode === "EXPORT" ? -quantity : quantity - item.stockQuantity;
+  const change = quantity == null ? 0 : mode === "IMPORT" ? quantity : mode === "ADJUST" ? quantity - item.stockQuantity : -quantity;
   const after = item.stockQuantity + change;
   const title =
-    mode === "IMPORT" ? `Nhập kho — ${item.name}` : mode === "EXPORT" ? `${isCombo ? "Xuất bộ hỏng / mất" : "Xuất kho"} — ${item.name}` : `Kiểm kê — ${item.name}`;
+    mode === "IMPORT"
+      ? `Nhập kho — ${item.name}`
+      : mode === "EXPORT"
+        ? `${isCombo ? "Xuất bộ hỏng / mất" : "Xuất kho"} — ${item.name}`
+        : mode === "ALLOCATE"
+          ? `Trừ hàng đã bán — ${item.name}`
+          : `Kiểm kê — ${item.name}`;
+  const allocateMax = Math.min(item.unallocatedSold, item.stockQuantity);
 
   const submit = async () => {
     const v = await form.validateFields();
@@ -370,11 +547,12 @@ function AdjustModal({ item, mode, onClose, onDone }: { item: InventoryItem; mod
     setSaving(true);
     try {
       const log = await adjustStock({
-        productId: isCombo ? undefined : item.id,
-        comboId: isCombo ? item.id : undefined,
+        variantId: item.variantId,
+        comboId: item.comboId,
         changeQuantity: change,
-        reason: mode,
+        reason: mode === "ALLOCATE" ? "EXPORT" : mode,
         note: v.note?.trim() || null,
+        allocateSold: mode === "ALLOCATE" || undefined,
       });
       message.success(`Đã cập nhật "${item.name}": tồn kho ${item.stockQuantity} → ${log.stockAfter}.`);
       onDone();
@@ -388,6 +566,15 @@ function AdjustModal({ item, mode, onClose, onDone }: { item: InventoryItem; mod
   return (
     <Modal open title={title} okText="Lưu" cancelText="Huỷ" confirmLoading={saving} onOk={submit} onCancel={onClose} destroyOnHidden>
       <Form form={form} layout="vertical" requiredMark={false} initialValues={mode === "ADJUST" ? { quantity: item.stockQuantity } : undefined}>
+        {mode === "ALLOCATE" && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Sản phẩm có ${item.unallocatedSold} cái đã bán qua đơn hàng nhưng chưa trừ theo màu/size.`}
+            description="Nhập số khách đã mua ở biến thể này. Chỉ trừ tồn của biến thể — tổng sản phẩm đã trừ khi đơn được xác nhận."
+          />
+        )}
         <div className="cv-mini-stats" style={{ marginBottom: 16 }}>
           <div>
             <span>Tồn kho</span>
@@ -404,13 +591,16 @@ function AdjustModal({ item, mode, onClose, onDone }: { item: InventoryItem; mod
         </div>
         <Form.Item
           name="quantity"
-          label={mode === "IMPORT" ? "Số lượng nhập" : mode === "EXPORT" ? "Số lượng xuất" : "Số lượng đếm được thực tế"}
+          label={
+            mode === "IMPORT" ? "Số lượng nhập" : mode === "EXPORT" ? "Số lượng xuất" : mode === "ALLOCATE" ? "Số lượng đã bán" : "Số lượng đếm được thực tế"
+          }
           rules={[
             { required: true, message: "Vui lòng nhập số lượng." },
             {
               validator: async (_, v?: number) => {
                 if (v == null) return;
                 if (mode !== "ADJUST" && v < 1) throw new Error("Số lượng phải từ 1.");
+                if (mode === "ALLOCATE" && v > allocateMax) throw new Error(`Tối đa ${allocateMax}.`);
                 if (mode === "EXPORT" && v > item.availableQuantity)
                   throw new Error(`Chỉ xuất được tối đa ${item.availableQuantity} (phần còn lại đang giữ chỗ cho đơn hàng).`);
                 if (mode === "ADJUST" && v < item.reservedQuantity)
@@ -425,7 +615,15 @@ function AdjustModal({ item, mode, onClose, onDone }: { item: InventoryItem; mod
           <Input.TextArea
             autoSize={{ minRows: 2, maxRows: 4 }}
             maxLength={500}
-            placeholder={mode === "IMPORT" ? "VD: Lô hàng NCC Naturehike 25/10" : mode === "EXPORT" ? "VD: Hàng lỗi trả nhà cung cấp" : "VD: Kiểm kho cuối tháng"}
+            placeholder={
+              mode === "IMPORT"
+                ? "VD: Lô hàng NCC Naturehike 25/10"
+                : mode === "EXPORT"
+                  ? "VD: Hàng lỗi trả nhà cung cấp"
+                  : mode === "ALLOCATE"
+                    ? "VD: Đơn ORD-20261107-AB12"
+                    : "VD: Kiểm kho cuối tháng"
+            }
           />
         </Form.Item>
       </Form>
@@ -517,6 +715,7 @@ function LogTable({ setQuery }: { setQuery: SetQuery }) {
     const id = Number(item.slice(1));
     listInventoryLogs({
       productId: item.startsWith("p") && id ? id : undefined,
+      variantId: item.startsWith("v") && id ? id : undefined,
       comboId: item.startsWith("c") && id ? id : undefined,
       type: type || undefined,
       reason: reason || undefined,
@@ -544,6 +743,7 @@ function LogTable({ setQuery }: { setQuery: SetQuery }) {
         <Space size={6}>
           <Tag bordered={false}>{l.type === "PRODUCT" ? "SP" : "Combo"}</Tag>
           <span>{l.itemName}</span>
+          {l.variantTitle && <Typography.Text type="secondary">{l.variantTitle}</Typography.Text>}
         </Space>
       ),
     },

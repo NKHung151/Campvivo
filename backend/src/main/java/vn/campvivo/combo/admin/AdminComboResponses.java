@@ -1,6 +1,7 @@
 package vn.campvivo.combo.admin;
 
 import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ComboImage;
 import vn.campvivo.combo.ComboItem;
 import vn.campvivo.combo.ProductCombo;
@@ -51,19 +52,22 @@ public final class AdminComboResponses {
         }
     }
 
+    /** `variantTitle` null = biến thể mặc định; `productAvailableQuantity` = khả dụng của biến thể đó. */
     public record Item(Long productId, String productName, String productSlug, String productImageUrl,
-                       BigDecimal productPrice, boolean productActive, int productAvailableQuantity, int quantity) {
+                       BigDecimal productPrice, boolean productActive, Long variantId, String variantTitle,
+                       boolean variantActive, int productAvailableQuantity, int quantity) {
         static Item from(ComboItem i, String imageUrl) {
             Product p = i.getProduct();
-            return new Item(p.getId(), p.getName(), p.getSlug(), imageUrl, p.getPrice(), p.isActive(),
-                    p.getAvailableQuantity(), i.getQuantity());
+            ProductVariant v = i.getVariant();
+            return new Item(p.getId(), p.getName(), p.getSlug(), imageUrl, p.getPrice(), p.isActive(), v.getId(),
+                    v.getTitle(), v.isActive(), v.getAvailableQuantity(), i.getQuantity());
         }
     }
 
-    /** Số bộ đóng gói được với tồn kho khả dụng hiện tại của các sản phẩm thành phần. */
-    static int packableSets(List<ComboItem> items) {
+    /** Số bộ đóng gói được với tồn kho khả dụng hiện tại của các biến thể thành phần. */
+    public static int packableSets(List<ComboItem> items) {
         return items.stream()
-                .mapToInt(i -> Math.max(0, i.getProduct().getAvailableQuantity()) / i.getQuantity())
+                .mapToInt(i -> Math.max(0, i.getVariant().getAvailableQuantity()) / i.getQuantity())
                 .min().orElse(0);
     }
 

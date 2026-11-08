@@ -222,10 +222,36 @@ export function ProductListView() {
           ) : (
             <Tag color="green">Còn {available}</Tag>
           );
+        const totals = `Tồn kho ${p.stockQuantity} · Đang giữ chỗ ${p.reservedQuantity} · Khả dụng ${available}`;
+        if (!p.variants.length) {
+          return (
+            <Tooltip title={totals}>
+              <div>{tag}</div>
+            </Tooltip>
+          );
+        }
+        // Có tuỳ chọn (D-37): rê chuột xem tồn từng biến thể
         return (
-          <Tooltip title={`Tồn kho ${p.stockQuantity} · Đang giữ chỗ ${p.reservedQuantity} · Khả dụng ${available}`}>
+          <Tooltip
+            title={
+              <div className="cv-variant-stock-tip">
+                <div>{totals}</div>
+                {p.variants.map((v) => (
+                  <div key={v.id} className={v.isActive ? undefined : "is-off"}>
+                    {v.title}: <b>{v.stockQuantity}</b>
+                    {!v.isActive && " (ngừng bán)"}
+                  </div>
+                ))}
+                {p.unallocatedSold > 0 && <div>Đã bán chưa phân bổ: {p.unallocatedSold}</div>}
+              </div>
+            }
+          >
             <div>
               {tag}
+              <div className="cv-variant-count">
+                {p.variantCount} biến thể
+                {p.unallocatedSold > 0 && <span className="cv-variant-unallocated"> · {p.unallocatedSold} chưa phân bổ</span>}
+              </div>
             </div>
           </Tooltip>
         );

@@ -1,6 +1,7 @@
 package vn.campvivo.catalog;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -11,8 +12,12 @@ import java.util.List;
 
 /**
  * Sản phẩm — cột theo docs/02-ky-thuat/database.md mục 3.3. Entity KHÔNG trả thẳng ra API (qua DTO).
- * Không có biến thể (D-24): mỗi màu/size cần bán riêng là một sản phẩm riêng. Tồn kho/giữ chỗ (BR-1, BR-2)
- * chỉ đổi qua method nghiệp vụ, gọi trong transaction đã khoá dòng. Thời gian do service gán từ bean Clock.
+ * Tồn kho/giữ chỗ (BR-1, BR-2) chỉ đổi qua method nghiệp vụ, gọi trong transaction đã khoá dòng. Thời gian do service
+ * gán từ bean Clock.
+ * <p>Biến thể tối đa 2 chiều (D-37): `stock_quantity`/`reserved_quantity` ở đây vẫn là số mà giỏ hàng / đơn hàng dùng
+ * (giữ chỗ, trừ kho theo sản phẩm). Từng biến thể có tồn riêng ({@link ProductVariant}); nhập/xuất/đóng gói theo biến thể
+ * đổi cả biến thể và tổng ở đây. Đơn hàng chỉ trừ tổng → phần chênh {@link #getUnallocatedSold()} là hàng đã bán chưa
+ * trừ theo biến thể, nhân viên phân bổ ở trang Tồn kho.
  */
 @Entity
 @Table(name = "products")
@@ -91,6 +96,17 @@ public class Product {
     @OrderBy("displayOrder ASC, id ASC")
     private List<ProductImage> images = new ArrayList<>();
 
+    /** Tuỳ chọn (0–2) theo position. Đồng bộ qua ProductVariantManager. */
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    @BatchSize(size = 50)
+    private List<ProductOption> options = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC, id ASC")
+    @BatchSize(size = 50)
+    private List<ProductVariant> variants = new ArrayList<>();
+
     protected Product() {
         // JPA
     }
@@ -102,6 +118,7 @@ public class Product {
         this.price = price;
         this.createdAt = now;
         this.updatedAt = now;
+        this.variants.add(new ProductVariant(this, null, null, now));
     }
 
     /** Cập nhật thông tin hiển thị từ form admin (không đụng tồn kho, ảnh). */
@@ -175,6 +192,37 @@ public class Product {
         return stockQuantity;
     }
 
+    /**
+     * Hàng đã bán qua đơn (trừ vào tổng) nhưng chưa trừ theo biến thể = tổng tồn các biến thể − tồn sản phẩm.
+     * Nhân viên phân bổ phần này vào đúng biến thể khách mua (D-37). Không âm.
+     */
+    public int getUnallocatedSold() {
+        if (variants.size() <= 1) {
+            return 0;
+        }
+        return Math.max(0, variants.stream().mapToInt(ProductVariant::getStockQuantity).sum() - stockQuantity);
+    }
+
+    public boolean hasOptions() {
+        return !options.isEmpty();
+    }
+
+    ProductOption addOption(String name, int position) {
+        ProductOption o = new ProductOption(this, name, position);
+        options.add(o);
+        return o;
+    }
+
+    ProductVariant addVariant(ProductOptionValue v1, ProductOptionValue v2, OffsetDateTime now) {
+        ProductVariant v = new ProductVariant(this, v1, v2, now);
+        variants.add(v);
+        return v;
+    }
+
+    void touch(OffsetDateTime now) {
+        this.updatedAt = now;
+    }
+
     public void changeActive(boolean active, OffsetDateTime now) {
         this.active = active;
         this.updatedAt = now;
@@ -203,4 +251,6 @@ public class Product {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public List<ProductImage> getImages() { return images; }
+    public List<ProductOption> getOptions() { return options; }
+    public List<ProductVariant> getVariants() { return variants; }
 }

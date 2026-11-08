@@ -1,14 +1,5 @@
 import { cache } from "react";
-import type {
-  Brand,
-  CategoryNode,
-  ComboDetail,
-  ComboQuery,
-  ComboSummary,
-  ItemSummary,
-  ProductDetail,
-  ProductQuery,
-} from "@/types/api/catalog";
+import type { Brand, CategoryBestSellers, CategoryNode, ComboDetail, ComboQuery, ComboSummary, ItemSummary, ProductDetail, ProductQuery } from "@/types/api/catalog";
 import type { Page } from "@/types/api/common";
 import type { CampaignDetail, CampaignSummary } from "@/types/api/promotion";
 import { isApiError } from "@/services/apiError";
@@ -100,6 +91,11 @@ export const getCampaign = cache(async (slug: string): Promise<CampaignDetail | 
 
 export const getCategoryTree = cache(async (): Promise<CategoryNode[]> => {
   return serverGet<CategoryNode[]>("/categories");
+});
+
+/** Vài sản phẩm bán chạy của mỗi danh mục cấp 2 — menu thay cho danh mục cấp 3 (D-38). */
+export const getBestSellersByCategory = cache(async (limit = 3): Promise<CategoryBestSellers[]> => {
+  return serverGet<CategoryBestSellers[]>(`/products/best-sellers?limit=${limit}`);
 });
 
 export const getBrandList = cache(async (): Promise<Brand[]> => {

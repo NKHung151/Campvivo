@@ -48,6 +48,10 @@ export default async function CategoryPage({ params }: Props) {
         products={page.products}
         bottomHtml={c.bottomHtml}
         commentsKey={`cat:${c.slug}`}
+        // Danh mục DB: cùng một bộ lọc, lọc theo dữ liệu thật (trang mock wetrek giữ bộ lọc mẫu)
+        priceFilter={page.fromDb}
+        stockFilter={page.fromDb}
+        titleInBreadcrumb={page.fromDb}
       />
     </Shell>
   );

@@ -13,6 +13,7 @@ import vn.campvivo.common.dto.ApiResponse;
 import vn.campvivo.common.dto.PageResponse;
 import vn.campvivo.inventory.InventoryReason;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.Item;
+import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemSort;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemType;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.LogEntry;
 
@@ -36,10 +37,11 @@ public class AdminInventoryController {
             @RequestParam(defaultValue = "PRODUCT") ItemType type,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "false") boolean lowStock,
+            @RequestParam(defaultValue = "AVAILABLE_ASC") ItemSort sort,
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "Trang phải từ 1.") int page,
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "Số dòng mỗi trang từ 1 đến 100.")
             @Max(value = 100, message = "Số dòng mỗi trang từ 1 đến 100.") int limit) {
-        return service.list(type, q, lowStock, page, limit);
+        return service.list(type, q, lowStock, sort, page, limit);
     }
 
     /** Nhập / xuất / điều chỉnh tay → dòng nhật ký vừa ghi. */
@@ -52,6 +54,7 @@ public class AdminInventoryController {
     @GetMapping("/logs")
     public PageResponse<LogEntry> logs(
             @RequestParam(required = false) Long productId,
+            @RequestParam(required = false) Long variantId,
             @RequestParam(required = false) Long comboId,
             @RequestParam(required = false) ItemType type,
             @RequestParam(required = false) InventoryReason reason,
@@ -60,6 +63,6 @@ public class AdminInventoryController {
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "Trang phải từ 1.") int page,
             @RequestParam(defaultValue = "20") @Min(value = 1, message = "Số dòng mỗi trang từ 1 đến 100.")
             @Max(value = 100, message = "Số dòng mỗi trang từ 1 đến 100.") int limit) {
-        return service.logs(productId, comboId, type, reason, from, to, page, limit);
+        return service.logs(productId, variantId, comboId, type, reason, from, to, page, limit);
     }
 }

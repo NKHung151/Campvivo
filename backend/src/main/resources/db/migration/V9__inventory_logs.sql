@@ -1,7 +1,6 @@
--- V6 (N2-24): nhật ký tồn kho — docs/02-ky-thuat/database.md mục 3.22, BR-8.
+-- V9 (N2-24): nhật ký tồn kho — docs/02-ky-thuat/database.md mục 3.22, BR-8.
 -- Ghi mỗi lần nhập/xuất/điều chỉnh tay, đóng gói/tháo combo (D-36) và trả hàng (RETURN).
 -- Thay đổi do vòng đời đơn hàng (giữ chỗ/xác nhận/huỷ) KHÔNG ghi ở đây.
--- V5 dành cho migration đơn hàng của Người 1 (feature/order-payment-service).
 CREATE TABLE inventory_logs (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     product_id      BIGINT       REFERENCES products (id),

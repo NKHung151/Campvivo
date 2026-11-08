@@ -77,7 +77,9 @@ class AdminInventoryControllerTest {
         combo = jdbc.queryForObject("""
                 INSERT INTO product_combos (category_id, name, slug, combo_price, stock_quantity)
                 VALUES (?, 'Combo bếp', 'combo-bep', 1000000, 2) RETURNING id""", Long.class, category);
-        jdbc.update("INSERT INTO combo_items (combo_id, product_id, quantity) VALUES (?, ?, 1), (?, ?, 1)", combo, tent, combo, stove);
+        jdbc.update("""
+                INSERT INTO combo_items (combo_id, product_id, variant_id, quantity)
+                SELECT ?, product_id, id, 1 FROM product_variants WHERE product_id IN (?, ?)""", combo, tent, stove);
     }
 
     // --- Danh sách -----------------------------------------------------------------------------
@@ -92,6 +94,19 @@ class AdminInventoryControllerTest {
 
         assertThat(names(data(mvc.perform(get(BASE).param("lowStock", "true"))))).containsExactly("Đèn lều", "Bếp gas mini");
         assertThat(names(data(mvc.perform(get(BASE).param("q", "leu 2"))))).containsExactly("Lều 2 người");
+    }
+
+    @Test
+    void listCanBeSortedByAvailableDescNameOrLastUpdate() throws Exception {
+        jdbc.update("UPDATE products SET updated_at = now() - interval '1 day'");
+        jdbc.update("UPDATE products SET updated_at = now() WHERE id = ?", stove);
+
+        assertThat(names(data(mvc.perform(get(BASE).param("sort", "AVAILABLE_DESC")))))
+                .containsExactly("Lều 2 người", "Bếp gas mini", "Đèn lều");
+        // Vị trí của "Đ" tuỳ collation của DB → chỉ chắc chắn "B" đứng đầu
+        assertThat(names(data(mvc.perform(get(BASE).param("sort", "NAME_ASC")))).get(0)).isEqualTo("Bếp gas mini");
+        assertThat(names(data(mvc.perform(get(BASE).param("sort", "UPDATED_DESC")))).get(0)).isEqualTo("Bếp gas mini");
+        mvc.perform(get(BASE).param("sort", "abc")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -129,7 +144,7 @@ class AdminInventoryControllerTest {
     @Test
     void invalidAdjustmentsAreRejected() throws Exception {
         adjust(Map.of("productId", tent, "comboId", combo, "changeQuantity", 1, "reason", "IMPORT"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.productId").exists());
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.variantId").exists());
         adjust(Map.of("productId", tent, "changeQuantity", -1, "reason", "IMPORT"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.changeQuantity").exists());
         adjust(Map.of("productId", tent, "changeQuantity", 1, "reason", "EXPORT"))
@@ -199,11 +214,94 @@ class AdminInventoryControllerTest {
         anonymous.perform(get(BASE)).andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void productWithVariantsIsAdjustedPerVariant() throws Exception {
+        long large = addSizeOption(lamp, 1);
+
+        JsonNode rows = data(mvc.perform(get(BASE).param("q", "den leu")).andExpect(status().isOk()));
+        assertThat(rows.get(0).get("variants").findValuesAsText("title")).containsExactly("M", "L");
+        assertThat(rows.get(0).get("isLowStock").asBoolean()).isTrue();
+
+        adjust(Map.of("productId", lamp, "changeQuantity", 3, "reason", "IMPORT"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.variantId").exists());
+        adjust(Map.of("productId", tent, "variantId", large, "changeQuantity", 3, "reason", "IMPORT"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.details.fieldErrors.variantId").exists());
+
+        JsonNode log = data(adjust(Map.of("variantId", large, "changeQuantity", 3, "reason", "IMPORT"))
+                .andExpect(status().isCreated()));
+        assertThat(log.get("itemId").asLong()).isEqualTo(lamp);
+        assertThat(log.get("variantTitle").asText()).isEqualTo("L");
+        assertThat(log.get("stockAfter").asInt()).isEqualTo(4);
+        assertThat(variantStock(large)).isEqualTo(4);
+        assertThat(stock("products", lamp)).isEqualTo(4);
+
+        JsonNode logs = data(mvc.perform(get(BASE + "/logs").param("variantId", String.valueOf(large))));
+        assertThat(logs).hasSize(1);
+        assertThat(data(mvc.perform(get(BASE + "/logs").param("productId", String.valueOf(lamp))))).hasSize(1);
+    }
+
+    @Test
+    void soldUnitsAreAllocatedToVariantsWithoutTouchingProductTotal() throws Exception {
+        long large = addSizeOption(lamp, 5);
+        // Đơn hàng xác nhận chỉ trừ tổng sản phẩm (giỏ / đơn chưa lưu biến thể)
+        jdbc.update("UPDATE products SET stock_quantity = stock_quantity - 2 WHERE id = ?", lamp);
+
+        JsonNode row = data(mvc.perform(get(BASE).param("q", "den leu")).andExpect(status().isOk())).get(0);
+        assertThat(row.get("stockQuantity").asInt()).isEqualTo(3);
+        assertThat(row.get("unallocatedSold").asInt()).isEqualTo(2);
+
+        Map<String, Object> tooMany = new java.util.HashMap<>(Map.of("variantId", large, "changeQuantity", -3, "reason", "EXPORT"));
+        tooMany.put("allocateSold", true);
+        adjust(tooMany).andExpect(status().isBadRequest()).andExpect(jsonPath("$.errorCode").value("INVALID_STOCK_ADJUSTMENT"));
+
+        Map<String, Object> allocate = new java.util.HashMap<>(Map.of("variantId", large, "changeQuantity", -2, "reason", "EXPORT"));
+        allocate.put("allocateSold", true);
+        JsonNode log = data(adjust(allocate).andExpect(status().isCreated()));
+        assertThat(log.get("variantTitle").asText()).isEqualTo("L");
+        assertThat(log.get("note").asText()).isEqualTo("Phân bổ hàng đã bán theo đơn hàng");
+        assertThat(variantStock(large)).isEqualTo(3);
+        assertThat(stock("products", lamp)).isEqualTo(3);
+
+        row = data(mvc.perform(get(BASE).param("q", "den leu"))).get(0);
+        assertThat(row.get("unallocatedSold").asInt()).isZero();
+        // Xuất thường thì trừ cả biến thể lẫn tổng
+        adjust(Map.of("variantId", large, "changeQuantity", -1, "reason", "EXPORT")).andExpect(status().isCreated());
+        assertThat(variantStock(large)).isEqualTo(2);
+        assertThat(stock("products", lamp)).isEqualTo(2);
+    }
+
     // ---------------------------------------------------------------------------------------------
 
+    /**
+     * Gắn tuỳ chọn "Size" (M, L) cho sản phẩm bằng SQL: biến thể mặc định thành "M" (giữ tồn kho), thêm biến thể "L"
+     * với `stockL`. Trả về id biến thể "L".
+     */
+    private long addSizeOption(long productId, int stockL) {
+        Long option = jdbc.queryForObject(
+                "INSERT INTO product_options (product_id, name, position) VALUES (?, 'Size', 1) RETURNING id", Long.class, productId);
+        Long m = jdbc.queryForObject(
+                "INSERT INTO product_option_values (option_id, value, position) VALUES (?, 'M', 0) RETURNING id", Long.class, option);
+        Long l = jdbc.queryForObject(
+                "INSERT INTO product_option_values (option_id, value, position) VALUES (?, 'L', 1) RETURNING id", Long.class, option);
+        jdbc.update("UPDATE product_variants SET option1_value_id = ? WHERE product_id = ?", m, productId);
+        long large = jdbc.queryForObject("""
+                INSERT INTO product_variants (product_id, option1_value_id, stock_quantity, position)
+                VALUES (?, ?, ?, 1) RETURNING id""", Long.class, productId, l, stockL);
+        // Tồn sản phẩm = tổng các biến thể (D-37)
+        jdbc.update("UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?", stockL, productId);
+        return large;
+    }
+
+    private int variantStock(long variantId) {
+        return jdbc.queryForObject("SELECT stock_quantity FROM product_variants WHERE id = ?", Integer.class, variantId);
+    }
+
     private long insertProduct(long categoryId, String name, String slug, int stock) {
-        return jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) VALUES (?, ?, ?, 100000, ?) RETURNING id",
-                Long.class, categoryId, name, slug, stock);
+        return jdbc.queryForObject("""
+                WITH p AS (INSERT INTO products (category_id, name, slug, price, stock_quantity)
+                           VALUES (?, ?, ?, 100000, ?) RETURNING id, stock_quantity),
+                v AS (INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM p)
+                SELECT id FROM p""", Long.class, categoryId, name, slug, stock);
     }
 
     private int stock(String table, long id) {

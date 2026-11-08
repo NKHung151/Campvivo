@@ -2,13 +2,15 @@ package vn.campvivo.inventory;
 
 import jakarta.persistence.*;
 import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.user.User;
 
 import java.time.OffsetDateTime;
 
 /**
- * Một dòng nhật ký tồn kho (database.md mục 3.22, BR-8): thuộc đúng một sản phẩm hoặc một combo. Chỉ thêm, không sửa/xoá.
+ * Một dòng nhật ký tồn kho (database.md mục 3.22, BR-8): thuộc đúng một biến thể sản phẩm (kèm product_id để lọc theo
+ * sản phẩm — D-37) hoặc một combo. Chỉ thêm, không sửa/xoá.
  * Tạo qua {@link InventoryLogService#record}.
  */
 @Entity
@@ -22,6 +24,10 @@ public class InventoryLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id")
+    private ProductVariant variant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "combo_id")
@@ -53,9 +59,10 @@ public class InventoryLog {
         // JPA
     }
 
-    InventoryLog(Product product, ProductCombo combo, User user, int changeQuantity, int stockAfter,
+    InventoryLog(ProductVariant variant, ProductCombo combo, User user, int changeQuantity, int stockAfter,
                  InventoryReason reason, String note, OffsetDateTime createdAt) {
-        this.product = product;
+        this.variant = variant;
+        this.product = variant == null ? null : variant.getProduct();
         this.combo = combo;
         this.user = user;
         this.changeQuantity = changeQuantity;
@@ -67,6 +74,7 @@ public class InventoryLog {
 
     public Long getId() { return id; }
     public Product getProduct() { return product; }
+    public ProductVariant getVariant() { return variant; }
     public ProductCombo getCombo() { return combo; }
     public User getUser() { return user; }
     public int getChangeQuantity() { return changeQuantity; }

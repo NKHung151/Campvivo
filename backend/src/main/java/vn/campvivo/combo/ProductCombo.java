@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Formula;
 import vn.campvivo.catalog.Category;
-import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Combo — bộ sản phẩm đóng gói sẵn, giá riêng, tồn kho riêng theo bộ (D-03; database.md mục 3.5).
- * Tồn kho combo tăng khi đóng gói (trừ kho sản phẩm của từng dòng `items`) và giảm khi tháo (trả kho) — D-22.
+ * Tồn kho combo tăng khi đóng gói (trừ kho biến thể của từng dòng `items`) và giảm khi tháo (trả kho) — D-22.
  * Khách mua combo chỉ giữ chỗ/trừ kho combo.
  */
 @Entity
@@ -105,8 +105,8 @@ public class ProductCombo {
         images.add(new ComboImage(this, url, primary, displayOrder, now));
     }
 
-    public void addItem(Product product, int quantity) {
-        items.add(new ComboItem(this, product, quantity));
+    public void addItem(ProductVariant variant, int quantity) {
+        items.add(new ComboItem(this, variant, quantity));
     }
 
     /** Đóng gói thêm `sets` bộ (kho sản phẩm thành phần đã được trừ ở service). */

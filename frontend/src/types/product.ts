@@ -55,8 +55,10 @@ export interface ProductFull {
   campaign?: { name: string; slug: string } | null;
   warranty: string | null;
   maxQty: number | null;
-  variantLabel: string | null;
-  variants: { name: string; inv: number }[];
+  /** Tuỳ chọn (tối đa 2, vd. Màu sắc → Size — D-37); rỗng = sản phẩm không có biến thể. */
+  options: { name: string; values: string[] }[];
+  /** Biến thể đang bán; `values` theo thứ tự `options`, `inv` = số còn bán được. Rỗng khi không có tuỳ chọn. */
+  variants: { id: number; values: string[]; inv: number }[];
   viewsToday: string | null;
   images: { big: string; thumb: string; alt: string }[];
   breadcrumbs: LinkItem[];
@@ -64,18 +66,11 @@ export interface ProductFull {
   catImg: string | null;
   descriptionHtml: string | null;
   specsHtml: string | null;
-  guideHtml: string | null;
   social: { sold: number; rating: number; satisf: number } | null;
   fbt: FbtItem[];
   articles: { title: string; url: string }[];
   sidebar: { title: string; items: SidebarItem[] };
   related: { title: string; items: RelatedItem[] };
-}
-
-export interface PdpKb {
-  journeyRules: { keys: string[]; journeys: { icon: string; title: string; sub: string }[] }[];
-  educationTips: { keys: string[]; tips: string[] }[];
-  genericJourneys: { icon: string; title: string; sub: string }[];
 }
 
 export interface PdpStatic {

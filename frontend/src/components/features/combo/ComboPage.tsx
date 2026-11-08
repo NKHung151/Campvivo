@@ -66,6 +66,7 @@ export function ComboPage({ c }: { c: ComboDetail }) {
                   </span>
                   <span className="cv-combo-info">
                     <span className="cv-combo-name">{i.product.name}</span>
+                    {i.variantTitle && <span className="cv-combo-price">Phân loại: {i.variantTitle}</span>}
                     <span className="cv-combo-price">{vnd(i.product.price)} / cái</span>
                   </span>
                   <span className="cv-combo-qty">×{i.quantity}</span>

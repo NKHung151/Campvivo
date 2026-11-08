@@ -1,6 +1,13 @@
 package vn.campvivo.inventory.admin;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -10,6 +17,8 @@ import vn.campvivo.catalog.Product;
 import vn.campvivo.catalog.ProductImage;
 import vn.campvivo.catalog.ProductImageRepository;
 import vn.campvivo.catalog.ProductRepository;
+import vn.campvivo.catalog.ProductVariant;
+import vn.campvivo.catalog.ProductVariantRepository;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.combo.ProductComboRepository;
 import vn.campvivo.common.config.AppProperties;
@@ -22,6 +31,7 @@ import vn.campvivo.inventory.InventoryLogRepository;
 import vn.campvivo.inventory.InventoryLogService;
 import vn.campvivo.inventory.InventoryReason;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.Item;
+import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemSort;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemType;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.LogEntry;
 
@@ -41,9 +51,10 @@ import static vn.campvivo.catalog.ProductSpecifications.matchesKeyword;
 /**
  * Trang Tồn kho (FR-08, BR-8) — ADMIN và EMPLOYEE.
  * <ul>
- *   <li>Danh sách tồn kho sản phẩm / combo, ít hàng khả dụng nhất lên đầu; lọc "sắp hết" (khả dụng ≤ ngưỡng).</li>
- *   <li>Điều chỉnh tay: sản phẩm nhập/xuất/điều chỉnh; combo CHỈ được giảm (hỏng/mất) — muốn tăng phải đóng gói để trừ
- *       hàng lẻ (D-36). Không được làm tồn kho thấp hơn số đang giữ chỗ. Mỗi lần ghi đúng 1 dòng nhật ký.</li>
+ *   <li>Danh sách tồn kho sản phẩm (kèm từng biến thể — D-37) / combo, ít hàng khả dụng nhất lên đầu; lọc "sắp hết"
+ *       (sản phẩm: có biến thể đang bán khả dụng ≤ ngưỡng; combo: khả dụng ≤ ngưỡng).</li>
+ *   <li>Điều chỉnh tay: biến thể sản phẩm nhập/xuất/điều chỉnh; combo CHỈ được giảm (hỏng/mất) — muốn tăng phải đóng gói để trừ
+ *       hàng lẻ (D-27). Không được làm tồn kho thấp hơn số đang giữ chỗ. Mỗi lần ghi đúng 1 dòng nhật ký.</li>
  *   <li>Nhật ký: lọc theo mặt hàng, lý do, khoảng ngày (giờ Việt Nam), mới nhất trước.</li>
  * </ul>
  */
@@ -51,17 +62,23 @@ import static vn.campvivo.catalog.ProductSpecifications.matchesKeyword;
 public class AdminInventoryService {
 
     private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductComboRepository comboRepository;
     private final InventoryLogRepository logRepository;
     private final InventoryLogService logService;
+    private final EntityManager entityManager;
     private final Clock clock;
     private final int lowStockThreshold;
 
-    public AdminInventoryService(ProductRepository productRepository, ProductImageRepository productImageRepository,
+    public AdminInventoryService(ProductRepository productRepository, ProductVariantRepository variantRepository,
+                                 ProductImageRepository productImageRepository,
                                  ProductComboRepository comboRepository, InventoryLogRepository logRepository,
-                                 InventoryLogService logService, Clock clock, AppProperties appProperties) {
+                                 InventoryLogService logService, EntityManager entityManager, Clock clock,
+                                 AppProperties appProperties) {
+        this.entityManager = entityManager;
         this.productRepository = productRepository;
+        this.variantRepository = variantRepository;
         this.productImageRepository = productImageRepository;
         this.comboRepository = comboRepository;
         this.logRepository = logRepository;
@@ -73,14 +90,14 @@ public class AdminInventoryService {
     // --- Danh sách tồn kho -------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public PageResponse<Item> list(ItemType type, String q, boolean lowStock, int page, int limit) {
+    public PageResponse<Item> list(ItemType type, String q, boolean lowStock, ItemSort sort, int page, int limit) {
         PageRequest pageable = PageRequest.of(page - 1, limit);
         if (type == ItemType.COMBO) {
-            Page<ProductCombo> result = comboRepository.findAll(comboSpec(q, lowStock), pageable);
+            Page<ProductCombo> result = comboRepository.findAll(comboSpec(q, lowStock, sort), pageable);
             Map<Long, String> images = comboRepository.findCoverImageUrls(result.getContent().stream().map(ProductCombo::getId).toList());
             return PageResponse.of(result.map(c -> Item.of(c, images.get(c.getId()), lowStockThreshold)));
         }
-        Page<Product> result = productRepository.findAll(productSpec(q, lowStock), pageable);
+        Page<Product> result = productRepository.findAll(productSpec(q, lowStock, sort), pageable);
         List<Long> ids = result.getContent().stream().map(Product::getId).toList();
         Map<Long, String> images = ids.isEmpty() ? Map.of()
                 : productImageRepository.findPrimaryByProductIds(ids).stream()
@@ -88,19 +105,42 @@ public class AdminInventoryService {
         return PageResponse.of(result.map(p -> Item.of(p, images.get(p.getId()), lowStockThreshold)));
     }
 
-    private Specification<Product> productSpec(String q, boolean lowStock) {
+    /**
+     * Sản phẩm xếp theo `sort` (mặc định khả dụng của sản phẩm tăng dần). "Sắp hết": khả dụng ≤ ngưỡng, hoặc sản phẩm có
+     * tuỳ chọn mà một biến thể đang bán ≤ ngưỡng.
+     */
+    private Specification<Product> productSpec(String q, boolean lowStock, ItemSort sort) {
         return Specification.where(matchesKeyword(q))
-                .and(lowStock ? (root, query, cb) -> cb.le(available(root, cb), lowStockThreshold) : null)
+                .and(lowStock ? (root, query, cb) -> {
+                    Subquery<Long> lowVariant = query.subquery(Long.class);
+                    Root<ProductVariant> v = lowVariant.from(ProductVariant.class);
+                    lowVariant.select(v.get("id")).where(cb.equal(v.get("product"), root), cb.isTrue(v.get("active")),
+                            cb.isNotNull(v.get("option1Value")),
+                            cb.le(cb.diff(v.<Integer>get("stockQuantity"), v.<Integer>get("reservedQuantity")),
+                                    lowStockThreshold));
+                    return cb.or(cb.le(available(root, cb), lowStockThreshold), cb.exists(lowVariant));
+                } : null)
                 .and((root, query, cb) -> {
                     if (!isCountQuery(query)) {
-                        query.orderBy(cb.asc(available(root, cb)), cb.asc(root.get("id")));
+                        query.orderBy(order(sort, available(root, cb), root, cb));
                     }
                     return null;
                 });
     }
 
-    /** Combo: tìm theo tên hoặc slug (gõ không dấu được), ít bộ khả dụng nhất lên đầu. */
-    private Specification<ProductCombo> comboSpec(String q, boolean lowStock) {
+    /** ORDER BY theo lựa chọn; hoà thì theo id để phân trang ổn định. */
+    private static List<Order> order(ItemSort sort, Expression<Integer> available, Root<?> root, CriteriaBuilder cb) {
+        Order first = switch (sort) {
+            case AVAILABLE_ASC -> cb.asc(available);
+            case AVAILABLE_DESC -> cb.desc(available);
+            case NAME_ASC -> cb.asc(cb.lower(root.get("name")));
+            case UPDATED_DESC -> cb.desc(root.get("updatedAt"));
+        };
+        return List.of(first, sort == ItemSort.UPDATED_DESC ? cb.desc(root.get("id")) : cb.asc(root.get("id")));
+    }
+
+    /** Combo: tìm theo tên hoặc slug (gõ không dấu được), xếp theo `sort` (mặc định ít bộ khả dụng nhất lên đầu). */
+    private Specification<ProductCombo> comboSpec(String q, boolean lowStock, ItemSort sort) {
         Specification<ProductCombo> keyword = null;
         if (q != null && !q.isBlank()) {
             String text = "%" + escapeLike(q.trim().toLowerCase(Locale.ROOT)) + "%";
@@ -112,8 +152,8 @@ public class AdminInventoryService {
                         root.<Integer>get("reservedQuantity")), lowStockThreshold) : null)
                 .and((root, query, cb) -> {
                     if (!isCountQuery(query)) {
-                        query.orderBy(cb.asc(cb.diff(root.<Integer>get("stockQuantity"), root.<Integer>get("reservedQuantity"))),
-                                cb.asc(root.get("id")));
+                        query.orderBy(order(sort, cb.diff(root.<Integer>get("stockQuantity"),
+                                root.<Integer>get("reservedQuantity")), root, cb));
                     }
                     return null;
                 });
@@ -123,8 +163,9 @@ public class AdminInventoryService {
 
     @Transactional
     public LogEntry adjust(AdjustmentRequest req, long userId) {
-        if ((req.productId() == null) == (req.comboId() == null)) {
-            throw fieldError("productId", "Chọn đúng một sản phẩm hoặc một combo.");
+        boolean forProduct = req.variantId() != null || req.productId() != null;
+        if (forProduct == (req.comboId() != null)) {
+            throw fieldError("variantId", "Chọn đúng một biến thể sản phẩm hoặc một combo.");
         }
         int change = req.changeQuantity();
         switch (req.reason()) {
@@ -139,18 +180,75 @@ public class AdminInventoryService {
             }
             case RETURN -> throw fieldError("reason", "Lý do trả hàng chỉ được ghi khi hoàn tất yêu cầu trả hàng.");
         }
-        return req.productId() != null ? adjustProduct(req.productId(), change, req, userId)
+        if (Boolean.TRUE.equals(req.allocateSold())) {
+            if (!forProduct || req.reason() != InventoryReason.EXPORT) {
+                throw fieldError("allocateSold", "Phân bổ hàng đã bán cần chọn biến thể và lý do Xuất.");
+            }
+            return allocateSold(lockVariant(req), -change, req, userId);
+        }
+        return forProduct ? adjustVariant(lockVariant(req), change, req, userId)
                 : writeOffCombo(req.comboId(), change, req, userId);
     }
 
-    private LogEntry adjustProduct(long id, int change, AdjustmentRequest req, long userId) {
-        Product p = productRepository.findByIdForUpdate(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Không tìm thấy sản phẩm.", null));
+    /**
+     * Khoá dòng sản phẩm rồi dòng biến thể (sản phẩm trước — cùng thứ tự với đơn hàng, database.md mục 6).
+     * Biến thể theo variantId; chỉ có productId thì sản phẩm phải có đúng 1 biến thể.
+     */
+    private ProductVariant lockVariant(AdjustmentRequest req) {
+        Long productId = req.productId();
+        if (req.variantId() != null) {
+            Long owner = entityManager.createQuery("select v.product.id from ProductVariant v where v.id = :id", Long.class)
+                    .setParameter("id", req.variantId()).getResultStream().findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Không tìm thấy biến thể.", null));
+            if (productId != null && !productId.equals(owner)) {
+                throw fieldError("variantId", "Biến thể không thuộc sản phẩm đã chọn.");
+            }
+            productId = owner;
+        }
+        Product product = entityManager.find(Product.class, productId, LockModeType.PESSIMISTIC_WRITE);
+        if (product == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "Không tìm thấy sản phẩm.", null);
+        }
+        entityManager.refresh(product);
+        if (req.variantId() != null) {
+            return variantRepository.findByIdForUpdate(req.variantId()).orElseThrow();
+        }
+        List<ProductVariant> variants = variantRepository.findAllByProductIdForUpdate(productId);
+        if (variants.size() != 1) {
+            throw fieldError("variantId", "Sản phẩm có nhiều biến thể — hãy chọn biến thể cần nhập/xuất.");
+        }
+        return variants.get(0);
+    }
+
+    /** Nhập/xuất/kiểm kê: đổi biến thể và tổng sản phẩm. Tổng không được thấp hơn số đang giữ chỗ cho đơn hàng. */
+    private LogEntry adjustVariant(ProductVariant v, int change, AdjustmentRequest req, long userId) {
+        Product p = v.getProduct();
+        if (v.getStockQuantity() + change < 0) {
+            throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT, "\"" + v.displayName() + "\" chỉ còn "
+                    + v.getStockQuantity() + " — không xuất được " + (-change) + ".", null);
+        }
         if (p.getStockQuantity() + change < p.getReservedQuantity()) {
             throw belowReserved(p.getStockQuantity() + change, p.getReservedQuantity());
         }
-        p.adjustStock(change, OffsetDateTime.now(clock));
-        return LogEntry.from(logService.record(p, userId, change, req.reason(), req.note()));
+        v.adjustStock(change, OffsetDateTime.now(clock));
+        return LogEntry.from(logService.record(v, userId, change, req.reason(), req.note()));
+    }
+
+    /** Phân bổ hàng đã bán qua đơn vào đúng biến thể (D-37): chỉ trừ biến thể, tổng sản phẩm giữ nguyên. */
+    private LogEntry allocateSold(ProductVariant v, int quantity, AdjustmentRequest req, long userId) {
+        int unallocated = v.getProduct().getUnallocatedSold();
+        if (quantity > unallocated) {
+            throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT, unallocated == 0
+                    ? "Không có hàng đã bán nào cần phân bổ cho sản phẩm này."
+                    : "Chỉ còn " + unallocated + " cái đã bán chưa phân bổ.", null);
+        }
+        if (quantity > v.getStockQuantity()) {
+            throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT, "\"" + v.displayName() + "\" chỉ còn "
+                    + v.getStockQuantity() + ".", null);
+        }
+        v.allocateSold(quantity, OffsetDateTime.now(clock));
+        String note = req.note() == null || req.note().isBlank() ? "Phân bổ hàng đã bán theo đơn hàng" : req.note();
+        return LogEntry.from(logService.record(v, userId, -quantity, InventoryReason.EXPORT, note));
     }
 
     /** Combo chỉ được giảm tay (D-36): tăng bộ combo phải qua đóng gói để trừ hàng lẻ. */
@@ -177,11 +275,12 @@ public class AdminInventoryService {
 
     /** `from`/`to`: ngày theo giờ Việt Nam, gồm cả hai đầu. */
     @Transactional(readOnly = true)
-    public PageResponse<LogEntry> logs(Long productId, Long comboId, ItemType type, InventoryReason reason,
+    public PageResponse<LogEntry> logs(Long productId, Long variantId, Long comboId, ItemType type, InventoryReason reason,
                                        LocalDate from, LocalDate to, int page, int limit) {
         Specification<InventoryLog> spec = Specification.<InventoryLog>where((root, query, cb) -> {
                     if (!isCountQuery(query)) {
                         root.fetch("product", JoinType.LEFT);
+                        root.fetch("variant", JoinType.LEFT);
                         root.fetch("combo", JoinType.LEFT);
                         root.fetch("user", JoinType.INNER);
                         query.orderBy(cb.desc(root.get("createdAt")), cb.desc(root.get("id")));
@@ -189,6 +288,7 @@ public class AdminInventoryService {
                     return null;
                 })
                 .and(productId == null ? null : (root, query, cb) -> cb.equal(root.get("product").get("id"), productId))
+                .and(variantId == null ? null : (root, query, cb) -> cb.equal(root.get("variant").get("id"), variantId))
                 .and(comboId == null ? null : (root, query, cb) -> cb.equal(root.get("combo").get("id"), comboId))
                 .and(type == null ? null : (root, query, cb) -> type == ItemType.PRODUCT
                         ? cb.isNotNull(root.get("product")) : cb.isNotNull(root.get("combo")))

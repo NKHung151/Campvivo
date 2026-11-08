@@ -54,6 +54,25 @@ class ProductControllerTest {
     }
 
     @Test
+    void bestSellersArePerSubcategoryActiveOnlyAndLimited() throws Exception {
+        insertProduct(tentId, "Lều A", "leu-a", null, 1_000_000, true, 1);
+        insertProduct(tentId, "Lều B", "leu-b", null, 1_000_000, true, 2);
+        insertProduct(tentId, "Lều C", "leu-c", null, 1_000_000, true, 3);
+        insertProduct(tentId, "Lều ẩn", "leu-an", null, 1_000_000, false, 4);
+        // Sản phẩm gắn thẳng vào danh mục cấp 1 không thuộc danh mục cấp 2 nào → không có trong menu
+        insertProduct(apparelId, "Áo gió", "ao-gio", null, 500_000, true, 5);
+
+        JsonNode data = mapper.readTree(mvc.perform(get("/api/products/best-sellers").param("limit", "2"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8)).get("data");
+
+        assertThat(data).hasSize(1);
+        assertThat(data.get(0).get("categoryId").asLong()).isEqualTo(tentId);
+        // Chưa có đơn / đánh giá → mới hơn trước; tối đa `limit`, bỏ sản phẩm ẩn
+        assertThat(data.get(0).get("items").findValuesAsText("slug")).containsExactly("leu-c", "leu-b");
+        mvc.perform(get("/api/products/best-sellers").param("limit", "7")).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void listShowsOnlyActiveProductsAndFiltersByCategoryTreeBrandAndKeyword() throws Exception {
         insertProduct(tentId, "Lều 2 người Naturehike", "leu-2-nguoi", "Naturehike", 1_200_000, true, 1);
         insertProduct(tentId, "Lều 4 người Coleman", "leu-4-nguoi", "Coleman", 2_500_000, true, 2);
@@ -109,7 +128,10 @@ class ProductControllerTest {
         JsonNode data = mapper.readTree(mvc.perform(get("/api/products/leu-2-nguoi"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8)).get("data");
 
-        assertThat(data.has("variants")).isFalse();
+        assertThat(data.get("options")).isEmpty();
+        assertThat(data.get("variants")).hasSize(1);
+        assertThat(data.get("variants").get(0).get("title").isNull()).isTrue();
+        assertThat(data.get("variants").get(0).get("availableQuantity").asInt()).isEqualTo(5);
         assertThat(data.get("availableQuantity").asInt()).isEqualTo(5);
         assertThat(data.get("specs").get(0).get("name").asText()).isEqualTo("Chất liệu");
         assertThat(data.get("shortDescription").asText()).isEqualTo("Nhẹ");
@@ -157,12 +179,16 @@ class ProductControllerTest {
     /** `day` = ngày tạo (1..28/10/2026) để sắp "mới nhất" ổn định. */
     private long insertProduct(long categoryId, String name, String slug, String brand, long price, boolean active, int day) {
         return jdbc.queryForObject("""
-                INSERT INTO products (category_id, name, slug, brand, price, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, make_timestamptz(2026, 10, ?, 0, 0, 0), now()) RETURNING id
+                WITH p AS (
+                    INSERT INTO products (category_id, name, slug, brand, price, is_active, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, make_timestamptz(2026, 10, ?, 0, 0, 0), now()) RETURNING id),
+                v AS (INSERT INTO product_variants (product_id) SELECT id FROM p)
+                SELECT id FROM p
                 """, Long.class, categoryId, name, slug, brand, price, active, day);
     }
 
     private void setStock(long productId, int stock, int reserved) {
         jdbc.update("UPDATE products SET stock_quantity = ?, reserved_quantity = ? WHERE id = ?", stock, reserved, productId);
+        jdbc.update("UPDATE product_variants SET stock_quantity = ? WHERE product_id = ?", stock, productId);
     }
 }

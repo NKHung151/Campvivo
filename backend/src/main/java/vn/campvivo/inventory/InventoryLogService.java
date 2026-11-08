@@ -4,7 +4,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.user.User;
 
@@ -29,8 +29,8 @@ public class InventoryLogService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public InventoryLog record(Product product, long userId, int change, InventoryReason reason, String note) {
-        return save(product, null, userId, change, product.getStockQuantity(), reason, note);
+    public InventoryLog record(ProductVariant variant, long userId, int change, InventoryReason reason, String note) {
+        return save(variant, null, userId, change, variant.getStockQuantity(), reason, note);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -38,11 +38,11 @@ public class InventoryLogService {
         return save(null, combo, userId, change, combo.getStockQuantity(), reason, note);
     }
 
-    private InventoryLog save(Product product, ProductCombo combo, long userId, int change, int stockAfter,
+    private InventoryLog save(ProductVariant variant, ProductCombo combo, long userId, int change, int stockAfter,
                               InventoryReason reason, String note) {
         User user = entityManager.getReference(User.class, userId);
         String text = note == null || note.isBlank() ? null : note.trim();
-        return repository.save(new InventoryLog(product, combo, user, change, stockAfter, reason, text,
+        return repository.save(new InventoryLog(variant, combo, user, change, stockAfter, reason, text,
                 OffsetDateTime.now(clock)));
     }
 }

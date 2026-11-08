@@ -12,6 +12,13 @@ import { PageHeader } from "@/components/admin/common/PageHeader";
 import { RichTextEditor } from "@/components/admin/common/RichTextEditor";
 import { CategoryCascadeSelect } from "@/components/admin/catalog/CategoryCascadeSelect";
 import { SpecsSection } from "@/components/admin/catalog/SpecsSection";
+import {
+  initialVariantFields,
+  toVariantRequest,
+  VariantsSection,
+  type OptionField,
+  type VariantSettings,
+} from "@/components/admin/catalog/VariantsSection";
 import type { AdminProductDetail, AdminProductImage, CategoryNode, ProductRequest, ProductSpec } from "@/types/api/catalog";
 
 interface FormValues {
@@ -25,17 +32,21 @@ interface FormValues {
   isActive: boolean;
   specs: Partial<ProductSpec>[];
   images: AdminProductImage[];
+  options: OptionField[];
+  variantSettings: VariantSettings;
+  /** Chỉ để hiện lỗi tuỳ chọn / biến thể từ backend. */
+  optionsError?: string;
 }
 
 const vndFormatter = (v: number | string | undefined) => (v === undefined || v === "" ? "" : `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 const vndParser = (v: string | undefined) => Number((v ?? "").replace(/\D/g, "")) as unknown as 0;
 
 /** Lỗi backend dạng "specs" → ô tương ứng trong form. */
-const FIELD_MAP: Record<string, (keyof FormValues)[]> = { specs: ["specs"] };
+const FIELD_MAP: Record<string, (keyof FormValues)[]> = { specs: ["specs"], options: ["optionsError"], variants: ["optionsError"] };
 
 /**
- * Form thêm/sửa sản phẩm (FR-06). Không có biến thể (D-24): mỗi màu/size là một sản phẩm riêng.
- * Tồn kho không sửa ở đây — nhập kho ở trang Tồn kho.
+ * Form thêm/sửa sản phẩm (FR-06). Biến thể tối đa 2 tuỳ chọn, cùng giá (D-37) — xem VariantsSection.
+ * Tồn kho không sửa ở đây — nhập kho từng biến thể ở trang Tồn kho.
  * Lỗi từ backend: `fieldErrors` hiện dưới đúng ô, lỗi khác hiện thông báo.
  */
 export function ProductForm({
@@ -87,8 +98,9 @@ export function ProductForm({
             isActive: initial.isActive,
             specs: initial.specs,
             images: initial.images,
+            ...initialVariantFields(initial),
           }
-        : { name: "", isActive: true, specs: [], images: [] },
+        : { name: "", isActive: true, specs: [], images: [], options: [], variantSettings: {} },
     [initial],
   );
 
@@ -108,6 +120,7 @@ export function ProductForm({
           .map((s) => ({ name: (s.name ?? "").trim(), value: (s.value ?? "").trim() }))
           .filter((s) => s.name && s.value),
         images: v.images,
+        ...toVariantRequest(form.getFieldValue("options"), form.getFieldValue("variantSettings")),
       });
     } catch (e) {
       if (e instanceof ApiError && Object.keys(e.fieldErrors).length) {
@@ -195,6 +208,8 @@ export function ProductForm({
               }}
             </Form.Item>
           </Card>
+
+          <VariantsSection initial={initial} />
 
           <SpecsSection />
         </Col>
