@@ -22,7 +22,8 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 - Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
   migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6), `V5__order_schema.sql` (F-08) tạo 7 bảng
 mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng khuyến mãi (V7 là seed), `V8__reviews.sql` tạo bảng
-  `reviews` (mục 3.17); các bảng còn lại được thêm dần bằng migration mới theo
+  `reviews` (mục 3.17), `V12__articles.sql` tạo bảng `articles` (mục 3.21; thêm ràng buộc đã đăng thì phải có
+  `published_at` và index `idx_articles_category_published_at` cho danh sách public); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).
 
@@ -103,7 +104,44 @@ mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng
 | created_at, updated_at | timestamptz | |
 
 `CHECK (stock_quantity >= 0 AND reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)`.
-Không có biến thể (D-24): mỗi màu/size cần bán và quản lý tồn riêng là một sản phẩm riêng.
+Biến thể (D-37, V10): `stock_quantity`/`reserved_quantity` ở đây là số giỏ hàng / đơn hàng dùng (giữ chỗ, trừ kho theo
+tổng sản phẩm). Tồn chi tiết theo biến thể ở `product_variants`; nhập/xuất/đóng gói/tháo đổi cả biến thể và tổng. Đơn
+hàng chỉ trừ tổng → "hàng đã bán chưa phân bổ" = Σ tồn biến thể − `stock_quantity` (sản phẩm có ≥ 2 biến thể), nhân viên
+phân bổ ở trang Tồn kho. Sản phẩm 1 biến thể: tồn biến thể luôn theo `stock_quantity`.
+
+#### 3.3a `product_options` (+, D-37) — tuỳ chọn của sản phẩm, tối đa 2
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | BIGINT | PK |
+| product_id | BIGINT | FK → products(id) `ON DELETE CASCADE` |
+| name | VARCHAR(50) | vd. "Màu sắc"; unique `(product_id, lower(name))` |
+| position | SMALLINT | `IN (1, 2)`; unique `(product_id, position)` |
+
+#### 3.3b `product_option_values` (+, D-37)
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | BIGINT | PK |
+| option_id | BIGINT | FK → product_options(id) `ON DELETE CASCADE` |
+| value | VARCHAR(100) | vd. "Tím"; unique `(option_id, lower(value))` |
+| position | SMALLINT | thứ tự hiển thị |
+
+#### 3.3c `product_variants` (+, D-37) — tổ hợp giá trị, cùng giá với sản phẩm, có tồn chi tiết
+| Cột | Kiểu | Ràng buộc / ghi chú |
+|---|---|---|
+| id | BIGINT | PK |
+| product_id | BIGINT | FK → products(id) `ON DELETE CASCADE` |
+| option1_value_id | BIGINT | N, FK → product_option_values(id); null = biến thể mặc định |
+| option2_value_id | BIGINT | N, FK → product_option_values(id); chỉ có khi option1 có |
+| sku | VARCHAR(64) | N, U — mã hàng nội bộ |
+| stock_quantity | INT | mặc định 0 |
+| reserved_quantity | INT | mặc định 0 — chưa dùng cho tới khi giỏ hàng / đơn hàng lưu biến thể |
+| is_active | BOOLEAN | mặc định true; false = tắt bán (không hiện ở cửa hàng) |
+| position | INT | thứ tự hiển thị |
+| created_at, updated_at | timestamptz | |
+
+`CHECK (stock_quantity >= 0 AND reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)`. Unique tổ hợp
+`(product_id, COALESCE(option1_value_id, 0), COALESCE(option2_value_id, 0))`. Sản phẩm không có tuỳ chọn có đúng 1 biến
+thể mặc định.
 
 ### 3.4 `images`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -141,9 +179,10 @@ unique một phần: `(product_id) WHERE is_primary AND product_id IS NOT NULL`,
 | id | BIGINT | PK |
 | combo_id | BIGINT | FK → product_combos(id) `ON DELETE CASCADE` |
 | product_id | BIGINT | FK → products(id) |
+| variant_id | BIGINT | (+, D-37) FK → product_variants(id) — biến thể được đóng gói |
 | quantity | INT | `CHECK (quantity > 0)` — số cái trong một bộ |
 
-Unique `(combo_id, product_id)`.
+Unique `(combo_id, product_id)` — mỗi sản phẩm một dòng, dòng đó chọn một biến thể.
 
 ### 3.7 `carts`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -372,10 +411,11 @@ trạng thái đã đọc.
 |---|---|---|
 | id | BIGINT | PK |
 | product_id | BIGINT | N, FK → products(id) |
+| variant_id | BIGINT | (+, D-37) N, FK → product_variants(id) — có khi và chỉ khi có product_id |
 | combo_id | BIGINT | (+) N, FK → product_combos(id) |
 | user_id | BIGINT | FK → users(id) — người thực hiện |
 | change_quantity | INT | khác 0; dương = nhập, âm = xuất |
-| stock_after | INT | `stock_quantity` sau thay đổi |
+| stock_after | INT | `stock_quantity` của biến thể / combo sau thay đổi |
 | reason | VARCHAR(30) | `IMPORT` \| `EXPORT` \| `ADJUST` \| `RETURN` |
 | note | VARCHAR(500) | N |
 | created_at | timestamptz | |
@@ -522,6 +562,7 @@ không ghi log (truy được qua `order_status_history`). Điều chỉnh khôn
   khoá đơn + kiểm `payments.status`. Sau khi CONFIRMED, vận đơn GHN được tạo bất đồng bộ sau commit.
 
 **BR-13 — Danh mục.**
+- Tối đa 2 cấp (D-38): danh mục cha phải là danh mục cấp 1; danh mục đang có danh mục con hoặc gắn combo phải ở cấp 1.
 - `path = parent.path + id + '/'` (gốc: `'/' + id + '/'`), gán sau khi insert có id.
 - Đổi cha: chặn nếu cha mới là chính nó hoặc nằm trong cây con (`new_parent.path LIKE old_path || '%'`
   → `CIRCULAR_CATEGORY_DEPENDENCY`); cập nhật `path` cho cả cây con bằng một câu `UPDATE … SET path =
@@ -617,7 +658,14 @@ sau khi khoá, rồi khoá products/combos/voucher theo thứ tự trên nếu c
   `db/seed` và chỉ chạy khi `spring.flyway.locations` có `classpath:db/seed`
   (`application-dev.yml.example`). Test và production KHÔNG chạy seed. Số phiên bản giữa hai thư mục
   dùng chung một dãy (không trùng số).
-- Hiện có `db/seed/V3__seed_catalog.sql` (và `V4__seed_combos.sql`: 5 combo mẫu): 271 danh mục (3 cấp), 400 sản phẩm, 701 ảnh trên Cloudinary,
+- `db/seed/V11__seed_category_tree_and_variants.sql` — bước 10 (D-37): biến thể mẫu cho 75 sản phẩm (quần áo: Màu sắc ×
+  Size hoặc Size; giày dép: Cỡ giày; găng tay, đế đinh: Size; kính bơi, mũ bơi, túi ngủ…: Màu sắc) theo thông số màu / size
+  trong V3. Tồn sản phẩm giữ nguyên, chia đều cho các biến thể; biến thể mặc định thành biến thể đầu (giữ id). Sản phẩm
+  trong combo seed hoặc đã có tuỳ chọn thì bỏ qua.
+- `db/seed/V11__seed_category_tree_and_variants.sql` (D-38): dựng lại cây danh mục 2 cấp (9 nhóm, 59 danh mục con — mỗi danh mục một loại hàng, không ghép "A - B") từ cây 3 cấp của V3,
+  chuyển sản phẩm + combo theo bảng ánh xạ trong file, bỏ Xe Máy / Ô Tô. Chạy sau V3/V4 nên DB mới hay DB cũ đều ra cùng
+  một cây; danh mục người dùng tự tạo đi theo danh mục cha gần nhất có trong bảng ánh xạ.
+- Hiện có `db/seed/V3__seed_catalog.sql` (và `V4__seed_combos.sql`: 5 combo mẫu): 271 danh mục (3 cấp, V11 gộp còn 44), 400 sản phẩm, 701 ảnh trên Cloudinary,
   50 thương hiệu, tồn kho ngẫu nhiên (40 sản phẩm = 0 để thử "Hết hàng"). Nguồn: dữ liệu mock frontend
   (cửa hàng tham khảo — tên "WeTrek"/hotline đã đổi). Nhóm cần cân nhắc bản quyền trước khi dùng cho
   demo/bảo vệ.

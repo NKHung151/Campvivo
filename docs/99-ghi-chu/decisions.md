@@ -13,6 +13,58 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Danh mục (2026-11-07)
+
+### 2026-11-07 — D-38: Danh mục tối đa 2 cấp, mỗi loại hàng một chỗ
+- **Bối cảnh:** seed V3 chép menu wetrek 3 tầng chia theo hoạt động (Cắm trại / Leo núi / Du lịch…) — một loại hàng nằm
+  dưới nhiều hoạt động. DB chỉ cho 1 danh mục cha nên mỗi bản sao thành danh mục riêng: 273 danh mục cho 401 sản phẩm,
+  44 tên lặp ở 2–3 nhánh (vd. "Túi ngủ" ×3), 174 danh mục đúng 2 sản phẩm, 47 danh mục 0–1 sản phẩm; sản phẩm cùng loại bị
+  chia lẻ (vào "Giày leo núi" chỉ thấy một phần).
+- **Quyết định:**
+  - Danh mục = loại hàng (nó là gì), không phải hoạt động. Mỗi loại hàng một chỗ; tối đa 2 cấp — danh mục cha chỉ được
+    là danh mục cấp 1. Danh mục đang có con hoặc gắn combo (D-23) phải ở cấp 1. Bảng `categories` không đổi.
+  - Seed `V11__seed_category_tree_and_variants.sql` (dev): 9 nhóm × 59 danh mục con — Lều & Chỗ ngủ, Nấu ăn & Nước uống, Đèn & Điện tử,
+    Balo & Túi, Dụng cụ & An toàn, Trang phục, Giày dép, Bơi lặn & Thể thao nước, Xe đạp. Mỗi danh mục con đúng một loại
+    hàng, không ghép kiểu "Mũ - Khăn - Găng tay" (tách thành Mũ, Khăn, Găng tay); bỏ tên rỗng (Chăn, Giường). Bỏ Xe Máy,
+    Ô Tô (không phải đồ dã ngoại). Sản phẩm, combo chuyển theo bảng ánh xạ trong file — sản phẩm seed ở danh mục ghép cũ
+    xếp từng cái theo slug; sản phẩm Xe Máy / Ô Tô đã có đơn, giỏ, combo hoặc nhật ký kho thì chỉ ẩn.
+  - Admin: đổi danh mục cha ngay trong form sửa (chỉ chọn danh mục cấp 1); bỏ hộp "Chuyển vị trí".
+  - Menu cửa hàng: dưới mỗi danh mục cấp 2 hiện 3 sản phẩm bán chạy (`GET /products/best-sellers`) thay cho danh mục cấp 3
+    cũ; bán chạy = tổng số lượng trong đơn CONFIRMED/SHIPPING/COMPLETED, hoà thì nhiều đánh giá, rồi mới hơn.
+- **Để sau:** một loại hàng hiện ở nhiều chỗ trong menu (menu cấu hình riêng trỏ cùng một trang danh mục) — không cần
+  danh mục nhiều cha.
+
+## Biến thể sản phẩm (2026-11-07)
+
+### 2026-11-07 — D-37: Biến thể sản phẩm tối đa 2 chiều, mọi biến thể cùng giá (quản lý ở admin)
+- **Bối cảnh:** D-24 tách mỗi màu/size thành một sản phẩm riêng → một mẫu áo nhiều màu × nhiều size sinh hàng chục sản
+  phẩm trùng mô tả/ảnh, khách không chọn được phân loại trên một trang. Cửa hàng đồ dã ngoại thật quản lý tồn kho theo
+  từng màu/size.
+- **Quyết định:**
+  - Sản phẩm có tối đa 2 tuỳ chọn (`product_options`, vd. Màu sắc, Size), mỗi tuỳ chọn có các giá trị
+    (`product_option_values`). Biến thể (`product_variants`) = một tổ hợp giá trị; server tự sinh đủ mọi tổ hợp
+    (≤ 100). Sản phẩm không có tuỳ chọn có đúng 1 biến thể mặc định.
+  - Mọi biến thể cùng giá với sản phẩm (không có cột giá riêng).
+  - Tồn kho: `products.stock_quantity`/`reserved_quantity` GIỮ NGUYÊN — giỏ hàng / đơn hàng (Người 1) vẫn giữ chỗ và trừ
+    kho theo tổng sản phẩm, không sửa code của họ. `product_variants.stock_quantity` là tồn chi tiết; nhập/xuất/kiểm kê,
+    đóng gói/tháo combo đổi cả biến thể và tổng.
+  - Đơn hàng chỉ trừ tổng → phần chênh Σ tồn biến thể − tồn sản phẩm = "hàng đã bán chưa phân bổ"; nhân viên trừ vào
+    đúng biến thể khách mua ở trang Tồn kho (`allocateSold`, ghi nhật ký EXPORT, tổng không đổi). Sản phẩm chỉ 1 biến
+    thể: tồn biến thể luôn bằng tồn sản phẩm, không cần phân bổ.
+  - Cửa hàng chưa cho khách chọn biến thể (giỏ hàng chưa lưu biến thể).
+  - SKU không bắt buộc, không trùng — mã hàng nội bộ để kho / nhà cung cấp tra cứu, in nhãn.
+  - Tuỳ chọn và giá trị nhận diện theo id: đổi tên vẫn giữ biến thể và tồn kho. Thêm tuỳ chọn mới thì biến thể cũ chuyển
+    sang giá trị đầu tiên của tuỳ chọn đó (mang theo tồn kho). Biến thể còn tồn kho / đã dùng trong combo / đã có lịch sử
+    kho không xoá được — chỉ tắt bán (`is_active=false`, không hiện ở cửa hàng, không tính vào khả dụng).
+  - Combo: mỗi dòng là một biến thể cụ thể (`combo_items.variant_id`); đóng gói/tháo trừ/trả kho biến thể đó.
+  - Trang Tồn kho: nhập/xuất/kiểm kê theo biến thể; `inventory_logs` thêm `variant_id` (giữ `product_id` để lọc theo sản phẩm).
+- **Để sau:** ảnh theo màu (`images.option_value_id`); gộp các sản phẩm đang tách riêng theo màu/size thành một sản phẩm
+  nhiều biến thể.
+- **Để sau (Người 1):** `cart_items.variant_id`, `order_items.variant_id`, giữ chỗ / trừ kho theo biến thể; khi đó bỏ bước
+  phân bổ tay và cho khách chọn màu/size ở trang sản phẩm.
+- **Ảnh hưởng:** migration `V10__product_variants.sql` (dữ liệu cũ: mỗi sản phẩm → 1 biến thể mặc định mang nguyên tồn kho;
+  không xoá cột nào của `products`). Khoá dòng theo thứ tự sản phẩm → combo → biến thể (database.md mục 6).
+
 ## Tồn kho (2026-10-31, đánh số lại sau khi gộp dev)
 
 ### 2026-10-31 — D-36: Combo chỉ giảm tay ở trang Tồn kho; đóng gói/tháo ghi nhật ký kho
@@ -386,6 +438,7 @@ Bổ sung cho D-09 (D-09 vẫn giữ nguyên: 1 đánh giá / user / mặt hàng
   danh mục con → 400 `fieldErrors.categoryId`. Form và bộ lọc combo chỉ liệt kê danh mục cấp 1.
 
 ### 2026-10-24 — D-24: Bỏ biến thể, quay về mỗi mặt hàng là một sản phẩm
+- **Bị D-37 (2026-11-07) thay thế: biến thể tối đa 2 chiều, cùng giá.**
 - **Bối cảnh:** thiết kế gốc (quyết định 2025 "Không dùng biến thể", báo cáo Phase1) không có biến thể. D-20
   thêm phân loại một chiều để bán đúng dữ liệu mock, nhưng kéo theo đổi giỏ hàng, đơn hàng (của thành viên
   khác), combo theo phân loại, và còn phát sinh thêm (ảnh theo phân loại, tồn kho theo phân loại…).

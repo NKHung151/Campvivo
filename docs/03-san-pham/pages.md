@@ -61,7 +61,7 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/inventory` | Tồn kho: tab Sản phẩm (Nhập / Xuất / Kiểm kê), tab Combo (Đóng gói / Tháo / Xuất bộ hỏng), lọc "sắp hết", tab Nhật ký kho (lọc mặt hàng, lý do, ngày) — đã làm (N2-24, N2-25) | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
-| `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
+| `/admin/categories` | Cây danh mục 2 cấp (D-38): thêm, sửa (đổi danh mục cha ngay trong form, chỉ chọn cấp 1), xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
 | `/admin/combos`, `/admin/combos/new`, `/admin/combos/[id]` | Combo | Admin | `/admin/combos` |
 | `/admin/vouchers` | Voucher: danh sách (lọc trạng thái, tìm mã), thêm/sửa (modal, có "Hiển thị công khai"), xoá/tắt (đã có đơn dùng → chỉ tắt) | Admin | `/admin/vouchers` |
