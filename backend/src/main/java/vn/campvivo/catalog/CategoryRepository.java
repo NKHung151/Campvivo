@@ -34,6 +34,10 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             + " or exists(select 1 from product_combos where category_id = :id)", nativeQuery = true)
     boolean hasItems(@Param("id") Long id);
 
+    /** Combo chỉ gắn danh mục cấp 1 (D-23) — danh mục có combo không được thành danh mục con. */
+    @Query(value = "select exists(select 1 from product_combos where category_id = :id)", nativeQuery = true)
+    boolean hasCombos(@Param("id") Long id);
+
     /** Đổi cha (BR-13): thay tiền tố path của danh mục và cả cây con trong một câu. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(value = "update categories set path = :newPrefix || substring(path from length(:oldPrefix) + 1)"

@@ -1,0 +1,223 @@
+# =====================================================================================================================
+# Từ điển từ cấm tiếng Việt — kiểm duyệt nội dung đánh giá (D-33, docs/99-ghi-chu/decisions.md)
+# Dùng bởi: vn.campvivo.review.moderation.DictionaryModerator. Đánh giá chứa mục bất kỳ dưới đây bị LÀM MỜ (không bị chặn).
+#
+# Nguồn: nhóm Campvivo tự biên soạn (2026-11-06) từ ngôn từ tục/lăng mạ phổ biến trên mạng xã hội tiếng Việt.
+#        Khi bổ sung từ nguồn ngoài (danh sách mở trên GitHub, bộ dữ liệu ViHSD/ViHOS của UIT...) ghi nguồn + giấy phép tại đây.
+#
+# ĐỊNH DẠNG
+#   - Dòng bắt đầu bằng # là chú thích; dòng trống bỏ qua. Mỗi dòng MỘT mục (một từ hoặc một cụm nhiều từ).
+#   - Không phân biệt hoa thường. Viết đúng chính tả có dấu (trừ [abbr]).
+#   - [accented]: so trên chữ CÒN dấu. Dùng cho từ mà khi bỏ dấu sẽ trùng từ bình thường
+#                 (lồn ↔ "lon nước", cặc ↔ "các", đéo ↔ "đeo", đĩ ↔ "đi"). Bản viết biến dạng có chủ ý
+#                 (l0n, l.o.n, l*n) vẫn bị bắt theo bản bỏ dấu; viết thường không dấu ("lon") thì KHÔNG bị bắt.
+#   - [plain]:    so sau khi BỎ dấu. Chỉ dùng khi bỏ dấu vẫn không trùng từ/cụm bình thường nào.
+#   - [abbr]:     viết tắt / teencode, KHỚP NGUYÊN MỘT TOKEN, chỉ gồm a-z 0-9 (viết không dấu). "dm" không khớp "admin".
+#   - [allow]:    cụm hợp lệ hay bị bắt nhầm (so trên chữ còn dấu). Các từ trong cụm không bị xét nữa.
+#
+# QUY TẮC THÊM / SỬA MỤC
+#   1. Chỉ đưa vào: chửi thề/thô tục; tình dục theo nghĩa tục; lăng mạ nhân phẩm/trí tuệ; kỳ thị vùng miền, dân tộc,
+#      giới, xu hướng tính dục, khuyết tật; đe doạ bạo lực.
+#   2. KHÔNG đưa vào từ chê bai sản phẩm/dịch vụ (tệ, dỏm, lừa đảo, hàng fake, phí tiền, rác...) — đó là đánh giá hợp lệ.
+#   3. Trước khi thêm: bỏ dấu mục đó và nghĩ xem có trùng từ/cụm bình thường không (khách hay gõ không dấu:
+#      "ngu ngon" = ngủ ngon, "cac ban" = các bạn, "buoi toi" = buổi tối). Trùng → dùng [accented] hoặc cụm dài hơn.
+#      Cụm bắt đầu bằng "đồ" dễ trùng nghĩa "đồ vật" (đồ bóng đá, đồ ăn) — chỉ thêm khi không thể hiểu theo nghĩa đó.
+#   4. Mỗi mục mới: thêm ít nhất 1 câu "phải bắt" vào DictionaryModeratorTest và chạy lại toàn bộ nhóm "không được bắt".
+# =====================================================================================================================
+
+[accented]
+# --- Bộ phận sinh dục / hành vi tình dục (nghĩa tục) ---
+lồn
+lìn
+buồi
+cặc
+cứt
+địt
+đụ
+đù má
+đù mé
+chịch
+nứng
+bú cu
+xóc lọ
+thủ dâm
+hiếp dâm
+dâm đãng
+dâm tặc
+dâm dục
+# --- Mại dâm (dùng để lăng mạ) ---
+đĩ
+điếm
+con phò
+đồ phò
+# --- Chửi thề, xúc phạm gia đình ---
+đéo
+mẹ mày
+bố mày
+cha mày
+má mày
+con mẹ mày
+con mẹ nó
+cái con mẹ
+mả mẹ
+mả cha
+tổ cha
+tổ sư bố
+tiên sư bố
+tiên sư cha
+chết mẹ
+chết cha
+chó chết
+chó má
+chó đẻ
+đồ chó
+thằng chó
+con chó cái
+# --- Lăng mạ nhân phẩm / trí tuệ ---
+thằng ngu
+con ngu
+đồ ngu
+ngu ngốc
+ngu si
+ngu dốt
+ngu học
+ngu như bò
+ngu như chó
+ngu như lợn
+óc chó
+óc lợn
+óc bò
+não lợn
+não chó
+đầu đất
+mất dạy
+vô học
+mất nết
+đồ khốn
+thằng khốn
+đồ hèn
+thằng điên
+con điên
+đồ thần kinh
+# --- Kỳ thị khuyết tật ---
+thiểu năng
+bại não
+đồ què
+thằng què
+đồ mù
+thằng mù
+đồ điếc
+đồ câm
+# --- Kỳ thị vùng miền / dân tộc ---
+bắc kỳ
+nam kỳ
+bắc cụ
+đồ mọi
+thằng mọi
+mọi rợ
+chệt
+khựa
+# --- Kỳ thị giới / xu hướng tính dục ---
+bê đê
+pê đê
+xăng pha nhớt
+thằng bóng
+# --- Đe doạ bạo lực ---
+giết mày
+giết cả nhà
+đập chết mày
+chém chết
+đâm chết
+xiên chết
+đốt nhà mày
+cho mày chết
+đi chết đi
+mày chết
+
+[plain]
+# Bỏ dấu vẫn không trùng từ bình thường
+dit me
+dit con me
+dit cu
+du ma may
+khon nan
+suc vat
+suc sinh
+me kiep
+thang cho de
+# Tiếng Anh
+fuck
+fucking
+fucked
+fucker
+motherfucker
+shit
+bullshit
+bitch
+asshole
+bastard
+dick
+dickhead
+pussy
+cunt
+whore
+slut
+nigger
+nigga
+faggot
+retard
+
+[abbr]
+# Viết tắt / teencode của các mục trên (khớp nguyên token, đã bỏ dấu)
+dm
+dmm
+dcm
+dcmm
+dkm
+dkmm
+dmay
+ditme
+ditmemay
+dume
+dumay
+duma
+dumamay
+djt
+dek
+dech
+vcl
+vkl
+vl
+vler
+vlin
+vcc
+clm
+cmm
+cmn
+cmnr
+clgt
+loz
+lozz
+cak
+fck
+fuk
+fuq
+wtf
+stfu
+bede
+pede
+parky
+namkiki
+nguvl
+
+[allow]
+# Cụm hợp lệ chứa từ trùng với mục cấm
+hạt óc chó
+dầu óc chó
+sữa óc chó
+bánh óc chó
+cứt chim
+cứt ráy
+cứt sắt
+điếm canh
+nam kỳ khởi nghĩa

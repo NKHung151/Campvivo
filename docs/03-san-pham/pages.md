@@ -8,11 +8,11 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 |---|---|---|---|
 | `/` | Trang chủ: sản phẩm mới, combo, chiến dịch, bài viết | `/products`, `/combos`, `/articles` | ✅ |
 | `/products` | Tất cả sản phẩm: lọc danh mục/thương hiệu/khoảng giá, sắp xếp, phân trang | `GET /products` | ✅ |
-| `/products/[slug]` | Chi tiết sản phẩm: ảnh, giá (gốc + sau chiến dịch), tồn kho khả dụng, thêm giỏ, yêu thích, đánh giá, gợi ý mua kèm | `/products/{slug}`, `/products/{id}/reviews`, `/products/{id}/recommendations` | ✅ |
+| `/products/[slug]` | Chi tiết sản phẩm: ảnh, giá (gốc + sau chiến dịch), tồn kho khả dụng, thêm giỏ, yêu thích, đánh giá (điểm TB + phân bố sao, lọc theo sao, "Xem thêm", nội dung bị làm mờ kèm nút "Hiển thị", khối "Đánh giá của bạn" viết/sửa/xoá — FR-18), gợi ý mua kèm | `/products/{slug}`, `/products/{id}/reviews[/summary]`, `/reviews/mine`, `/reviews/eligibility`, `/products/{id}/recommendations` | ✅ (đánh giá dùng API thật — đầu trang "Xem N đánh giá" / "Chưa có đánh giá"; khối "Đánh giá của bạn" theo người xem: Guest → đăng nhập, khách chưa nhận hàng → thông báo, nhân viên chỉ xem; đã bỏ mock `localStorage`. Gợi ý mua kèm chưa có) |
 | `/categories/[slug]` | Sản phẩm theo danh mục (gồm danh mục con), bộ lọc, sắp xếp | `GET /products?category=` | ✅ |
 | `/categories/san-pham-moi` | Hàng mới về — slug đặc biệt, không phải danh mục DB | `GET /products?sortBy=newest` | ✅ |
 | `/combos?category=` | Danh sách combo, lọc theo danh mục cấp 1; giá gạch = tổng giá lẻ. Mục "Combo" trên menu chính | `GET /combos` | ✅ |
-| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá, gợi ý | `/combos/{slug}`, `/combos/{id}/reviews`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả, chọn số lượng + Mua ngay/Thêm vào giỏ; chưa có yêu thích, đánh giá, gợi ý) |
+| `/combos/[slug]` | Chi tiết combo: thành phần, giá combo, tồn kho, thêm giỏ, yêu thích, đánh giá (giống trang sản phẩm), gợi ý | `/combos/{slug}`, `/combos/{id}/reviews[/summary]`, `/reviews/mine`, `/reviews/eligibility`, `/combos/{id}/recommendations` | 🟡 (đã có ảnh, giá/tiết kiệm, tồn kho, danh sách món, mô tả, chọn số lượng + Mua ngay/Thêm vào giỏ, đánh giá (sao ở đầu trang + khối đánh giá dùng chung với trang sản phẩm); chưa có yêu thích, gợi ý) |
 | `/brands`, `/brands/[slug]` | Thương hiệu (từ `products.brand`, slug = slugify(brand)) | `GET /brands`, `GET /products?brand=` | ✅ |
 | `/search?q=&type=` | Kết quả tìm kiếm: tab Sản phẩm / Combo / Bài viết | `GET /search` | ✅ (thiếu tab Combo) |
 | `/promotions` | Khuyến mãi (mục "Khuyến mãi" trên menu chính, "Xem tất cả" của khối Flash sale): mọi sản phẩm đang giảm giá — gộp các chiến dịch, mỗi sản phẩm lấy mức giảm lớn nhất; lọc thương hiệu, khoảng giá, sắp xếp, phân trang; cột trái liệt kê các chiến dịch đang chạy | `GET /products?onSale=true`, `GET /campaigns` | ✅ |
@@ -41,8 +41,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/payment/vnpay-return` | Return URL của VNPay (`VNP_RETURN_URL`, D-28): gửi query `vnp_*` cho backend ghi nhận rồi chuyển `/checkout/success?orderId=` | `GET /vnpay/return` | ✅ |
 | `/account` | Hồ sơ: họ tên, SĐT, địa chỉ mặc định; đổi mật khẩu | `/users/me`, `/users/me/password` | ✅ (hiện là trang tab — tách thành route con). Tab "Hồ sơ" (email chỉ đọc; SĐT/địa chỉ để trống = xoá) và tab "Đổi mật khẩu" dùng API thật; đổi mật khẩu xong đăng xuất cục bộ và về `/login?changed=1` kèm thông báo. Nhân viên (EMPLOYEE/ADMIN) chưa có giao diện này (`/account` chỉ dành cho khách) |
 | `/account/orders` | Lịch sử đơn, lọc theo trạng thái | `GET /orders` | ✅ (tab "Đơn hàng của tôi" trong `/account`, API thật, "Xem thêm") |
-| `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, mã vận đơn GHN, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn), Viết đánh giá từng dòng | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `POST /reviews` | 🟡 (đã có chi tiết + huỷ; trả hàng, đánh giá chờ module tương ứng) |
-| `/account/reviews` | Đánh giá của tôi: sửa, xoá | `/users/me/reviews`, `PUT/DELETE /reviews/{id}` | ⬜ |
+| `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, mã vận đơn GHN, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn); đơn COMPLETED: mỗi dòng hàng có "Viết đánh giá" (chưa đánh giá) hoặc "Xem đánh giá" (sửa/xoá) mở hộp thoại | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `/reviews`, `/reviews/mine` | 🟡 (đã có chi tiết + huỷ + đánh giá theo từng dòng hàng; trả hàng chờ module tương ứng) |
 | `/account/favorites` | Yêu thích: tab Sản phẩm / Combo / Bài viết | `/users/me/favorites`, `DELETE /favorites/{id}` | ✅ (tab) |
 | `/account/notifications` | Thông báo: lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | `/notifications` | ⬜ |
 | `/account/support` | Chat hỗ trợ với nhân viên (realtime). ✅ Là tab "Hỗ trợ" của `/account` (mở thẳng bằng `/account/support`): một hội thoại, cuộn lên xem tin cũ, Enter gửi / Shift+Enter xuống dòng, báo trạng thái kết nối; mất kết nối vẫn gửi được, nối lại thì tự đồng bộ | `/support/messages`, WS `/user/queue/support` | ✅ |
@@ -58,10 +57,11 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/orders` | Danh sách đơn, lọc trạng thái/phương thức/ngày, tìm mã đơn/email/họ tên/SĐT ✅ | Staff | `GET /admin/orders` |
 | `/admin/orders/[id]` | Chi tiết đơn + lịch sử; chỉ hiện nút chuyển trạng thái server cho phép (kèm ghi chú, huỷ bắt buộc lý do); vận đơn GHN: tạo lại khi lỗi, xem hành trình ✅ | Staff | `/admin/orders/{id}`, `PATCH .../status`, `.../shipment` |
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
-| `/admin/inventory` | Tồn kho sản phẩm + combo (stock/reserved/available, cảnh báo sắp hết), form điều chỉnh, tab nhật ký | Staff | `/admin/inventory*` |
+| `/admin/reviews` | Đánh giá: bảng (mặt hàng, khách, sao, nội dung, từ bị bắt, trạng thái), lọc khách/mặt hàng, loại, số sao, trạng thái (đang hiện / đã ẩn / bị làm mờ); Ẩn (bắt buộc lý do) / Hiện lại / Đánh dấu an toàn; Xoá chỉ Admin (D-31) ✅ Bộ lọc + trang nằm trên URL; thao tác gom vào menu "⋯" mỗi dòng (mục Xoá chỉ Admin thấy, có hộp xác nhận); rê chuột vào "Đã ẩn" xem lý do, người ẩn, thời điểm | Staff | `/admin/reviews/*` |
+| `/admin/inventory` | Tồn kho: tab Sản phẩm (Nhập / Xuất / Kiểm kê), tab Combo (Đóng gói / Tháo / Xuất bộ hỏng), lọc "sắp hết", tab Nhật ký kho (lọc mặt hàng, lý do, ngày) — đã làm (N2-24, N2-25) | Staff | `/admin/inventory*` |
 | `/admin/support` | Danh sách hội thoại + khung chat. ✅ Cột trái: mỗi khách một dòng, tin mới nhất đứng đầu, nhãn "Chờ trả lời" khi tin cuối là của khách (chưa có "chưa đọc", KI-02); cột phải: tin của khách đang chọn (`?customer=` trên URL). Tin của khách đến ngay qua WebSocket; trên điện thoại hai cột tách thành hai màn hình | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
-| `/admin/categories` | Cây danh mục: thêm, sửa, đổi cha, xoá | Admin | `/admin/categories` |
+| `/admin/categories` | Cây danh mục 2 cấp (D-38): thêm, sửa (đổi danh mục cha ngay trong form, chỉ chọn cấp 1), xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |
 | `/admin/combos`, `/admin/combos/new`, `/admin/combos/[id]` | Combo | Admin | `/admin/combos` |
 | `/admin/vouchers` | Voucher: danh sách (lọc trạng thái, tìm mã), thêm/sửa (modal, có "Hiển thị công khai"), xoá/tắt (đã có đơn dùng → chỉ tắt) | Admin | `/admin/vouchers` |
@@ -74,9 +74,9 @@ menu nhưng chưa làm hiển thị "đang xây dựng"; khách hàng vào `/adm
 `/login?redirect=...`; lỗi mạng khi khôi phục phiên hiện nút "Thử lại" (không chuyển hướng, giữ token). Khi thử
 cần đăng nhập bằng 3 tài khoản mẫu (`local-development.md`); không còn ô chọn role "Dev".
 
-Layout admin: sidebar theo quyền (Employee chỉ thấy Đơn hàng, Trả hàng, Tồn kho, Hỗ trợ). Truy cập
+Layout admin: sidebar theo quyền (Employee chỉ thấy Đơn hàng, Trả hàng, Tồn kho, Đánh giá, Hỗ trợ). Truy cập
 trang không đủ quyền → trang 403; chưa đăng nhập → `/login?redirect=...`. Backend luôn kiểm tra lại.
 
 ## Đã bỏ
 - `/account/addresses` (D-02), `/admin/promotions` (tách thành `/admin/vouchers` + `/admin/campaigns`),
-  `/rentals`, `/account/rentals` (D-01).
+  `/rentals`, `/account/rentals` (D-01), `/account/reviews` (D-34 — sửa/xoá đánh giá ở trang mặt hàng và chi tiết đơn).

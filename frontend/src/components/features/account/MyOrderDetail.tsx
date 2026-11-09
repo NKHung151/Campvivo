@@ -9,6 +9,7 @@ import { ORDER_STATUS, PAYMENT_METHOD_LABEL, PAYMENT_STATUS, fmtDateTime } from 
 import { isApiError } from "@/services/apiError";
 import { cancelOrder, getOrder } from "@/services/orderService";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { ReviewDialog, type ReviewDialogItem } from "@/components/features/review/ReviewDialog";
 import type { OrderDetail } from "@/types/api/order";
 
 type Load = { status: "loading" } | { status: "ready"; order: OrderDetail } | { status: "error"; message: string; notFound: boolean };
@@ -20,6 +21,8 @@ export function MyOrderDetail({ id }: { id: number }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  /** Dòng hàng đang mở hộp thoại đánh giá (FR-18). */
+  const [reviewing, setReviewing] = useState<(ReviewDialogItem & { hasReview: boolean }) | null>(null);
 
   const reload = useCallback(() => {
     getOrder(id)
@@ -60,6 +63,19 @@ export function MyOrderDetail({ id }: { id: number }) {
   }
 
   const o = load.order;
+  const completed = o.status === "COMPLETED";
+
+  /** Cập nhật nút tại chỗ: mọi dòng cùng mặt hàng nhận id đánh giá mới (null = vừa xoá → viết lại được). */
+  const applyReview = (type: string, itemId: number, reviewId: number | null) =>
+    setLoad({
+      status: "ready",
+      order: {
+        ...o,
+        items: o.items.map((i) =>
+          i.type === type && i.itemId === itemId ? { ...i, myReviewId: reviewId, canReview: completed && reviewId === null } : i,
+        ),
+      },
+    });
 
   const doCancel = async () => {
     setCancelling(true);
@@ -103,6 +119,18 @@ export function MyOrderDetail({ id }: { id: number }) {
               {i.name}
               {i.type === "COMBO" && <span style={{ color: "#777" }}> (Combo)</span>}
               <div style={{ color: "#777", fontSize: 13 }}>{vnd(i.unitPrice)} / sản phẩm</div>
+              {completed && (
+                <button
+                  type="button"
+                  className="cv-link-btn"
+                  style={{ marginTop: 6 }}
+                  onClick={() =>
+                    setReviewing({ type: i.type, itemId: i.itemId, name: i.name, imageUrl: i.imageUrl, hasReview: i.myReviewId !== null })
+                  }
+                >
+                  {i.myReviewId !== null ? "Xem đánh giá" : "Viết đánh giá"}
+                </button>
+              )}
             </div>
             <div>x{i.quantity}</div>
             <div style={{ width: 120, textAlign: "right" }}>{vnd(i.lineTotal)}</div>
@@ -170,6 +198,15 @@ export function MyOrderDetail({ id }: { id: number }) {
             Không huỷ
           </button>
         </div>
+      )}
+
+      {reviewing && (
+        <ReviewDialog
+          item={reviewing}
+          hasReview={reviewing.hasReview}
+          onChanged={(reviewId) => applyReview(reviewing.type, reviewing.itemId, reviewId)}
+          onClose={() => setReviewing(null)}
+        />
       )}
     </div>
   );

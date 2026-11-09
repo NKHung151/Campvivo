@@ -15,6 +15,7 @@ import vn.campvivo.catalog.ProductImage;
 import vn.campvivo.catalog.ProductImageRepository;
 import vn.campvivo.catalog.ProductRepository;
 import vn.campvivo.catalog.ProductSpec;
+import vn.campvivo.catalog.ProductVariantManager;
 import vn.campvivo.catalog.admin.AdminProductResponses.Detail;
 import vn.campvivo.catalog.admin.AdminProductResponses.Summary;
 import vn.campvivo.common.config.AppProperties;
@@ -49,7 +50,8 @@ import java.util.stream.Collectors;
  * Quản lý sản phẩm cho admin — FR-06, docs/02-ky-thuat/api.md mục 4.10–4.11.
  * <ul>
  *   <li>Không xoá cứng (BR-14): "xoá" ở giao diện = ẩn bằng {@code isActive=false}.</li>
- *   <li>Không sửa tồn kho ở đây (FR-06): sản phẩm mới có stock 0, nhập kho qua module inventory.</li>
+ *   <li>Không sửa tồn kho ở đây (FR-06): biến thể mới có stock 0, nhập kho qua module inventory.</li>
+ *   <li>Tuỳ chọn / biến thể (tối đa 2 chiều, cùng giá — D-37) đồng bộ qua ProductVariantManager.</li>
  *   <li>Slug bỏ trống: tạo mới thì sinh từ tên (thêm hậu tố -2, -3 nếu trùng); sửa thì giữ slug cũ.
  *       Slug người dùng tự nhập mà trùng → 409 SLUG_ALREADY_EXISTS.</li>
  *   <li>Mô tả làm sạch HTML trước khi lưu; ảnh: tối đa 10, có ảnh thì đúng 1 ảnh chính.</li>
@@ -63,13 +65,15 @@ public class AdminProductService {
     private final ProductRepository productRepository;
     private final ProductImageRepository imageRepository;
     private final CategoryRepository categoryRepository;
+    private final ProductVariantManager variantManager;
     private final EntityManager entityManager;
     private final Clock clock;
     private final int lowStockThreshold;
 
     public AdminProductService(ProductRepository productRepository, ProductImageRepository imageRepository,
-                               CategoryRepository categoryRepository,
+                               CategoryRepository categoryRepository, ProductVariantManager variantManager,
                                EntityManager entityManager, Clock clock, AppProperties appProperties) {
+        this.variantManager = variantManager;
         this.productRepository = productRepository;
         this.imageRepository = imageRepository;
         this.categoryRepository = categoryRepository;
@@ -138,7 +142,9 @@ public class AdminProductService {
         Product product = new Product(category, req.name().trim(), slug, req.price(), now);
         applyDetails(product, category, slug, req, now);
         addImages(product, req.images(), now);
-        return Detail.from(productRepository.save(product));
+        productRepository.save(product);
+        syncVariants(product, req, now);
+        return Detail.from(product);
     }
 
     @Transactional
@@ -156,6 +162,7 @@ public class AdminProductService {
         product.getImages().clear();
         entityManager.flush();
         addImages(product, req.images(), now);
+        syncVariants(product, req, now);
         return Detail.from(product);
     }
 
@@ -187,6 +194,18 @@ public class AdminProductService {
         product.updateDetails(category, req.name().trim(), slug, blankToNull(req.shortDescription()),
                 cleanDescription(req.description()), blankToNull(req.brand()),
                 req.price(), normalizeSpecs(req.specs()), req.isActive(), now);
+    }
+
+    /** Tuỳ chọn + biến thể (D-37) — xem ProductVariantManager. */
+    private void syncVariants(Product product, ProductRequest req, OffsetDateTime now) {
+        List<ProductVariantManager.OptionInput> options = req.options() == null ? List.of() : req.options().stream()
+                .map(o -> new ProductVariantManager.OptionInput(o.id(), o.name(), o.values().stream()
+                        .map(v -> new ProductVariantManager.ValueInput(v.id(), v.value())).toList()))
+                .toList();
+        List<ProductVariantManager.VariantInput> variants = req.variants() == null ? List.of() : req.variants().stream()
+                .map(v -> new ProductVariantManager.VariantInput(v.values(), v.sku(), v.isActive()))
+                .toList();
+        variantManager.sync(product, options, variants, now);
     }
 
     /** Thông số: bỏ khoảng trắng thừa, không trùng tên (không phân biệt hoa thường), giữ thứ tự. */

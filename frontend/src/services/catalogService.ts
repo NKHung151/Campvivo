@@ -16,10 +16,11 @@ import type {
   MenuItem,
   ProductCard,
 } from "@/types/shop";
-import type { ProductFull, PdpKb, PdpStatic, RelatedItem, SidebarItem } from "@/types/product";
+import type { ProductFull, PdpStatic, RelatedItem, SidebarItem } from "@/types/product";
 import type { CategoryNode, ComboSummary, ItemSummary, ProductDetail } from "@/types/api/catalog";
 import { cleanMock } from "@/services/mockContent";
 import {
+  getBestSellersByCategory,
   getBrandList,
   getCampaign,
   getCategoryTree,
@@ -30,7 +31,7 @@ import {
   listProducts,
   productsBySlugs,
 } from "@/services/catalogApi";
-import { brandHref, categoryHref, comboHref, vnd } from "@/lib/format";
+import { brandHref, categoryHref, comboHref, productHref, vnd } from "@/lib/format";
 import { toSlug } from "@/lib/slug";
 
 /*
@@ -84,7 +85,6 @@ export const getCartData = cache(() =>
     "cart.json"
   )!
 );
-export const getPdpKb = cache(() => readJson<PdpKb>("pdp-kb.json")!);
 export const getPdpStatic = cache(() => readJson<PdpStatic>("pdp-static.json")!);
 
 export const getJournal = cache(() => readJson<JournalIndex>("journal.json")!);
@@ -123,6 +123,7 @@ export function toCard(p: ItemSummary): ProductCard {
     installment: false,
     rating: p.averageRating === null ? null : p.averageRating * 20,
     sold: null,
+    inStock: p.availableQuantity > 0,
     inv:
       p.availableQuantity <= 0
         ? { cls: "inv-zero", bar: "0%", label: "Hết hàng" }
@@ -163,7 +164,7 @@ function toRelated(p: ItemSummary): RelatedItem {
     oldPrice: c.oldPrice,
     discount: c.discount,
     discountClass: null,
-    rating: c.rating ?? 100,
+    rating: c.rating,
   };
 }
 
@@ -175,7 +176,7 @@ function toSidebar(p: ItemSummary): SidebarItem {
     img: p.primaryImageUrl ?? "",
     brand: p.brand ?? "",
     price: vnd(p.price),
-    rating: 100,
+    rating: p.averageRating === null ? null : p.averageRating * 20,
   };
 }
 
@@ -209,9 +210,11 @@ function toProductFull(
     // DB không lưu bảo hành → không hiện dòng "Bảo hành" trên trang sản phẩm
     warranty: null,
     maxQty: d.availableQuantity,
-    // Không có biến thể (D-24): mỗi màu/size là một sản phẩm riêng → không hiện ô chọn phân loại
-    variantLabel: null,
-    variants: [],
+    // Biến thể (D-37): chọn từng tuỳ chọn (Màu sắc rồi Size); sản phẩm không có tuỳ chọn → không hiện ô chọn
+    options: d.options,
+    variants: d.options.length
+      ? d.variants.map((v) => ({ id: v.id, values: v.values, inv: v.availableQuantity }))
+      : [],
     viewsToday: null,
     images: images.map((i) => ({ big: i.url, thumb: i.url, alt: d.name })),
     breadcrumbs: [
@@ -222,8 +225,6 @@ function toProductFull(
     catImg: images[0]?.url ?? null,
     descriptionHtml: d.description,
     specsHtml: specsTable(d.specs),
-    guideHtml: null,
-    reviews: [],
     social: null,
     fbt: [],
     articles: [],
@@ -273,23 +274,32 @@ function findWithAncestors(
 const catLink = (c: CategoryNode): LinkItem => ({ name: c.name, href: categoryHref(c.slug) });
 
 /**
- * Menu chính: danh mục gốc → nhóm (cấp 2) → link (cấp 3) lấy từ cây danh mục trong DB, đúng thứ tự API trả về.
+ * Menu chính: danh mục cấp 1 → nhóm (cấp 2) lấy từ cây danh mục trong DB, đúng thứ tự API trả về. Danh mục chỉ còn 2 cấp
+ * (D-38) → dưới mỗi nhóm hiện 3 sản phẩm bán chạy của nhóm đó (thay chỗ danh mục cấp 3 cũ), mỗi sản phẩm kèm ảnh
+ * nhỏ; nhóm không có ảnh.
  * Banner bên phải lấy từ menu mẫu nếu trùng đường dẫn; thêm mục Combo (nhóm theo danh mục cấp 1) và
  * mục Thương hiệu/khuyến mãi của menu mẫu.
  */
 export const getMenu = cache(async (): Promise<MenuItem[]> => {
   const mock = getMockMenu();
   const mockByHref = new Map(mock.map((m) => [m.href, m]));
-  const tree = await getCategoryTree().catch(() => [] as CategoryNode[]);
+  const [tree, bestSellers] = await Promise.all([
+    getCategoryTree().catch(() => [] as CategoryNode[]),
+    getBestSellersByCategory(3).catch(() => []),
+  ]);
+  const topByCategory = new Map(bestSellers.map((b) => [b.categoryId, b.items]));
   const fromDb: MenuItem[] = tree.map((root) => ({
     ...catLink(root),
     special: false,
     rightHtml: mockByHref.get(categoryHref(root.slug))?.rightHtml ?? null,
-    groups: root.children.map((g) => ({
-      ...catLink(g),
-      links: g.children.slice(0, 3).map(catLink),
-      more: g.children.slice(3).map(catLink),
-    })),
+    groups: root.children.map((g) => {
+      const top = topByCategory.get(g.id) ?? [];
+      return {
+        ...catLink(g),
+        links: top.map((p) => ({ name: p.name, href: productHref(p.slug), img: p.primaryImageUrl ?? undefined })),
+        more: [],
+      };
+    }),
   }));
   const combos = await listAllCombos().catch(() => [] as ComboSummary[]);
   const comboMenu: MenuItem[] = combos.length
@@ -359,8 +369,8 @@ export const getComboListing = cache(
 );
 
 /**
- * Trang danh mục. Danh mục có trong DB: tên, đường dẫn, danh mục con và sản phẩm từ DB; phần giới thiệu/banner
- * lấy từ dữ liệu mẫu nếu trùng slug. Danh mục chỉ có trong dữ liệu mẫu (link cũ): giữ bố cục mẫu, sản phẩm lấy từ DB.
+ * Trang danh mục. Danh mục có trong DB: tên, đường dẫn, danh mục con và sản phẩm từ DB; chỉ banner / ảnh danh mục con
+ * lấy từ dữ liệu mẫu nếu trùng slug (không lấy đoạn giới thiệu, thẻ hướng dẫn, khối cuối trang). Danh mục chỉ có trong dữ liệu mẫu (link cũ): giữ bố cục mẫu, sản phẩm lấy từ DB.
  */
 export const getCategoryPage = cache(
   async (
@@ -369,6 +379,8 @@ export const getCategoryPage = cache(
     category: Category;
     products: ProductCard[];
     carousels: { title: string; href: string | null; items: ProductCard[] }[];
+    /** Danh mục có trong DB → bộ lọc thống nhất (giảm giá, khoảng giá, còn hàng, thương hiệu). */
+    fromDb: boolean;
   } | null> => {
     const mock = getMockCategories()[slug];
     const hit = findWithAncestors(await getCategoryTree(), slug);
@@ -386,26 +398,28 @@ export const getCategoryPage = cache(
         slug,
         kind: "listing",
         name: node.name,
-        intro: mockListing?.intro ?? null,
+        // Đoạn giới thiệu / thẻ hướng dẫn / khối SEO cuối trang của mock wetrek không dùng cho danh mục DB: nội dung viết
+        // cho cây danh mục cũ (vd. "Balo - Túi") nên lệch tên mới, và chỉ ~15/59 danh mục trùng slug có (D-38)
+        intro: null,
         breadcrumbs: [{ name: "Sản phẩm", href: "/products" }, ...ancestors.map(catLink)],
-        sideCats: children.length
-          ? children
-          : (parent?.children ?? []).filter((c) => c.slug !== slug).map(catLink),
+        // Nhóm cấp 1: các danh mục con. Danh mục con: đủ các danh mục cùng nhóm (gồm chính nó — tô đậm ở ListingView),
+        // để bấm qua lại danh sách không đổi
+        sideCats: children.length ? children : (parent?.children ?? []).map(catLink),
         subCats: children
           .filter((c) => subImg.get(c.href))
           .map((c) => ({ ...c, img: subImg.get(c.href)! })),
-        filters: brands.length > 1 ? [{ title: "Thương hiệu", options: brands }] : [],
-        guide: mockListing?.guide ?? null,
+        filters: brands.length ? [{ title: "Thương hiệu", options: brands }] : [],
+        guide: null,
         products: [],
-        bottomHtml: mockListing?.bottomHtml ?? null,
+        bottomHtml: null,
         banner: mockListing?.banner ?? null,
       };
-      return { category, products: items.map(toCard), carousels: [] };
+      return { category, products: items.map(toCard), carousels: [], fromDb: true };
     }
     if (!mock) return null;
     if (mock.kind === "landing")
-      return { category: mock, products: [], carousels: await resolveCarousels(mock) };
-    return { category: mock, products: await cardsFor(mock.products), carousels: [] };
+      return { category: mock, products: [], carousels: await resolveCarousels(mock), fromDb: false };
+    return { category: mock, products: await cardsFor(mock.products), carousels: [], fromDb: false };
   }
 );
 

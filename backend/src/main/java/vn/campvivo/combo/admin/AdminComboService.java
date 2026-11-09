@@ -12,6 +12,8 @@ import vn.campvivo.catalog.Product;
 import vn.campvivo.catalog.ProductImage;
 import vn.campvivo.catalog.ProductImageRepository;
 import vn.campvivo.catalog.ProductRepository;
+import vn.campvivo.catalog.ProductVariant;
+import vn.campvivo.catalog.ProductVariantRepository;
 import vn.campvivo.combo.ComboItem;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.combo.ProductComboRepository;
@@ -22,6 +24,8 @@ import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.common.util.HtmlSanitizer;
 import vn.campvivo.common.util.SlugUtil;
+import vn.campvivo.inventory.InventoryLogService;
+import vn.campvivo.inventory.InventoryReason;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -42,9 +46,11 @@ import static vn.campvivo.catalog.ProductSpecifications.isCountQuery;
 /**
  * Quản lý combo — FR-15, D-03.
  * <ul>
- *   <li>Combo gồm ≥ 2 sản phẩm khác nhau, mỗi sản phẩm 1..99 cái trong một bộ.</li>
- *   <li>Tồn kho combo theo bộ (D-03): combo mới = 0; "đóng gói" N bộ trừ kho từng sản phẩm × số lượng (D-22) và cộng N vào
+ *   <li>Combo gồm ≥ 2 sản phẩm khác nhau, mỗi sản phẩm 1..99 cái trong một bộ. Mỗi dòng là một biến thể cụ thể của
+ *       sản phẩm (D-37) — sản phẩm có tuỳ chọn phải chọn biến thể, không có thì dùng biến thể mặc định.</li>
+ *   <li>Tồn kho combo theo bộ (D-03): combo mới = 0; "đóng gói" N bộ trừ kho từng biến thể × số lượng (D-22) và cộng N vào
  *       combo; "tháo" làm ngược lại (chỉ số bộ chưa bị giữ chỗ). Khách mua combo chỉ trừ kho combo.</li>
+ *   <li>Đóng gói/tháo ghi nhật ký kho cho combo và từng sản phẩm thành phần (D-36).</li>
  *   <li>Combo còn bộ đã đóng gói thì không đổi được thành phần (phải tháo hết trước) — để hàng tháo ra đúng hàng đã lấy.</li>
  *   <li>Không xoá cứng (BR-14): "xoá" = ẩn bằng isActive=false.</li>
  *   <li>Slug/ảnh/mô tả: cùng quy tắc với sản phẩm (slug trống → sinh từ tên; đúng 1 ảnh chính; HTML được làm sạch).</li>
@@ -57,18 +63,23 @@ public class AdminComboService {
 
     private final ProductComboRepository comboRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
     private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
+    private final InventoryLogService logService;
     private final EntityManager entityManager;
     private final Clock clock;
 
     public AdminComboService(ProductComboRepository comboRepository, ProductRepository productRepository,
+                             ProductVariantRepository variantRepository,
                              ProductImageRepository productImageRepository, CategoryRepository categoryRepository,
-                             EntityManager entityManager, Clock clock) {
+                             InventoryLogService logService, EntityManager entityManager, Clock clock) {
         this.comboRepository = comboRepository;
         this.productRepository = productRepository;
+        this.variantRepository = variantRepository;
         this.productImageRepository = productImageRepository;
         this.categoryRepository = categoryRepository;
+        this.logService = logService;
         this.entityManager = entityManager;
         this.clock = clock;
     }
@@ -105,7 +116,7 @@ public class AdminComboService {
         ProductCombo combo = new ProductCombo(category, req.name().trim(), slug, req.comboPrice(), now);
         combo.updateDetails(category, req.name().trim(), slug, cleanDescription(req.description()), req.comboPrice(),
                 req.isActive(), now);
-        items.forEach(i -> combo.addItem(i.product(), i.quantity()));
+        items.forEach(i -> combo.addItem(i.variant(), i.quantity()));
         addImages(combo, images, now);
         return detail(comboRepository.save(combo));
     }
@@ -130,7 +141,7 @@ public class AdminComboService {
         combo.getItems().clear();
         combo.getImages().clear();
         entityManager.flush();
-        items.forEach(i -> combo.addItem(i.product(), i.quantity()));
+        items.forEach(i -> combo.addItem(i.variant(), i.quantity()));
         addImages(combo, images, now);
         return detail(combo);
     }
@@ -155,9 +166,9 @@ public class AdminComboService {
         return Detail.from(combo, productIds.stream().map(images::get).toList());
     }
 
-    private record ResolvedItem(Product product, int quantity) {}
+    private record ResolvedItem(ProductVariant variant, int quantity) {}
 
-    /** ≥ 2 sản phẩm khác nhau, sản phẩm phải tồn tại. Giữ đúng thứ tự dòng. */
+    /** ≥ 2 sản phẩm khác nhau, sản phẩm phải tồn tại, biến thể phải thuộc sản phẩm. Giữ đúng thứ tự dòng. */
     private List<ResolvedItem> resolveItems(List<ComboRequest.ItemRequest> items) {
         Set<Long> ids = new HashSet<>();
         for (ComboRequest.ItemRequest i : items) {
@@ -173,33 +184,45 @@ public class AdminComboService {
             if (p == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "Sản phẩm #" + i.productId() + " trong combo không tồn tại.", null);
             }
-            out.add(new ResolvedItem(p, i.quantity()));
+            out.add(new ResolvedItem(resolveVariant(p, i.variantId()), i.quantity()));
         }
         return out;
     }
 
-    /** Thành phần không đổi (cùng sản phẩm, cùng số lượng; không tính thứ tự). */
+    /** Biến thể đã chọn; bỏ trống chỉ được khi sản phẩm không có tuỳ chọn (dùng biến thể mặc định). */
+    private static ProductVariant resolveVariant(Product p, Long variantId) {
+        if (variantId == null) {
+            if (p.hasOptions() || p.getVariants().size() != 1) {
+                throw fieldError("items", "Hãy chọn biến thể cho \"" + p.getName() + "\".");
+            }
+            return p.getVariants().get(0);
+        }
+        return p.getVariants().stream().filter(v -> v.getId().equals(variantId)).findFirst()
+                .orElseThrow(() -> fieldError("items", "Biến thể đã chọn không thuộc \"" + p.getName() + "\"."));
+    }
+
+    /** Thành phần không đổi (cùng biến thể, cùng số lượng; không tính thứ tự). */
     private static boolean sameItems(ProductCombo combo, List<ResolvedItem> items) {
         Map<Long, Integer> current = combo.getItems().stream()
-                .collect(Collectors.toMap(i -> i.getProduct().getId(), ComboItem::getQuantity, Integer::sum));
+                .collect(Collectors.toMap(i -> i.getVariant().getId(), ComboItem::getQuantity, Integer::sum));
         Map<Long, Integer> wanted = items.stream()
-                .collect(Collectors.toMap(i -> i.product().getId(), ResolvedItem::quantity, Integer::sum));
+                .collect(Collectors.toMap(i -> i.variant().getId(), ResolvedItem::quantity, Integer::sum));
         return current.equals(wanted);
     }
 
     // --- Đóng gói / tháo combo (D-22) --------------------------------------------------------------
 
-    /** Đóng gói `sets` bộ: trừ kho từng sản phẩm (số lượng × sets), cộng `sets` vào kho combo. Thiếu hàng → 409 OUT_OF_STOCK. */
+    /** Đóng gói `sets` bộ: trừ kho từng biến thể (số lượng × sets), cộng `sets` vào kho combo. Thiếu hàng → 409 OUT_OF_STOCK. */
     @Transactional
-    public Detail pack(Long id, int sets) {
+    public Detail pack(Long id, int sets, long userId) {
         ProductCombo combo = lockCombo(id);
-        Map<Long, Product> products = lockProducts(combo);
+        Map<Long, ProductVariant> variants = lockVariants(combo);
         List<String> shortages = new ArrayList<>();
         for (ComboItem i : combo.getItems()) {
-            Product p = products.get(i.getProduct().getId());
+            ProductVariant v = variants.get(i.getVariant().getId());
             int need = i.getQuantity() * sets;
-            if (p.getAvailableQuantity() < need) {
-                shortages.add(p.getName() + ": cần " + need + ", còn " + Math.max(0, p.getAvailableQuantity()));
+            if (v.getAvailableQuantity() < need) {
+                shortages.add(v.displayName() + ": cần " + need + ", còn " + Math.max(0, v.getAvailableQuantity()));
             }
         }
         if (!shortages.isEmpty()) {
@@ -208,27 +231,53 @@ public class AdminComboService {
                     Map.of("shortages", shortages));
         }
         OffsetDateTime now = OffsetDateTime.now(clock);
-        combo.getItems().forEach(i -> products.get(i.getProduct().getId()).takeForCombo(i.getQuantity() * sets, now));
+        String note = "Đóng gói " + sets + " bộ combo \"" + combo.getName() + "\"";
+        combo.getItems().forEach(i -> {
+            ProductVariant v = variants.get(i.getVariant().getId());
+            v.takeForCombo(i.getQuantity() * sets, now);
+            logService.record(v, userId, -i.getQuantity() * sets, InventoryReason.EXPORT, note);
+        });
         combo.addPackedSets(sets, now);
+        logService.record(combo, userId, sets, InventoryReason.IMPORT, note);
         return detail(combo);
     }
 
     /** Tháo `sets` bộ (chưa bị giữ chỗ): trả hàng về kho từng sản phẩm, trừ kho combo. */
     @Transactional
-    public Detail unpack(Long id, int sets) {
+    public Detail unpack(Long id, int sets, long userId) {
         ProductCombo combo = lockCombo(id);
         if (combo.getAvailableQuantity() < sets) {
             throw new BusinessException(ErrorCode.INVALID_STOCK_ADJUSTMENT, "Chỉ tháo được tối đa "
                     + Math.max(0, combo.getAvailableQuantity()) + " bộ (số bộ chưa bị giữ chỗ cho đơn hàng).", null);
         }
-        Map<Long, Product> products = lockProducts(combo);
+        Map<Long, ProductVariant> variants = lockVariants(combo);
         OffsetDateTime now = OffsetDateTime.now(clock);
+        String note = "Tháo " + sets + " bộ combo \"" + combo.getName() + "\"";
         combo.removePackedSets(sets, now);
-        combo.getItems().forEach(i -> products.get(i.getProduct().getId()).returnFromCombo(i.getQuantity() * sets, now));
+        logService.record(combo, userId, -sets, InventoryReason.EXPORT, note);
+        combo.getItems().forEach(i -> {
+            ProductVariant v = variants.get(i.getVariant().getId());
+            v.returnFromCombo(i.getQuantity() * sets, now);
+            logService.record(v, userId, i.getQuantity() * sets, InventoryReason.IMPORT, note);
+        });
         return detail(combo);
     }
 
+    /**
+     * Khoá theo thứ tự toàn hệ thống (database.md mục 6, giống đơn hàng): sản phẩm thành phần id tăng dần → combo. Đóng
+     * gói/tháo đổi cả tồn sản phẩm (giỏ hàng / đơn hàng dùng số này — D-37) nên phải khoá dòng sản phẩm.
+     */
     private ProductCombo lockCombo(Long id) {
+        List<Long> productIds = entityManager.createQuery(
+                        "select distinct i.product.id from ComboItem i where i.combo.id = :id order by i.product.id", Long.class)
+                .setParameter("id", id).getResultList();
+        if (!productIds.isEmpty()) {
+            entityManager.createQuery("select p from Product p where p.id in :ids order by p.id", Product.class)
+                    .setParameter("ids", productIds)
+                    .setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                    .getResultList()
+                    .forEach(entityManager::refresh);
+        }
         return comboRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "Không tìm thấy combo.", null));
     }
@@ -259,11 +308,11 @@ public class AdminComboService {
         }
     }
 
-    /** Khoá các sản phẩm thành phần theo id tăng dần (tránh deadlock với đặt hàng — database.md mục 6). */
-    private Map<Long, Product> lockProducts(ProductCombo combo) {
-        List<Long> ids = combo.getItems().stream().map(i -> i.getProduct().getId()).distinct().sorted().toList();
-        return productRepository.findAllByIdForUpdate(ids).stream()
-                .collect(Collectors.toMap(Product::getId, Function.identity()));
+    /** Khoá các biến thể thành phần theo id tăng dần (tránh deadlock với đặt hàng — database.md mục 6). */
+    private Map<Long, ProductVariant> lockVariants(ProductCombo combo) {
+        List<Long> ids = combo.getItems().stream().map(i -> i.getVariant().getId()).distinct().sorted().toList();
+        return variantRepository.findAllByIdForUpdate(ids).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
     }
 
     private ProductCombo find(Long id) {

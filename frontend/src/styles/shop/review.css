@@ -1,0 +1,394 @@
+/* Đánh giá sản phẩm/combo (FR-18) — components/features/review/* */
+
+/* Sao trên thẻ (.core > .stars, base.css): nền 5 sao xám để "chưa có đánh giá" hiện sao trống thay vì khoảng trắng */
+.core {
+  background: url(/assets/css/icon/5stars_grey.svg) no-repeat left center;
+  background-size: 60px 12px;
+}
+
+/* Sao hiển thị co giãn theo --cv-star (mặc định 14px/sao) */
+.cv-stars {
+  --cv-star: 14px;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: calc(var(--cv-star) * 5);
+  height: var(--cv-star);
+  background: url(/assets/css/icon/5stars_grey.svg) no-repeat left center;
+  background-size: 100% 100%;
+}
+.cv-stars > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: url(/assets/css/icon/5stars_blue.svg) no-repeat left center;
+  background-size: calc(var(--cv-star) * 5) 100%;
+}
+.cv-stars.lg {
+  --cv-star: 22px;
+}
+
+/* Chọn sao */
+.cv-star-input {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.cv-star-input button {
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  color: #d0d0d0;
+  line-height: 0;
+}
+.cv-star-input button.on {
+  color: #f5a623;
+}
+.cv-star-input button:focus-visible {
+  outline: 2px solid #2f6a3f;
+  outline-offset: 1px;
+}
+.cv-star-input button:disabled {
+  cursor: default;
+}
+.cv-star-input .lbl {
+  margin-left: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+/* Khối đánh giá */
+.cv-reviews {
+  font-size: 14px;
+  color: #333;
+}
+.cv-reviews h2 {
+  font-size: 18px;
+  margin: 0 0 14px;
+}
+.cv-review-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+.cv-review-summary .avg {
+  text-align: center;
+  min-width: 120px;
+}
+.cv-review-summary .avg b {
+  display: block;
+  font-size: 34px;
+  line-height: 1.1;
+  color: #cd2026;
+}
+.cv-review-summary .avg small {
+  display: block;
+  color: #777;
+  margin-top: 4px;
+}
+.cv-review-bars {
+  flex: 1 1 240px;
+  display: grid;
+  gap: 4px;
+}
+.cv-review-bars button {
+  display: grid;
+  grid-template-columns: 32px 1fr 36px;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cv-review-bars button:hover,
+.cv-review-bars button.active {
+  border-color: #2f6a3f;
+  background: #f3f8f4;
+}
+.cv-review-bars .bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #eee;
+  overflow: hidden;
+}
+.cv-review-bars .bar > span {
+  display: block;
+  height: 100%;
+  background: #f5a623;
+}
+.cv-review-bars .n {
+  text-align: right;
+  color: #777;
+}
+.cv-review-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.cv-review-filters button {
+  padding: 5px 12px;
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.cv-review-filters button.active {
+  border-color: #2f6a3f;
+  background: #2f6a3f;
+  color: #fff;
+}
+
+/* Mỗi đánh giá một khung riêng để dễ phân biệt khi có nhiều đánh giá. */
+.cv-review-item {
+  padding: 12px 16px;
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  background: #fff;
+  margin-bottom: 10px;
+}
+.cv-review-item:last-child {
+  margin-bottom: 0;
+}
+.cv-review-item .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.cv-review-item .name {
+  font-weight: 600;
+}
+.cv-review-item .date,
+.cv-review-item .edited {
+  color: #888;
+  font-size: 13px;
+}
+.cv-review-item .text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.cv-review-item .text.empty {
+  color: #999;
+  font-style: italic;
+}
+.cv-review-blur {
+  position: relative;
+}
+.cv-review-blur .text {
+  filter: blur(5px);
+  user-select: none;
+  pointer-events: none;
+}
+.cv-review-blur .veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #6b5200;
+  font-size: 13px;
+  text-align: center;
+}
+.cv-review-blur.short {
+  min-height: 56px;
+}
+.cv-link-btn {
+  padding: 4px 10px;
+  border: 1px solid #2f6a3f;
+  border-radius: 4px;
+  background: #fff;
+  color: #2f6a3f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-link-btn.danger {
+  border-color: #cd2026;
+  color: #cd2026;
+}
+.cv-link-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cv-review-mine {
+  padding: 14px 16px;
+  border: 1px solid #cfe3d4;
+  border-radius: 6px;
+  background: #f7fbf8;
+  margin-bottom: 16px;
+}
+/* Không dùng class `.ttl`: base.css ép `.ttl` thành chữ thường. */
+.cv-review-mine__title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+/* Đánh giá của mình đã nằm trong khung xanh → bỏ khung riêng của item. */
+.cv-review-mine .cv-review-item {
+  padding: 0;
+  border: 0;
+  background: none;
+  margin: 0;
+}
+.cv-review-mine .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.cv-review-note {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 8px 0;
+  background: #fff8e1;
+  border: 1px solid #f1d27a;
+  color: #6b5200;
+}
+.cv-review-note.danger {
+  background: #fdecee;
+  border-color: #f3b7bd;
+  color: #9b1c25;
+}
+.cv-review-muted {
+  color: #666;
+  padding: 12px 0;
+}
+
+.cv-review-form textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  margin-top: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font: inherit;
+  resize: vertical;
+}
+.cv-review-form .counter {
+  text-align: right;
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+.cv-review-form .err {
+  color: #cd2026;
+  font-size: 13px;
+  margin-top: 6px;
+}
+.cv-review-form .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.cv-review-form .cv-btn {
+  padding: 9px 20px;
+}
+
+/* Hộp thoại đánh giá ở chi tiết đơn */
+.cv-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.cv-dialog {
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.cv-dialog .hd {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.cv-dialog .hd img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+.cv-dialog .hd .nm {
+  flex: 1;
+  font-weight: 600;
+}
+.cv-dialog .close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: #666;
+}
+.cv-dialog .cv-review-mine {
+  margin: 0;
+}
+
+.cv-order .row .cv-review-btn {
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .cv-review-summary {
+    gap: 12px;
+    padding: 12px;
+  }
+  .cv-star-input button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Điểm đánh giá ở đầu trang combo */
+.cv-combo-rating {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 4px 0 10px;
+  font-size: 14px;
+}
+.cv-combo-rating a {
+  color: #2f6a3f;
+}
+#combo-reviews {
+  scroll-margin-top: 80px;
+}

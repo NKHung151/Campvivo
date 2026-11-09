@@ -1,4 +1,4 @@
-import type { LinkItem, Review } from "@/types/shop";
+import type { LinkItem } from "@/types/shop";
 
 export interface SidebarItem {
   slug: string | null;
@@ -7,7 +7,8 @@ export interface SidebarItem {
   img: string;
   brand: string;
   price: string;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface RelatedItem {
@@ -19,7 +20,8 @@ export interface RelatedItem {
   oldPrice: number | null;
   discount: string | null;
   discountClass: string | null;
-  rating: number;
+  /** 0–100 (% chiều rộng sao); null = chưa có đánh giá. */
+  rating: number | null;
 }
 
 export interface FbtItem {
@@ -53,8 +55,10 @@ export interface ProductFull {
   campaign?: { name: string; slug: string } | null;
   warranty: string | null;
   maxQty: number | null;
-  variantLabel: string | null;
-  variants: { name: string; inv: number }[];
+  /** Tuỳ chọn (tối đa 2, vd. Màu sắc → Size — D-37); rỗng = sản phẩm không có biến thể. */
+  options: { name: string; values: string[] }[];
+  /** Biến thể đang bán; `values` theo thứ tự `options`, `inv` = số còn bán được. Rỗng khi không có tuỳ chọn. */
+  variants: { id: number; values: string[]; inv: number }[];
   viewsToday: string | null;
   images: { big: string; thumb: string; alt: string }[];
   breadcrumbs: LinkItem[];
@@ -62,19 +66,11 @@ export interface ProductFull {
   catImg: string | null;
   descriptionHtml: string | null;
   specsHtml: string | null;
-  guideHtml: string | null;
-  reviews: Review[];
   social: { sold: number; rating: number; satisf: number } | null;
   fbt: FbtItem[];
   articles: { title: string; url: string }[];
   sidebar: { title: string; items: SidebarItem[] };
   related: { title: string; items: RelatedItem[] };
-}
-
-export interface PdpKb {
-  journeyRules: { keys: string[]; journeys: { icon: string; title: string; sub: string }[] }[];
-  educationTips: { keys: string[]; tips: string[] }[];
-  genericJourneys: { icon: string; title: string; sub: string }[];
 }
 
 export interface PdpStatic {

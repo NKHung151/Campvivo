@@ -99,9 +99,15 @@ Mỗi bước ghi lịch sử, gửi thông báo + email cho khách.
 
 ## 9. Đánh giá (FR-18)
 ```
-/account/orders/[id] (đơn COMPLETED) → "Viết đánh giá" ở dòng hàng → sao 1–5 + nội dung  [POST /reviews]
-  ⚠ REVIEW_ALREADY_EXISTS → chuyển sang sửa
-/account/reviews → sửa [PUT /reviews/{id}] / xoá [DELETE /reviews/{id}]
+/account/orders/[id] (đơn COMPLETED) → "Viết đánh giá" ở từng dòng hàng → hộp thoại: sao 1–5 (bắt buộc) + nội dung  [POST /reviews]
+  ⚠ REVIEW_ALREADY_EXISTS → tải đánh giá cũ [GET /reviews/mine] và chuyển sang sửa
+  đã đánh giá → "Xem đánh giá" → sửa [PUT /reviews/{id}] / xoá [DELETE /reviews/{id}]
+  ⚠ REVIEW_HIDDEN (bị nhân viên ẩn) → chỉ còn nút Xoá, hiện lý do
+/products/[slug], /combos/[slug] → tab Đánh giá: tổng quan + phân bố sao [GET .../reviews/summary]
+  → lọc theo sao, "Xem thêm" [GET .../reviews?rating=&page=]
+  → khối "Đánh giá của bạn" [GET /reviews/mine]: viết (nếu đã nhận hàng) / sửa / xoá
+  đánh giá chứa ngôn từ không phù hợp → nội dung bị làm mờ, bấm "Hiển thị" để đọc (D-33)
+/admin/reviews (Employee/Admin) → lọc → Ẩn (nhập lý do) / Hiện lại / Đánh dấu an toàn / Xoá (Admin)  [/admin/reviews/*]
 ```
 
 ## 10. Yêu thích (FR-20)

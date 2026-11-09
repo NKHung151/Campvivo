@@ -36,6 +36,7 @@ class ComboControllerTest {
 
     @BeforeEach
     void setUp() {
+        jdbc.update("DELETE FROM inventory_logs");
         jdbc.update("DELETE FROM product_combos");
         jdbc.update("DELETE FROM images");
         jdbc.update("DELETE FROM products");
@@ -47,9 +48,9 @@ class ComboControllerTest {
         jdbc.update("INSERT INTO images (product_id, image_url, is_primary, display_order) VALUES (?, 'https://img.example/leu.jpg', true, 0)", tent);
 
         long a = insertCombo(camping, "Combo cắm trại", "combo-cam-trai", 1_400_000, true, 3);
-        jdbc.update("INSERT INTO combo_items (combo_id, product_id, quantity) VALUES (?, ?, 1), (?, ?, 2)", a, tent, a, shirt);
+        insertItems(a, tent, 1, shirt, 2);
         long b = insertCombo(hiking, "Combo leo núi", "combo-leo-nui", 900_000, true, 0);
-        jdbc.update("INSERT INTO combo_items (combo_id, product_id, quantity) VALUES (?, ?, 1), (?, ?, 1)", b, tent, b, shirt);
+        insertItems(b, tent, 1, shirt, 1);
         insertCombo(camping, "Combo ẩn", "combo-an", 100_000, false, 0);
         // Combo leo núi có ảnh tự tải lên → ảnh đại diện là ảnh đó, rồi mới tới ảnh sản phẩm thành phần
         jdbc.update("INSERT INTO images (combo_id, image_url, is_primary, display_order) VALUES (?, 'https://img.example/combo-leo-nui.jpg', true, 0)", b);
@@ -114,8 +115,18 @@ class ComboControllerTest {
     }
 
     private long insertProduct(String name, String slug, long price) {
-        return jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price) VALUES (?, ?, ?, ?) RETURNING id",
-                Long.class, camping, name, slug, price);
+        return jdbc.queryForObject("""
+                WITH p AS (INSERT INTO products (category_id, name, slug, price) VALUES (?, ?, ?, ?) RETURNING id),
+                v AS (INSERT INTO product_variants (product_id) SELECT id FROM p)
+                SELECT id FROM p""", Long.class, camping, name, slug, price);
+    }
+
+    /** Hai dòng thành phần, mỗi dòng là biến thể mặc định của sản phẩm. */
+    private void insertItems(long combo, long p1, int q1, long p2, int q2) {
+        jdbc.update("""
+                INSERT INTO combo_items (combo_id, product_id, variant_id, quantity)
+                SELECT ?, product_id, id, CASE WHEN product_id = ? THEN ? ELSE ? END
+                FROM product_variants WHERE product_id IN (?, ?)""", combo, p1, q1, q2, p1, p2);
     }
 
     private long insertCombo(long categoryId, String name, String slug, long price, boolean active, int stock) {

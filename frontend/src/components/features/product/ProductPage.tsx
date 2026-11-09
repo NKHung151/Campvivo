@@ -2,36 +2,18 @@
 import Link from "next/link";
 import type { ProductCard } from "@/types/shop";
 import type { ProductFull } from "@/types/product";
-import { getPdpKb, getPdpStatic } from "@/services/catalogService";
-import { parseSpecs } from "@/lib/specs";
+import { getPdpStatic } from "@/services/catalogService";
 import { productHref } from "@/lib/format";
 import { Breadcrumb } from "@/components/features/layout/Breadcrumb";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { BrandStrip } from "@/components/features/catalog/LandingView";
 import { ProductGallery } from "@/components/features/product/ProductGallery";
 import { ProductInfo } from "@/components/features/product/ProductInfo";
-import { PdpDyn } from "@/components/features/product/PdpDyn";
 import { ProductTabs } from "@/components/features/product/ProductTabs";
 import { ViewedStrip } from "@/components/features/product/ViewedStrip";
 
-function pickByCategory<T>(rules: { keys: string[] }[], name: string | null, fallback: T, get: (i: number) => T): T {
-  const n = (name ?? "").toLowerCase();
-  if (n) for (let i = 0; i < rules.length; i++) if (rules[i].keys.some((k) => n.includes(k))) return get(i);
-  return fallback;
-}
-
-const GENERIC_TIPS = [
-  "🎯 Chọn đúng size giúp thoải mái và an toàn khi hoạt động",
-  "🔍 Kiểm tra chất liệu và thông số kỹ thuật trước khi mua",
-  "⚖️ Cân nhắc trọng lượng — nhẹ hơn giúp bền sức hơn khi dùng lâu",
-];
-
 export function ProductPage({ p }: { p: ProductFull }) {
-  const kb = getPdpKb();
   const st = getPdpStatic();
-  const journeys = pickByCategory(kb.journeyRules, p.categoryName, kb.genericJourneys, (i) => kb.journeyRules[i].journeys);
-  const tips = pickByCategory(kb.educationTips, p.categoryName, GENERIC_TIPS, (i) => kb.educationTips[i].tips);
-  const specs = parseSpecs(p.specsHtml).filter(([k, v]) => !/\d+(\.\d+)?\s*(V|W|A|mA|Hz|mAh|kWh|Wh)\b/i.test(`${k} ${v}`));
   const related: ProductCard[] = p.related.items
     .filter((r) => r.slug)
     .map((r) => ({
@@ -58,27 +40,10 @@ export function ProductPage({ p }: { p: ProductFull }) {
             <ProductInfo p={p} st={st} />
           </div>
           <div className="box-product-hotDeals" />
-          <PdpDyn
-            journeys={journeys}
-            heroImg={p.catImg}
-            tips={tips}
-            specs={specs}
-            articles={p.articles}
-            social={p.social}
-            fbt={p.fbt}
-            reviews={p.reviews}
-          />
           <div className="flx">
             <div id="ProductDetailCol1">
               <div id="ProductDetailCol3">
-                <ProductTabs
-                  slug={p.slug}
-                  descriptionHtml={p.descriptionHtml}
-                  specsHtml={p.specsHtml}
-                  guideHtml={p.guideHtml}
-                  rating={p.rating}
-                  reviews={p.reviews}
-                />
+                <ProductTabs productId={p.id} descriptionHtml={p.descriptionHtml} specsHtml={p.specsHtml} />
               </div>
             </div>
             {p.sidebar.items.length > 0 && (
@@ -99,7 +64,7 @@ export function ProductPage({ p }: { p: ProductFull }) {
                             <div className="brandOther">{it.brand}</div>
                             <div className="titleOther">{it.name}</div>
                             <div className="core">
-                              <div className="stars" style={{ width: `${it.rating}%` }} />
+                              <div className="stars" style={{ width: `${it.rating ?? 0}%` }} />
                             </div>
                             <div className="priceOther">{it.price}</div>
                           </SmartLink>

@@ -63,7 +63,7 @@ public class SecurityConfig {
                         // Khách hàng: chỉ CUSTOMER
                         .requestMatchers("/api/cart/**", "/api/orders/**", "/api/reviews/**",
                                 "/api/favorites/**", "/api/support/**", "/api/vouchers/**",
-                                "/api/users/me/reviews", "/api/users/me/favorites").hasRole("CUSTOMER")
+                                "/api/users/me/favorites").hasRole("CUSTOMER")
                         // Còn lại (vd. /api/users/me, /api/notifications, /api/auth/logout): mọi role đã đăng nhập
                         .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(tokenAuthenticator, errorHandler),

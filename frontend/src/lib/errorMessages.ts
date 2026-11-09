@@ -53,6 +53,7 @@ const BACKEND_MESSAGES: Record<string, string> = {
   RETURN_ALREADY_EXISTS: "Đơn hàng này đã có yêu cầu trả hàng.",
   NOT_PURCHASED: "Bạn chỉ có thể đánh giá sản phẩm đã mua.",
   REVIEW_ALREADY_EXISTS: "Bạn đã đánh giá sản phẩm này rồi.",
+  REVIEW_HIDDEN: "Đánh giá đã bị ẩn, bạn chỉ có thể xoá.",
 };
 
 /** Mã do frontend tự sinh (services/apiError.ts), không có ở backend. */

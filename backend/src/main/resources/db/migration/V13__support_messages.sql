@@ -1,4 +1,4 @@
--- V7 (N4-06): chat hỗ trợ khách <-> nhân viên — docs/02-ky-thuat/database.md mục 3.19 (D-05), index mục 3.23.
+-- V13 (N4-06): chat hỗ trợ khách <-> nhân viên — docs/02-ky-thuat/database.md mục 3.19 (D-05), index mục 3.23.
 -- user_id LUÔN là khách (chủ hội thoại), kể cả tin do nhân viên gửi (is_from_staff = true).
 -- Bảng notifications (3.20) KHÔNG nằm trong file này: thuộc N4-03.
 

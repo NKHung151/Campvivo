@@ -17,9 +17,27 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-06 — Người 4 (Claude Code) — review: đánh giá sản phẩm/combo + kiểm duyệt (FR-18, RV-01 → RV-35)
+- Đã làm: nhánh `feature/review-product` (tách từ `dev` @ `0899757`, vẫn CHƯA add/commit/push). Docs trước (api.md, database.md,
+  features/use-cases/pages/user-flows, authentication.md, D-31 → D-35). Backend: `V8__reviews.sql` (cột kiểm duyệt + ẩn, CHECK,
+  unique một phần); module `review` (khách: `POST/PUT/DELETE /reviews`, `GET /reviews/mine`, `GET /reviews/eligibility`;
+  công khai: `/products|combos/{id}/reviews[/summary]` lọc sao; admin `/admin/reviews` lọc + hide/unhide/clear-sensitive, DELETE
+  chỉ Admin); kiểm duyệt từ điển `moderation/vi-banned-words.txt` + `TextNormalizer` (chống lách, không chặn đăng, chỉ làm mờ);
+  `@Formula averageRating/reviewCount` trên `Product`/`ProductCombo` (bỏ đánh giá ẩn) thay `null, 0` ở catalog/combo/cart;
+  chi tiết đơn `myReviewId` + `canReview` thật. Frontend: `features/review/*` (ReviewSection, MyReviewPanel, ReviewDialog, Stars,
+  `styles/shop/review.css`) cho trang sản phẩm, combo, chi tiết đơn; bỏ mock `localStorage` và 5 sao giả trên thẻ; trang
+  `/admin/reviews` (antd, bộ lọc trên URL, menu "⋯" mỗi dòng).
+- Kiểm chứng: backend `mvn test` 490/490; `agent-lint.sh` sạch; frontend `tsc` sạch. Người dùng thử tay storefront + admin, góp ý
+  giao diện đã sửa. `npm run build` chưa chạy (dev server của người dùng đang chạy — dùng chung `.next`).
+- Lưu ý: `base.css` có `.ttl{text-transform:lowercase}` — đừng đặt tên class `ttl` cho tiêu đề mới. Tên "Kh?ch h?ng Dev" trong
+  DB local là do chạy SQL ở `local-development.md` qua terminal không UTF-8, không phải lỗi code.
+- Còn dang dở / TODO tiếp theo: chạy `npm run build` + kiểm lại V8 trên `origin` trước khi mở PR; F-09 còn `favorites`,
+  `support_messages`, `notifications`; hướng phát triển: kiểm duyệt AI, admin sửa từ điển trên giao diện.
+- Plan liên quan: `.agents/plans/completed/review-product.md`
+
 ### 2026-11-05 — Người 3 (Claude Code) — support: chat hỗ trợ khách ↔ nhân viên (N4-06, FR-26) + giao diện
 - Đã làm (nhánh `feature/support-n4-06-chat`, một PR gồm backend + giao diện; người dùng nhận làm N4-06 thay Người 4): backend `vn.campvivo.support` —
-  `V7__support_messages.sql` (CHỈ bảng `support_messages` + chỉ mục; `notifications` thuộc N4-03 nên KHÔNG tạo; `V5` đã bị đơn hàng dùng nên đổi sang `V7`),
+  `V13__support_messages.sql` (CHỈ bảng `support_messages` + chỉ mục; `notifications` thuộc N4-03 nên KHÔNG tạo). Số migration: roadmap F-09 ghi `V5` nhưng đã bị đơn hàng dùng; ban đầu dùng `V7`, rồi đổi sang `V13` khi gộp `dev` vì `dev` đã có `V8`–`V12` (DB của người đã chạy `dev` tới V12 sẽ BÁO LỖI nếu gặp một migration có số nhỏ hơn mà chưa áp; Flyway không bật `outOfOrder`) và `db/seed/` cũng đã dùng `V7` (cùng một dãy số Flyway); `V13` không trùng số nào ở cả hai thư mục,
   `SupportController` (`/support/messages`, CUSTOMER) và `AdminSupportController` (`/admin/support/conversations*`, EMPLOYEE + ADMIN, có `@PreAuthorize`),
   `SupportService`, `SupportRealtimeListener` (`@TransactionalEventListener(AFTER_COMMIT)` → `RealtimeSender.toStaff` / `toUser`). Phân trang tin dùng mốc `before=<id>`
   (không dùng `created_at`); hội thoại sắp theo id tin cuối. Giao diện: tab "Hỗ trợ" trong `/account` (+ route `/account/support`), `/admin/support` (hộp thư 2 cột),
@@ -41,7 +59,7 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   và nội dung đồng bộ giữa các nhân viên. `SupportMessageSentEvent` mang `staffSenderId` (chỉ để loại trừ, không lưu).
 - Hạn chế đã biết: chưa có notification `SUPPORT_MESSAGE` khi nhân viên trả lời (chờ N4-03/N4-04); không có "chưa đọc" / biết nhân viên nào trả lời / nhận xử lý riêng từng khách (KI-02); nhân viên không phân biệt được
   tin của mình với của đồng nghiệp (cả hai hiển thị "Nhân viên"); chưa có rate limit gửi tin; kết nối WebSocket không tự đóng khi đăng xuất / hết token (D-15); broker trong bộ nhớ → một instance.
-- Còn dang dở / TODO tiếp theo: người dùng thử tay trên trình duyệt; báo Người 4 rằng N4-06 đã xong và `V7` đã dùng (số migration `notifications` của họ phải khác); thêm 5 endpoint chat vào test ma trận phân quyền N3-10;
+- Còn dang dở / TODO tiếp theo: người dùng thử tay trên trình duyệt; báo Người 4 rằng N4-06 đã xong và `V13` đã dùng (bảng `notifications` của họ lấy số kế tiếp, từ `V14`; mỗi số chỉ dùng một lần trên cả `db/migration/` lẫn `db/seed/`); người dùng đã từng chạy bản `V7` trên DB dev thì phải xoá bảng `support_messages` và dòng version 7 trong `flyway_schema_history` trước khi chạy; thêm 5 endpoint chat vào test ma trận phân quyền N3-10;
   thêm notification `SUPPORT_MESSAGE` khi N4-03 có.
 - Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N4-06 đã tick)
 

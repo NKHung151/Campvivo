@@ -23,6 +23,8 @@ export interface ProductCard {
   rating: number | null;
   sold: string | null;
   inv?: InventoryBar | null;
+  /** Còn hàng bán được (sản phẩm từ DB) — bộ lọc "Còn hàng" ở trang danh mục. Không có = không biết, không lọc. */
+  inStock?: boolean;
   swatches?: Swatch[];
   /** Đường dẫn khác trang sản phẩm (thẻ combo → /combos/{slug}). */
   href?: string;
@@ -35,7 +37,8 @@ export interface LinkItem {
 
 export interface MenuGroup extends LinkItem {
   img?: string;
-  links: LinkItem[];
+  /** `img`: ảnh nhỏ cạnh tên (menu sản phẩm bán chạy — D-38). */
+  links: (LinkItem & { img?: string })[];
   more: LinkItem[];
 }
 
@@ -100,13 +103,6 @@ export interface VariantOption {
   sku?: string;
 }
 
-export interface Review {
-  name: string;
-  date: string;
-  rating: number;
-  text: string;
-}
-
 export interface ProductDetail extends ProductCard {
   sku: string;
   breadcrumbs: LinkItem[];
@@ -118,7 +114,6 @@ export interface ProductDetail extends ProductCard {
   variantLabel: string | null;
   variants: VariantOption[];
   reviewCount: number;
-  reviews: Review[];
   descriptionHtml: string;
   specsHtml: string | null;
   guideHtml: string | null;

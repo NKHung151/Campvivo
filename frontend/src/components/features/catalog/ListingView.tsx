@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- catalogue imagery is served as-is */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { Filter, LinkItem, ProductCard } from "@/types/shop";
 import { GridCard } from "@/components/features/catalog/ProductCard";
 import { SmartLink } from "@/components/ui/SmartLink";
@@ -84,8 +85,12 @@ export interface ListingProps {
   gridId?: string;
   /** Tiêu đề khối liên kết bên trái (mặc định "Danh mục"). */
   sideTitle?: string;
-  /** Hiện bộ lọc khoảng giá (trang /promotions). */
+  /** Hiện bộ lọc khoảng giá (trang /promotions, danh mục DB). */
   priceFilter?: boolean;
+  /** Hiện bộ lọc "Còn hàng" (danh mục DB — thẻ có `inStock`). */
+  stockFilter?: boolean;
+  /** Tên trang hiện cuối đường dẫn, bỏ tiêu đề lớn (trang danh mục DB). */
+  titleInBreadcrumb?: boolean;
   /** Số sản phẩm mỗi trang; bỏ trống = hiện tất cả (giữ nguyên trang danh mục/thương hiệu). */
   pageSize?: number;
   /** Ẩn bộ lọc "Đang giảm giá" khi mọi sản phẩm đều đang giảm (trang /promotions). */
@@ -96,17 +101,20 @@ export function ListingView(props: ListingProps) {
   const { title, breadcrumbs, intro, sideCats, subCats, filters, guide, products, bottomHtml } = props;
   const [sort, setSort] = useState("");
   const [onSale, setOnSale] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
   const [priceRange, setPriceRange] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [swatchImg, setSwatchImg] = useState<Record<string, string>>({});
   const compare = useCompare();
+  /** Đường dẫn trang hiện tại — tô đậm mục đang xem trong khối "Danh mục". */
+  const pathname = decodeURIComponent(usePathname() ?? "");
   const subRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const list = useMemo(() => {
-    let l = products.filter((p) => !onSale || discountPct(p) > 0);
+    let l = products.filter((p) => (!onSale || discountPct(p) > 0) && (!inStockOnly || p.inStock !== false));
     if (priceRange !== null) {
       const r = PRICE_RANGES[priceRange];
       l = l.filter((p) => (p.price ?? 0) >= r.min && (p.price ?? 0) < r.max);
@@ -120,10 +128,10 @@ export function ListingView(props: ListingProps) {
     if (sort === "new") by.reverse();
     if (sort === "discount") by.sort((a, b) => discountPct(b) - discountPct(a));
     return by;
-  }, [products, onSale, priceRange, selected, sort]);
+  }, [products, onSale, inStockOnly, priceRange, selected, sort]);
 
   // Đổi bộ lọc/sắp xếp → về trang 1
-  useEffect(() => setPage(1), [onSale, priceRange, selected, sort]);
+  useEffect(() => setPage(1), [onSale, inStockOnly, priceRange, selected, sort]);
   const pages = props.pageSize ? Math.max(1, Math.ceil(list.length / props.pageSize)) : 1;
   const shown = props.pageSize ? list.slice((page - 1) * props.pageSize, page * props.pageSize) : list;
   const goTo = (n: number) => {
@@ -166,9 +174,12 @@ export function ListingView(props: ListingProps) {
   return (
     <>
       <div className="pageContent">
-        {breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} />}
-        <div className="pageSort border-none">
-          {props.showTitleGroup === false ? (
+        {breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} current={props.titleInBreadcrumb ? title : undefined} />}
+        <div className={`pageSort border-none${props.titleInBreadcrumb ? " cv-no-title" : ""}`}>
+          {props.titleInBreadcrumb ? (
+            // Tên trang đã nằm cuối đường dẫn → tiêu đề lớn chỉ giữ cho trình đọc màn hình
+            <h1 className="cv-sr-only">{title}</h1>
+          ) : props.showTitleGroup === false ? (
             <h1 className="titleHead">{title}</h1>
           ) : (
             <div className="titleHead-group">
@@ -206,14 +217,34 @@ export function ListingView(props: ListingProps) {
         <div id="ProductCategoryLeft">
           {sideCats.length > 0 && (
             <div id="SubProductLeftCategory">
-              <div className="TopBar">{props.sideTitle ?? "Danh mục"}</div>
-              <div id="smoothmenu2" className="ddsmoothmenu-v">
+              {/* Xổ / thu gọn giống các nhóm lọc bên dưới (mặc định mở) */}
+              <div
+                className={`TopBar cv-side-toggle${open.__cats === false ? "" : " active"}`}
+                role="button"
+                tabIndex={0}
+                aria-expanded={open.__cats !== false}
+                onClick={() => setOpen((o) => ({ ...o, __cats: o.__cats === false }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpen((o) => ({ ...o, __cats: o.__cats === false }));
+                  }
+                }}
+              >
+                {props.sideTitle ?? "Danh mục"}
+              </div>
+              <div id="smoothmenu2" className="ddsmoothmenu-v" hidden={open.__cats === false}>
                 <ul>
                   {sideCats.map((c) => (
                     <li key={c.href}>
                       <div className="item_categoryLeft">
                         <span />
-                        <SmartLink className="cate" title={c.name} href={c.href}>
+                        <SmartLink
+                          className={`cate${c.href === pathname ? " current" : ""}`}
+                          aria-current={c.href === pathname ? "page" : undefined}
+                          title={c.name}
+                          href={c.href}
+                        >
                           {c.name}
                         </SmartLink>
                       </div>
@@ -273,6 +304,29 @@ export function ListingView(props: ListingProps) {
               )}
             </div>
           </div>
+          {props.stockFilter && (
+            <div id="stock-option" className="filter-wrap">
+              <div className="filter">
+                <div className={`title${open.__stock === false ? "" : " active"}`} onClick={() => setOpen((o) => ({ ...o, __stock: o.__stock === false }))}>
+                  Tình trạng
+                </div>
+                {open.__stock !== false && (
+                  <div className="filterFrame">
+                    <a
+                      className={`sub-filter nm${inStockOnly ? " current" : ""}`}
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setInStockOnly((v) => !v);
+                      }}
+                    >
+                      Còn hàng
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           {filters.length > 0 && (
             <div id="spft" className="filter-wrap">
               {filters.map((f, fi) => {

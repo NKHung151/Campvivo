@@ -2,8 +2,9 @@ package vn.campvivo.combo;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Formula;
 import vn.campvivo.catalog.Category;
-import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -12,7 +13,7 @@ import java.util.List;
 
 /**
  * Combo — bộ sản phẩm đóng gói sẵn, giá riêng, tồn kho riêng theo bộ (D-03; database.md mục 3.5).
- * Tồn kho combo tăng khi đóng gói (trừ kho sản phẩm của từng dòng `items`) và giảm khi tháo (trả kho) — D-22.
+ * Tồn kho combo tăng khi đóng gói (trừ kho biến thể của từng dòng `items`) và giảm khi tháo (trả kho) — D-22.
  * Khách mua combo chỉ giữ chỗ/trừ kho combo.
  */
 @Entity
@@ -48,6 +49,13 @@ public class ProductCombo {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /** Điểm TB đánh giá đang hiện, làm tròn 1 chữ số; null = chưa có (BR-10, D-35). */
+    @Formula("(SELECT ROUND(AVG(r.rating), 1) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private BigDecimal averageRating;
+
+    @Formula("(SELECT COUNT(*) FROM reviews r WHERE r.combo_id = id AND NOT r.is_hidden)")
+    private Long reviewCount;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -97,8 +105,8 @@ public class ProductCombo {
         images.add(new ComboImage(this, url, primary, displayOrder, now));
     }
 
-    public void addItem(Product product, int quantity) {
-        items.add(new ComboItem(this, product, quantity));
+    public void addItem(ProductVariant variant, int quantity) {
+        items.add(new ComboItem(this, variant, quantity));
     }
 
     /** Đóng gói thêm `sets` bộ (kho sản phẩm thành phần đã được trừ ở service). */
@@ -114,6 +122,19 @@ public class ProductCombo {
         }
         this.stockQuantity -= sets;
         this.updatedAt = now;
+    }
+
+    /**
+     * Xuất tay bộ combo hỏng/mất (FR-08). Chỉ được giảm — muốn tăng thì đóng gói để trừ hàng lẻ (D-36); không được làm
+     * tồn kho thấp hơn số đang giữ chỗ. Gọi khi đã khoá dòng. Trả về tồn kho sau thay đổi.
+     */
+    public int writeOff(int sets, OffsetDateTime now) {
+        if (sets <= 0 || getAvailableQuantity() < sets) {
+            throw new IllegalStateException("Không đủ bộ combo khả dụng để xuất");
+        }
+        this.stockQuantity -= sets;
+        this.updatedAt = now;
+        return stockQuantity;
     }
 
     /** Khả dụng = tồn − giữ chỗ (BR-1). */
@@ -158,6 +179,8 @@ public class ProductCombo {
     public int getStockQuantity() { return stockQuantity; }
     public int getReservedQuantity() { return reservedQuantity; }
     public boolean isActive() { return active; }
+    public Double getAverageRating() { return averageRating == null ? null : averageRating.doubleValue(); }
+    public long getReviewCount() { return reviewCount == null ? 0 : reviewCount; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public List<ComboItem> getItems() { return items; }

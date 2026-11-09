@@ -13,6 +13,138 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Danh mục (2026-11-07)
+
+### 2026-11-07 — D-38: Danh mục tối đa 2 cấp, mỗi loại hàng một chỗ
+- **Bối cảnh:** seed V3 chép menu wetrek 3 tầng chia theo hoạt động (Cắm trại / Leo núi / Du lịch…) — một loại hàng nằm
+  dưới nhiều hoạt động. DB chỉ cho 1 danh mục cha nên mỗi bản sao thành danh mục riêng: 273 danh mục cho 401 sản phẩm,
+  44 tên lặp ở 2–3 nhánh (vd. "Túi ngủ" ×3), 174 danh mục đúng 2 sản phẩm, 47 danh mục 0–1 sản phẩm; sản phẩm cùng loại bị
+  chia lẻ (vào "Giày leo núi" chỉ thấy một phần).
+- **Quyết định:**
+  - Danh mục = loại hàng (nó là gì), không phải hoạt động. Mỗi loại hàng một chỗ; tối đa 2 cấp — danh mục cha chỉ được
+    là danh mục cấp 1. Danh mục đang có con hoặc gắn combo (D-23) phải ở cấp 1. Bảng `categories` không đổi.
+  - Seed `V11__seed_category_tree_and_variants.sql` (dev): 9 nhóm × 59 danh mục con — Lều & Chỗ ngủ, Nấu ăn & Nước uống, Đèn & Điện tử,
+    Balo & Túi, Dụng cụ & An toàn, Trang phục, Giày dép, Bơi lặn & Thể thao nước, Xe đạp. Mỗi danh mục con đúng một loại
+    hàng, không ghép kiểu "Mũ - Khăn - Găng tay" (tách thành Mũ, Khăn, Găng tay); bỏ tên rỗng (Chăn, Giường). Bỏ Xe Máy,
+    Ô Tô (không phải đồ dã ngoại). Sản phẩm, combo chuyển theo bảng ánh xạ trong file — sản phẩm seed ở danh mục ghép cũ
+    xếp từng cái theo slug; sản phẩm Xe Máy / Ô Tô đã có đơn, giỏ, combo hoặc nhật ký kho thì chỉ ẩn.
+  - Admin: đổi danh mục cha ngay trong form sửa (chỉ chọn danh mục cấp 1); bỏ hộp "Chuyển vị trí".
+  - Menu cửa hàng: dưới mỗi danh mục cấp 2 hiện 3 sản phẩm bán chạy (`GET /products/best-sellers`) thay cho danh mục cấp 3
+    cũ; bán chạy = tổng số lượng trong đơn CONFIRMED/SHIPPING/COMPLETED, hoà thì nhiều đánh giá, rồi mới hơn.
+- **Để sau:** một loại hàng hiện ở nhiều chỗ trong menu (menu cấu hình riêng trỏ cùng một trang danh mục) — không cần
+  danh mục nhiều cha.
+
+## Biến thể sản phẩm (2026-11-07)
+
+### 2026-11-07 — D-37: Biến thể sản phẩm tối đa 2 chiều, mọi biến thể cùng giá (quản lý ở admin)
+- **Bối cảnh:** D-24 tách mỗi màu/size thành một sản phẩm riêng → một mẫu áo nhiều màu × nhiều size sinh hàng chục sản
+  phẩm trùng mô tả/ảnh, khách không chọn được phân loại trên một trang. Cửa hàng đồ dã ngoại thật quản lý tồn kho theo
+  từng màu/size.
+- **Quyết định:**
+  - Sản phẩm có tối đa 2 tuỳ chọn (`product_options`, vd. Màu sắc, Size), mỗi tuỳ chọn có các giá trị
+    (`product_option_values`). Biến thể (`product_variants`) = một tổ hợp giá trị; server tự sinh đủ mọi tổ hợp
+    (≤ 100). Sản phẩm không có tuỳ chọn có đúng 1 biến thể mặc định.
+  - Mọi biến thể cùng giá với sản phẩm (không có cột giá riêng).
+  - Tồn kho: `products.stock_quantity`/`reserved_quantity` GIỮ NGUYÊN — giỏ hàng / đơn hàng (Người 1) vẫn giữ chỗ và trừ
+    kho theo tổng sản phẩm, không sửa code của họ. `product_variants.stock_quantity` là tồn chi tiết; nhập/xuất/kiểm kê,
+    đóng gói/tháo combo đổi cả biến thể và tổng.
+  - Đơn hàng chỉ trừ tổng → phần chênh Σ tồn biến thể − tồn sản phẩm = "hàng đã bán chưa phân bổ"; nhân viên trừ vào
+    đúng biến thể khách mua ở trang Tồn kho (`allocateSold`, ghi nhật ký EXPORT, tổng không đổi). Sản phẩm chỉ 1 biến
+    thể: tồn biến thể luôn bằng tồn sản phẩm, không cần phân bổ.
+  - Cửa hàng chưa cho khách chọn biến thể (giỏ hàng chưa lưu biến thể).
+  - SKU không bắt buộc, không trùng — mã hàng nội bộ để kho / nhà cung cấp tra cứu, in nhãn.
+  - Tuỳ chọn và giá trị nhận diện theo id: đổi tên vẫn giữ biến thể và tồn kho. Thêm tuỳ chọn mới thì biến thể cũ chuyển
+    sang giá trị đầu tiên của tuỳ chọn đó (mang theo tồn kho). Biến thể còn tồn kho / đã dùng trong combo / đã có lịch sử
+    kho không xoá được — chỉ tắt bán (`is_active=false`, không hiện ở cửa hàng, không tính vào khả dụng).
+  - Combo: mỗi dòng là một biến thể cụ thể (`combo_items.variant_id`); đóng gói/tháo trừ/trả kho biến thể đó.
+  - Trang Tồn kho: nhập/xuất/kiểm kê theo biến thể; `inventory_logs` thêm `variant_id` (giữ `product_id` để lọc theo sản phẩm).
+- **Để sau:** ảnh theo màu (`images.option_value_id`); gộp các sản phẩm đang tách riêng theo màu/size thành một sản phẩm
+  nhiều biến thể.
+- **Để sau (Người 1):** `cart_items.variant_id`, `order_items.variant_id`, giữ chỗ / trừ kho theo biến thể; khi đó bỏ bước
+  phân bổ tay và cho khách chọn màu/size ở trang sản phẩm.
+- **Ảnh hưởng:** migration `V10__product_variants.sql` (dữ liệu cũ: mỗi sản phẩm → 1 biến thể mặc định mang nguyên tồn kho;
+  không xoá cột nào của `products`). Khoá dòng theo thứ tự sản phẩm → combo → biến thể (database.md mục 6).
+
+## Tồn kho (2026-10-31, đánh số lại sau khi gộp dev)
+
+### 2026-10-31 — D-36: Combo chỉ giảm tay ở trang Tồn kho; đóng gói/tháo ghi nhật ký kho
+- **Bối cảnh:** kho combo tăng bằng đóng gói (trừ hàng lẻ — D-22). Nếu trang Tồn kho cho nhập tay combo như sản phẩm, kho
+  combo tăng mà kho lẻ không giảm → có bộ combo "không có nguồn", bán ra là thiếu hàng lẻ thật.
+- **Quyết định:**
+  - Sản phẩm: nhập (IMPORT +), xuất (EXPORT −), kiểm kê (ADJUST ±).
+  - Combo: KHÔNG nhập tay; chỉ xuất/giảm tay khi bộ combo hỏng/mất (kho lẻ không đổi). Thêm bộ combo bằng Đóng gói, bớt
+    bằng Tháo — làm được ngay ở trang Tồn kho; ADMIN và EMPLOYEE đều dùng được (việc của kho).
+  - Đóng gói/tháo ghi `inventory_logs` (BR-8 mở rộng): combo ± số bộ và từng sản phẩm thành phần ∓ số lượng, ghi chú
+    "Đóng gói/Tháo N bộ combo …" — truy được vì sao hàng lẻ giảm.
+- **Ảnh hưởng:** migration `V9__inventory_logs.sql` (bảng có trong báo cáo, thêm `combo_id`). `/admin/combos/{id}/pack|unpack`
+  mở cho EMPLOYEE.
+
+## Đánh giá sản phẩm / combo (2026-11-06)
+
+Bổ sung cho D-09 (D-09 vẫn giữ nguyên: 1 đánh giá / user / mặt hàng, chỉ khi đã mua, chủ sửa/xoá cứng được).
+
+### 2026-11-06 — D-35: Điểm trung bình và số lượt đánh giá tính bằng `@Formula`
+- **Bối cảnh:** BR-10 cấm lưu cột tổng hợp. `averageRating`/`reviewCount` cần có ở `ItemSummary` (mọi danh sách), `ProductDetail`,
+  `ComboSummary`, `ComboDetail`, giỏ hàng — đang trả cứng `null`/0.
+- **Quyết định:** `Product` và `ProductCombo` có 2 thuộc tính chỉ đọc (`@Formula`): `averageRating` =
+  `ROUND(AVG(rating), 1)` và `reviewCount` = `COUNT(*)` trên `reviews` của mặt hàng, **bỏ đánh giá bị ẩn**. Cùng cách với
+  `salePrice` (D-30). Endpoint `.../reviews/summary` dùng cùng điều kiện nên không lệch.
+- **Lý do:** đúng BR-10; catalog/combo/cart không gọi sang module `review`; mọi nơi map DTO dùng được ngay, không N+1.
+- **Đánh đổi:** entity của `catalog`/`combo` chứa SQL đọc bảng `reviews`; mỗi dòng thêm 2 subquery (có index
+  `idx_reviews_product_id_created_at`, `idx_reviews_combo_id_created_at`).
+- **Phương án khác:** cột tổng hợp + cập nhật khi viết/xoá (trái BR-10, dễ lệch); gọi `ReviewQueryService` theo lô ở từng nơi
+  map DTO (phụ thuộc chéo nhiều module, dễ quên một nơi).
+
+### 2026-11-06 — D-34: Bỏ trang "Đánh giá của tôi" (`/account/reviews`, `GET /users/me/reviews`)
+- **Bối cảnh:** use case *Manage review* (báo cáo Phase1_v4) gắn với trang `/account/reviews`. Người dùng (Người 4) thấy trang
+  này thừa vì khách luôn đánh giá từ đơn hàng hoặc trang mặt hàng.
+- **Quyết định:** không làm `/account/reviews` và `GET /users/me/reviews`. *Manage review* thực hiện ở 2 nơi:
+  trang chi tiết sản phẩm/combo (khối "Đánh giá của bạn": sửa/xoá) và từng dòng hàng ở `/account/orders/[id]` (nút "Xem đánh giá").
+  Thêm `GET /reviews/mine?productId=|comboId=` để lấy đánh giá của chính mình cho 1 mặt hàng, và `OrderDetail.items[].myReviewId`.
+- **Lý do:** bớt 1 trang + 1 endpoint, chức năng của use case vẫn đủ. Khi bảo vệ: nêu *Manage review* được dời sang 2 trang trên.
+- **Phương án khác:** giữ trang riêng như báo cáo (thêm việc, trùng chức năng).
+
+### 2026-11-06 — D-33: Tự làm mờ đánh giá có ngôn từ không phù hợp bằng từ điển
+- **Bối cảnh:** người dùng muốn hệ thống tự phát hiện nội dung không lành mạnh và làm mờ, người xem bấm "Hiển thị" mới đọc.
+  Upload ảnh/video trong đánh giá đã bị bỏ, chỉ còn chữ.
+- **Quyết định:**
+  - Chỉ dùng **từ điển từ cấm tiếng Việt** là file trong code (`backend/src/main/resources/moderation/vi-banned-words.txt`), nhóm sửa
+    và commit; không có giao diện sửa từ điển. Từ điển chia `[accented]` (so trên chữ còn dấu — từ bỏ dấu sẽ trùng từ thường,
+    vd. `lồn`/`lon`, `ngu`/`ngủ`), `[plain]` (so sau khi bỏ dấu), `[abbr]` (teencode, khớp nguyên token), `[allow]` (cụm hay bắt nhầm).
+  - Trước khi so: chuẩn hoá Unicode NFC, bỏ ký tự vô hình, chữ thường, nối chữ cái đơn bị chèn ký tự (`đ.m` → `đm`), đổi leetspeak
+    trên token lẫn chữ–số, gộp chữ lặp ≥ 3. So theo ranh giới từ (`dm` không khớp trong `admin`).
+  - Chạy đồng bộ mỗi lần viết/sửa; bắt được → `moderation_status = SENSITIVE`, lưu `flagged_terms`. **Không chặn đăng.**
+  - Giao diện **làm mờ cả nội dung** (tên, sao, ngày vẫn hiện) + cảnh báo + nút "Hiển thị" (CSS blur — mục đích tránh vô tình đọc,
+    không phải giấu dữ liệu). Chủ đánh giá thấy rõ kèm ghi chú. Đánh giá bị mờ vẫn tính điểm.
+  - Từ điển chỉ chứa từ thô tục, tình dục (nghĩa tục), lăng mạ, kỳ thị, đe doạ — **không** chứa từ chê bai sản phẩm.
+- **Lý do:** miễn phí, chạy offline, kết quả xác định nên viết test được; dễ trình bày khi bảo vệ.
+- **Giới hạn đã biết:** không hiểu ngữ cảnh; bỏ sót câu xúc phạm không dùng từ tục và từ tục viết không dấu trùng từ thường →
+  nhân viên xử lý bằng "Ẩn" (D-31).
+- **Phương án khác:** API AI kiểm duyệt (hiểu ngữ cảnh nhưng cần API key, tốn phí, chậm) — để ở hướng phát triển, cắm thêm sau
+  interface `ContentModerator`; thay từ cấm bằng `***` (mất ngữ cảnh); chặn không cho đăng (khách bị chặn nhầm).
+
+### 2026-11-06 — D-32: Lọc đánh giá theo số sao; tách danh sách và tổng quan
+- **Bối cảnh:** api.md cũ trả `{averageRating, reviewCount, items}` từ `GET /products/{id}/reviews` — không khớp format phân trang
+  chung (`data` là mảng + `pagination`) và không có phân bố sao để làm bộ lọc.
+- **Quyết định:** `GET /products|combos/{id}/reviews?rating=1..5&page&limit` trả `[Review]` + `pagination`;
+  `GET /products|combos/{id}/reviews/summary` trả `{averageRating, reviewCount, ratingCounts}`. Giao diện: thanh phân bố 5★→1★
+  bấm để lọc + nút lọc "Tất cả · 5★ … 1★". Chỉ sắp xếp mới nhất trước.
+- **Lý do:** giữ đúng format phân trang chung; lọc không làm đổi tổng quan.
+- **Phương án khác:** nhét tổng quan vào mỗi trang danh sách (lặp dữ liệu, trái format chung).
+
+### 2026-11-06 — D-31: Nhân viên ẩn/hiện lại/đánh dấu an toàn đánh giá; chỉ Admin xoá
+- **Bối cảnh:** báo cáo không có chức năng quản trị đánh giá. Người dùng yêu cầu làm trong đợt này, cùng với làm mờ tự động (D-33).
+- **Quyết định:**
+  - Trang `/admin/reviews` (Employee + Admin): lọc theo khách/mặt hàng, loại, số sao, trạng thái (`VISIBLE`/`HIDDEN`/`SENSITIVE`).
+  - **Ẩn** (bắt buộc lý do ≤ 500 ký tự), **Hiện lại**, **Đánh dấu an toàn** (`SENSITIVE` → `CLEARED`): Employee + Admin.
+    **Xoá cứng**: chỉ Admin (khách viết lại được).
+  - Thêm cột `reviews.is_hidden`, `hidden_reason`, `hidden_by`, `hidden_at`, `moderation_status`, `flagged_terms` (vẫn 22 bảng).
+  - Đánh giá bị ẩn: không hiện công khai, không tính điểm; chủ thấy kèm lý do, **không sửa được** (`REVIEW_HIDDEN`), chỉ xoá;
+    xoá rồi viết lại thì đi qua kiểm duyệt như mới (chấp nhận khả năng lách, nhân viên ẩn tiếp được).
+  - Hành động của nhân viên không đổi `updated_at` (để "(đã chỉnh sửa)" chỉ phản ánh chủ sửa). Không gửi thông báo khi bị ẩn.
+- **Lý do:** "Ẩn" giữ lại dấu vết để đối chiếu, xoá chỉ dành cho spam; cột trên `reviews` đủ dùng, không cần bảng nhật ký.
+- **Phương án khác:** chỉ có xoá (mất dấu vết); bảng `review_moderation_logs` (vượt 22 bảng).
+
 ## Khuyến mãi — voucher và chiến dịch (2026-10-31)
 
 ### 2026-10-31 — D-30: Giá sau chiến dịch tính bằng một biểu thức SQL (`Product.salePrice`)
@@ -306,6 +438,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   danh mục con → 400 `fieldErrors.categoryId`. Form và bộ lọc combo chỉ liệt kê danh mục cấp 1.
 
 ### 2026-10-24 — D-24: Bỏ biến thể, quay về mỗi mặt hàng là một sản phẩm
+- **Bị D-37 (2026-11-07) thay thế: biến thể tối đa 2 chiều, cùng giá.**
 - **Bối cảnh:** thiết kế gốc (quyết định 2025 "Không dùng biến thể", báo cáo Phase1) không có biến thể. D-20
   thêm phân loại một chiều để bán đúng dữ liệu mock, nhưng kéo theo đổi giỏ hàng, đơn hàng (của thành viên
   khác), combo theo phân loại, và còn phát sinh thêm (ảnh theo phân loại, tồn kho theo phân loại…).

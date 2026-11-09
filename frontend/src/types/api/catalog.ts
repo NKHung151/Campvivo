@@ -39,7 +39,25 @@ export interface ImageRef {
   isPrimary: boolean;
 }
 
+/** Tuỳ chọn của sản phẩm (D-37), vd. { name: "Màu sắc", values: ["Tím", "Xanh"] }. Tối đa 2. */
+export interface ProductOption {
+  name: string;
+  values: string[];
+}
+
+/** Biến thể đang bán — cùng giá với sản phẩm. `values` theo thứ tự `options`; rỗng với biến thể mặc định. */
+export interface ProductVariant {
+  id: number;
+  /** "Tím / S/M"; null = sản phẩm không có tuỳ chọn. */
+  title: string | null;
+  values: string[];
+  availableQuantity: number;
+}
+
 export interface ProductDetail extends ItemSummary {
+  /** Rỗng = không có tuỳ chọn (`variants` có đúng 1 biến thể mặc định). */
+  options: ProductOption[];
+  variants: ProductVariant[];
   shortDescription: string | null;
   description: string | null;
   brand: string | null;
@@ -48,6 +66,12 @@ export interface ProductDetail extends ItemSummary {
   images: ImageRef[];
   campaign: { name: string; slug: string; endDate: string } | null;
   isFavorite?: boolean;
+}
+
+/** Sản phẩm bán chạy của một danh mục cấp 2 (GET /products/best-sellers — D-38), bán chạy nhất trước. */
+export interface CategoryBestSellers {
+  categoryId: number;
+  items: ItemSummary[];
 }
 
 export interface Brand {
@@ -83,6 +107,8 @@ export interface ComboSummary extends ItemSummary {
 /** Món trong combo. */
 export interface ComboDetailItem {
   product: ItemSummary;
+  /** Biến thể trong combo, vd. "Tím / S/M"; null = sản phẩm không có tuỳ chọn. */
+  variantTitle: string | null;
   quantity: number;
 }
 
@@ -153,8 +179,14 @@ export interface AdminProductSummary {
   price: Money;
   stockQuantity: number;
   reservedQuantity: number;
-  /** Khả dụng = stock − reserved (BR-1). */
+  /** Khả dụng = tổng (stock − reserved) các biến thể đang bán (BR-1). */
   availableQuantity: number;
+  /** Số biến thể (1 = không có tuỳ chọn). */
+  variantCount: number;
+  /** Tồn kho từng biến thể; rỗng khi sản phẩm không có tuỳ chọn (D-37). */
+  variants: { id: number; title: string; stockQuantity: number; availableQuantity: number; isActive: boolean }[];
+  /** Hàng đã bán theo đơn chưa trừ vào biến thể nào (D-37). */
+  unallocatedSold: number;
   isActive: boolean;
   primaryImageUrl: string | null;
   updatedAt: string;
@@ -172,12 +204,47 @@ export interface ProductSpec {
   value: string;
 }
 
-export interface AdminProductDetail extends Omit<AdminProductSummary, "categoryPath"> {
+/** Tuỳ chọn trong admin: id giữ nguyên khi đổi tên → biến thể và tồn kho được giữ (D-37). */
+export interface AdminProductOption {
+  id: number;
+  name: string;
+  position: number;
+  values: { id: number; value: string }[];
+}
+
+export interface AdminProductVariant {
+  id: number;
+  title: string | null;
+  values: string[];
+  sku: string | null;
+  stockQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  isActive: boolean;
+}
+
+export interface AdminProductDetail extends Omit<AdminProductSummary, "categoryPath" | "variantCount" | "variants" | "unallocatedSold"> {
   shortDescription: string | null;
   description: string | null;
   specs: ProductSpec[];
   images: AdminProductImage[];
+  options: AdminProductOption[];
+  variants: AdminProductVariant[];
   createdAt: string;
+}
+
+/** `id` có = tuỳ chọn / giá trị đã có; bỏ trống = mới. */
+export interface ProductOptionRequest {
+  id?: number | null;
+  name: string;
+  values: { id?: number | null; value: string }[];
+}
+
+/** Thiết lập của một tổ hợp (server tự sinh mọi tổ hợp). `values` theo thứ tự `options`. */
+export interface ProductVariantRequest {
+  values: string[];
+  sku?: string | null;
+  isActive?: boolean;
 }
 
 export interface ProductRequest {
@@ -193,6 +260,9 @@ export interface ProductRequest {
   specs: ProductSpec[];
   /** Thay toàn bộ danh sách ảnh; đúng 1 ảnh `isPrimary`. */
   images: AdminProductImage[];
+  /** Tối đa 2; rỗng = không có tuỳ chọn. Tuỳ chọn đã có giữ thứ tự, tuỳ chọn mới thêm ở sau. */
+  options: ProductOptionRequest[];
+  variants: ProductVariantRequest[];
 }
 
 /** Tồn kho khả dụng (stock − reserved). Sắp hết = 1..ngưỡng `app.inventory.low-stock-threshold` (mặc định 5). */
@@ -239,7 +309,11 @@ export interface AdminComboItem {
   productImageUrl: string | null;
   productPrice: Money;
   productActive: boolean;
-  /** Tồn kho khả dụng của sản phẩm — đóng gói trừ kho này (D-22). */
+  variantId: number;
+  /** null = biến thể mặc định (sản phẩm không có tuỳ chọn). */
+  variantTitle: string | null;
+  variantActive: boolean;
+  /** Tồn kho khả dụng của biến thể — đóng gói trừ kho này (D-22). */
   productAvailableQuantity: number;
   /** Số cái trong một bộ. */
   quantity: number;
@@ -264,8 +338,8 @@ export interface ComboRequest {
   isActive: boolean;
   /** Ảnh tự tải lên, ≤ 10, có ảnh thì đúng 1 `isPrimary`. Combo còn hiển thị thêm ảnh của các sản phẩm thành phần (D-26). */
   images: AdminProductImage[];
-  /** 2..20 sản phẩm khác nhau, mỗi dòng 1..99. */
-  items: { productId: number; quantity: number }[];
+  /** 2..20 sản phẩm khác nhau, mỗi dòng 1..99. `variantId` bắt buộc khi sản phẩm có tuỳ chọn. */
+  items: { productId: number; variantId?: number | null; quantity: number }[];
 }
 
 export type AdminComboSort = "UPDATED_DESC" | "CREATED_DESC" | "NAME_ASC" | "PRICE_ASC" | "PRICE_DESC" | "STOCK_ASC";

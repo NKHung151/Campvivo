@@ -545,6 +545,60 @@ a.simple-button-plugin:hover {
   text-decoration: underline;
   cursor: pointer;
 }
+/* Nhóm không có ảnh → tên + danh sách chiếm cả ô */
+.menuMain .cateName:first-child {
+  width: 100%;
+  padding-left: 0;
+}
+/* Menu danh mục (D-38): lưới 4 cột, nhóm cao theo nội dung, không chừa chỗ banner / ảnh nhóm */
+.menuMain .leftmenu.leftmenu-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 32px;
+  row-gap: 24px;
+  align-items: start;
+  padding: 0 28px;
+}
+.menuMain .leftmenu-grid .cate {
+  width: auto;
+  margin-bottom: 0;
+}
+.menuMain .leftmenu-grid .cateName {
+  width: 100%;
+  padding-left: 0;
+}
+.menuMain .leftmenu-grid .cateName .head {
+  min-height: 0;
+}
+.menuMain .leftmenu-grid a.subcate {
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #ececec;
+}
+.menuMain .leftmenu-grid .subcate2.withPic {
+  margin-bottom: 8px;
+}
+/* Sản phẩm bán chạy kèm ảnh nhỏ (D-38) */
+.menuMain .subcate2.withPic {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.menuMain .subcate2.withPic img {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+.menuMain .subcate2.withPic span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .menuMain .more {
   position: relative;
 }

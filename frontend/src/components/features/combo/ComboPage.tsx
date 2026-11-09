@@ -5,8 +5,13 @@ import { productHref, vnd } from "@/lib/format";
 import { Breadcrumb } from "@/components/features/layout/Breadcrumb";
 import { ProductGallery } from "@/components/features/product/ProductGallery";
 import { ComboBuyBox } from "@/components/features/combo/ComboBuyBox";
+import { ReviewSection } from "@/components/features/review/ReviewSection";
+import { StarRatingDisplay } from "@/components/features/review/Stars";
 
-/** Trang chi tiết combo (FR-07, FR-09): ảnh, giá so với mua lẻ, tình trạng, mua/thêm giỏ, các món trong combo, mô tả. */
+/**
+ * Trang chi tiết combo (FR-07, FR-09, FR-18): ảnh, điểm đánh giá, giá so với mua lẻ, tình trạng, mua/thêm giỏ,
+ * các món trong combo, mô tả, khối đánh giá.
+ */
 export function ComboPage({ c }: { c: ComboDetail }) {
   const saving = c.itemsTotal - c.price;
   const images = (c.images.length ? c.images : c.primaryImageUrl ? [{ url: c.primaryImageUrl, isPrimary: true }] : [])
@@ -30,6 +35,10 @@ export function ComboPage({ c }: { c: ComboDetail }) {
             <div className="khoi1">
               <div className="brand">Combo {c.items.length} món</div>
               <h1 className="tensp">{c.name}</h1>
+              <div className="cv-combo-rating">
+                <StarRatingDisplay value={c.reviewCount ? c.averageRating : null} />
+                <a href="#combo-reviews">{c.reviewCount ? `Xem ${c.reviewCount} đánh giá` : "Chưa có đánh giá"}</a>
+              </div>
               <div className="pro-price">
                 <div className="price">
                   Giá combo: <b>{vnd(c.price)}</b>
@@ -57,6 +66,7 @@ export function ComboPage({ c }: { c: ComboDetail }) {
                   </span>
                   <span className="cv-combo-info">
                     <span className="cv-combo-name">{i.product.name}</span>
+                    {i.variantTitle && <span className="cv-combo-price">Phân loại: {i.variantTitle}</span>}
                     <span className="cv-combo-price">{vnd(i.product.price)} / cái</span>
                   </span>
                   <span className="cv-combo-qty">×{i.quantity}</span>
@@ -71,6 +81,9 @@ export function ComboPage({ c }: { c: ComboDetail }) {
             <div className="contentview" dangerouslySetInnerHTML={{ __html: c.description }} />
           </div>
         )}
+        <div id="combo-reviews" className="cv-combo-desc">
+          <ReviewSection itemType="COMBO" itemId={c.id} />
+        </div>
       </div>
     </div>
   );
