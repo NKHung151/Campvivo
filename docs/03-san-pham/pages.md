@@ -44,7 +44,7 @@ nguồn dữ liệu (`docs/02-ky-thuat/api.md`). Trạng thái: ✅ đã có UI 
 | `/account/orders/[id]` | Chi tiết đơn: dòng hàng, tiền, người nhận, mã vận đơn GHN, lịch sử trạng thái; nút Huỷ (PENDING), Yêu cầu trả hàng (COMPLETED, trong hạn); đơn COMPLETED: mỗi dòng hàng có "Viết đánh giá" (chưa đánh giá) hoặc "Xem đánh giá" (sửa/xoá) mở hộp thoại | `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/returns`, `/reviews`, `/reviews/mine` | 🟡 (đã có chi tiết + huỷ + đánh giá theo từng dòng hàng; trả hàng chờ module tương ứng) |
 | `/account/favorites` | Yêu thích: tab Sản phẩm / Combo / Bài viết | `/users/me/favorites`, `DELETE /favorites/{id}` | ✅ (tab) |
 | `/account/notifications` | Thông báo: lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | `/notifications` | ⬜ |
-| `/account/support` | Chat hỗ trợ với nhân viên (realtime) | `/support/messages`, WS `/user/queue/support` | ⬜ |
+| `/account/support` | Chat hỗ trợ với nhân viên (realtime). ✅ Là tab "Hỗ trợ" của `/account` (mở thẳng bằng `/account/support`): một hội thoại, cuộn lên xem tin cũ, Enter gửi / Shift+Enter xuống dòng, báo trạng thái kết nối; mất kết nối vẫn gửi được, nối lại thì tự đồng bộ | `/support/messages`, WS `/user/queue/support` | ✅ |
 
 `/account/*` dùng chung layout có menu bên trái. Tab "địa chỉ" và "điểm" trong UI mock hiện tại bị
 bỏ (không có sổ địa chỉ — D-02; không có tích điểm trong báo cáo). Chuông thông báo trên header hiển
@@ -59,7 +59,7 @@ thị số chưa đọc cho mọi user đã đăng nhập.
 | `/admin/returns` | Yêu cầu trả hàng: lọc trạng thái; duyệt / từ chối / xác nhận đã nhận hàng | Staff | `/admin/returns` |
 | `/admin/reviews` | Đánh giá: bảng (mặt hàng, khách, sao, nội dung, từ bị bắt, trạng thái), lọc khách/mặt hàng, loại, số sao, trạng thái (đang hiện / đã ẩn / bị làm mờ); Ẩn (bắt buộc lý do) / Hiện lại / Đánh dấu an toàn; Xoá chỉ Admin (D-31) ✅ Bộ lọc + trang nằm trên URL; thao tác gom vào menu "⋯" mỗi dòng (mục Xoá chỉ Admin thấy, có hộp xác nhận); rê chuột vào "Đã ẩn" xem lý do, người ẩn, thời điểm | Staff | `/admin/reviews/*` |
 | `/admin/inventory` | Tồn kho: tab Sản phẩm (Nhập / Xuất / Kiểm kê), tab Combo (Đóng gói / Tháo / Xuất bộ hỏng), lọc "sắp hết", tab Nhật ký kho (lọc mặt hàng, lý do, ngày) — đã làm (N2-24, N2-25) | Staff | `/admin/inventory*` |
-| `/admin/support` | Danh sách hội thoại + khung chat | Staff | `/admin/support/*`, WS |
+| `/admin/support` | Danh sách hội thoại + khung chat. ✅ Cột trái: mỗi khách một dòng, tin mới nhất đứng đầu, nhãn "Chờ trả lời" khi tin cuối là của khách (chưa có "chưa đọc", KI-02); cột phải: tin của khách đang chọn (`?customer=` trên URL). Tin của khách đến ngay qua WebSocket; trên điện thoại hai cột tách thành hai màn hình | Staff | `/admin/support/*`, WS |
 | `/admin/users` | Danh sách, tìm, chi tiết, sửa role/khoá. ✅ Bảng có ô tìm (email / họ tên), lọc vai trò và trạng thái, phân trang; bộ lọc và người đang mở (`?user=`) nằm trên URL. Bấm một dòng mở ngăn kéo: địa chỉ, số đơn, tổng chi tiêu (đơn hoàn tất) và form sửa họ tên / SĐT / vai trò / khoá; đổi vai trò hoặc khoá có hộp xác nhận ("người này bị đăng xuất"); dòng của chính mình không đổi được vai trò / khoá | Admin | `/admin/users`, `/admin/users/{id}` |
 | `/admin/categories` | Cây danh mục 2 cấp (D-38): thêm, sửa (đổi danh mục cha ngay trong form, chỉ chọn cấp 1), xoá | Admin | `/admin/categories` |
 | `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Sản phẩm: danh sách, tạo, sửa (upload ảnh) | Admin | `/admin/products`, `/admin/uploads/images` |

@@ -7,12 +7,15 @@ import { useShop } from "@/components/features/shop/ShopProvider";
 import { MyOrders } from "@/components/features/account/MyOrders";
 import { ProfileForm } from "@/components/features/account/ProfileForm";
 import { ChangePasswordForm } from "@/components/features/account/ChangePasswordForm";
+import { SupportChat } from "@/components/features/support/SupportChat";
 
-type Tab = "orders" | "wishlist" | "address" | "profile" | "password";
+export type AccountTab = "orders" | "wishlist" | "address" | "profile" | "password" | "support";
+type Tab = AccountTab;
 const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Đơn hàng của tôi" },
   { id: "wishlist", label: "Danh sách yêu thích" },
   { id: "address", label: "Địa chỉ nhận hàng" },
+  { id: "support", label: "Hỗ trợ" },
   { id: "profile", label: "Hồ sơ" },
   { id: "password", label: "Đổi mật khẩu" },
 ];
@@ -21,9 +24,9 @@ const TABS: { id: Tab; label: string }[] = [
  * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); hồ sơ và đổi mật khẩu gọi API thật (FR-04); yêu thích và địa chỉ
  * giao gần nhất còn lưu ở trình duyệt (chưa có API favorites — Tier 2).
  */
-export function AccountPage() {
+export function AccountPage({ initialTab = "orders" }: { initialTab?: AccountTab }) {
   const { ready, user, wishlist, customer, openLogin, logout } = useShop();
-  const [tab, setTab] = useState<Tab>("orders");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [wish, setWish] = useState<ProductCard[]>([]);
 
   useEffect(() => {
@@ -67,6 +70,7 @@ export function AccountPage() {
         <section>
           <h1>{TABS.find((t) => t.id === tab)!.label}</h1>
           {tab === "orders" && <MyOrders />}
+          {tab === "support" && <SupportChat />}
           {tab === "profile" && <ProfileForm />}
           {tab === "password" && <ChangePasswordForm />}
           {tab === "wishlist" &&

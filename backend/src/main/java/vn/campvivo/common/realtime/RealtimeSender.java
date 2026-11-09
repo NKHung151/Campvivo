@@ -18,4 +18,10 @@ public interface RealtimeSender {
 
     /** Gửi tới mọi nhân viên (EMPLOYEE, ADMIN còn hoạt động) đang kết nối. */
     void toStaff(String destination, Object payload);
+
+    /**
+     * Như {@link #toStaff} nhưng bỏ qua nhân viên `excludedUserId` (thường là chính người vừa gây ra tin, đã có kết quả qua phản hồi
+     * REST nên không cần nhận lại). `excludedUserId` null = không bỏ qua ai.
+     */
+    void toStaffExcept(Long excludedUserId, String destination, Object payload);
 }

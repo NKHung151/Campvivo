@@ -94,7 +94,7 @@ public interface PaymentGateway {
   `toUser(userId, RealtimeDestinations.NOTIFICATIONS | SUPPORT, payload)` và `toStaff(destination, payload)`. Gửi lỗi chỉ được ghi log
   (không ném ra), nên gọi thoải mái trong listener `AFTER_COMMIT`; kênh sai là lỗi lập trình (`IllegalArgumentException`).
 - Chat: tin của khách → `toStaff(SUPPORT, ...)` tới mọi nhân viên (EMPLOYEE, ADMIN còn hoạt động) **đang kết nối** (`/user/{staffId}/queue/support`);
-  tin của nhân viên → `toUser(customerId, SUPPORT, ...)`.
+  tin của nhân viên → `toUser(customerId, SUPPORT, ...)` và `toStaffExcept(staffId, SUPPORT, ...)` (các nhân viên còn lại, trừ người gửi).
 - Xác thực JWT ở khung CONNECT (`StompAuthChannelInterceptor`) dùng chung `TokenAuthenticator` với `JwtAuthenticationFilter`.
 
 ## Job định kỳ

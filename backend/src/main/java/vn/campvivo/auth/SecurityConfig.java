@@ -82,7 +82,15 @@ public class SecurityConfig {
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);
 
+        // SockJS gọi `/ws/info` bằng XHR ở chế độ credentials "include" nên trình duyệt đòi `Access-Control-Allow-Credentials: true`,
+        // thiếu thì chặn trước khi kết nối (thư viện Node/Java không có CORS nên test không lộ). Chỉ mở cho `/ws/**`, origin vẫn là
+        // danh sách cụ thể (không bao giờ `*`); hệ thống không dùng cookie, JWT đi trong khung CONNECT.
+        CorsConfiguration webSocket = new CorsConfiguration(config);
+        webSocket.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        webSocket.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/ws/**", webSocket);
         source.registerCorsConfiguration("/**", config);
         return source;
     }

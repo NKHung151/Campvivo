@@ -35,6 +35,34 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
   `support_messages`, `notifications`; hướng phát triển: kiểm duyệt AI, admin sửa từ điển trên giao diện.
 - Plan liên quan: `.agents/plans/completed/review-product.md`
 
+### 2026-11-05 — Người 3 (Claude Code) — support: chat hỗ trợ khách ↔ nhân viên (N4-06, FR-26) + giao diện
+- Đã làm (nhánh `feature/support-n4-06-chat`, một PR gồm backend + giao diện; người dùng nhận làm N4-06 thay Người 4): backend `vn.campvivo.support` —
+  `V13__support_messages.sql` (CHỈ bảng `support_messages` + chỉ mục; `notifications` thuộc N4-03 nên KHÔNG tạo). Số migration: roadmap F-09 ghi `V5` nhưng đã bị đơn hàng dùng; ban đầu dùng `V7`, rồi đổi sang `V13` khi gộp `dev` vì `dev` đã có `V8`–`V12` (DB của người đã chạy `dev` tới V12 sẽ BÁO LỖI nếu gặp một migration có số nhỏ hơn mà chưa áp; Flyway không bật `outOfOrder`) và `db/seed/` cũng đã dùng `V7` (cùng một dãy số Flyway); `V13` không trùng số nào ở cả hai thư mục,
+  `SupportController` (`/support/messages`, CUSTOMER) và `AdminSupportController` (`/admin/support/conversations*`, EMPLOYEE + ADMIN, có `@PreAuthorize`),
+  `SupportService`, `SupportRealtimeListener` (`@TransactionalEventListener(AFTER_COMMIT)` → `RealtimeSender.toStaff` / `toUser`). Phân trang tin dùng mốc `before=<id>`
+  (không dùng `created_at`); hội thoại sắp theo id tin cuối. Giao diện: tab "Hỗ trợ" trong `/account` (+ route `/account/support`), `/admin/support` (hộp thư 2 cột),
+  hook `useSupportSocket` (STOMP/SockJS, JWT trong CONNECT, tự nối lại, đồng bộ lại bằng REST khi nối lại), `ChatPanel` dùng chung, `lib/support.ts`.
+  Thêm thư viện `@stomp/stompjs` 7.0.0, `sockjs-client` 1.6.1, `@types/sockjs-client` 1.5.4 (đổi `package.json` + lockfile).
+- Kiểm chứng: `SupportChatIntegrationTest` 20 test (PostgreSQL thật + STOMP thật: cô lập giữa khách, quyền 401/403/404, phân trang `before`, kiểm tra 1–2000 ký tự, thứ tự hội thoại,
+  đẩy đúng người, KHÔNG đẩy khi giao dịch bị huỷ); 8 đột biến đều bị bắt đúng test (bỏ lọc user_id ở `before`, mất cờ `isFromStaff`, bỏ kiểm tra đích là khách, đẩy trước commit,
+  đẩy nhầm người/nhầm kênh, đảo thứ tự, bỏ trim); đột biến bỏ `@PreAuthorize` là tương đương (SecurityConfig đã chặn khách ở `/api/admin/**`) nên giữ làm lớp phòng thủ thứ hai.
+  Toàn bộ backend 348 test xanh cả thứ tự mặc định lẫn đảo (`reversealphabetical`). Chạy thật (backend 8081): 14 kiểm tra bằng chính `@stomp/stompjs` + `sockjs-client` đã cài
+  (tin khách → nhân viên/admin, trả lời → đúng khách, tiếng Việt nguyên vẹn, HTML giữ dạng text, 401/403, token sai bị từ chối ở CONNECT). Frontend: tsc, `next lint`, `next build` sạch;
+  hàm thuần (`mergeMessages`, `normalizeContent`, `wsUrlFromApiUrl`) kiểm bằng script `tsx` ngoài repo.
+- Lỗi tìm ra khi người dùng thử trên trình duyệt: chat báo "Mất kết nối trực tiếp" (REST vẫn chạy). Nguyên nhân (tái hiện bằng Chrome thật qua puppeteer-core): SockJS gọi `/ws/info`
+  với credentials "include" mà CORS trả `Allow-Credentials` rỗng → Chrome chặn. Lỗi có sẵn từ N3-08, bị bỏ sót vì test dùng client Java/Node (không có CORS). Sửa: cấu hình CORS riêng cho
+  `/ws/**` với `allowCredentials=true` trong `SecurityConfig` (origin vẫn là danh sách cụ thể); thêm test trong `RealtimeIntegrationTest` (đột biến hoàn lại lỗi → đúng test đó đỏ).
+  Sau sửa, kịch bản Chrome thật 2 người dùng đạt: khách gửi → nhân viên thấy ngay không tải lại, nhân viên trả lời → khách thấy ngay, xuống dòng giữ nguyên, HTML hiện nguyên dạng text,
+  bố cục điện thoại đúng, không lỗi console. Bài học ghi ở `lessons-learned.md`.
+- Chưa kiểm chứng: gõ tiếng Việt có dấu bằng bộ gõ thật (Telex/VNI) với phím Enter, cuộn giữ vị trí khi tải tin cũ, tự nối lại sau khi tắt rồi bật backend, tablet, CI GitHub.
+- Hộp thư CHUNG (D-05): người dùng hỏi nên đã thêm `RealtimeSender.toStaffExcept(excludedUserId, ...)`; tin trả lời của nhân viên được đẩy tới khách VÀ các nhân viên còn lại (trừ người gửi), nên nhãn "Chờ trả lời"
+  và nội dung đồng bộ giữa các nhân viên. `SupportMessageSentEvent` mang `staffSenderId` (chỉ để loại trừ, không lưu).
+- Hạn chế đã biết: chưa có notification `SUPPORT_MESSAGE` khi nhân viên trả lời (chờ N4-03/N4-04); không có "chưa đọc" / biết nhân viên nào trả lời / nhận xử lý riêng từng khách (KI-02); nhân viên không phân biệt được
+  tin của mình với của đồng nghiệp (cả hai hiển thị "Nhân viên"); chưa có rate limit gửi tin; kết nối WebSocket không tự đóng khi đăng xuất / hết token (D-15); broker trong bộ nhớ → một instance.
+- Còn dang dở / TODO tiếp theo: người dùng thử tay trên trình duyệt; báo Người 4 rằng N4-06 đã xong và `V13` đã dùng (bảng `notifications` của họ lấy số kế tiếp, từ `V14`; mỗi số chỉ dùng một lần trên cả `db/migration/` lẫn `db/seed/`); người dùng đã từng chạy bản `V7` trên DB dev thì phải xoá bảng `support_messages` và dòng version 7 trong `flyway_schema_history` trước khi chạy; thêm 5 endpoint chat vào test ma trận phân quyền N3-10;
+  thêm notification `SUPPORT_MESSAGE` khi N4-03 có.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N4-06 đã tick)
+
 ### 2026-10-31 — Người 4 (Claude Code) — promotion: lối vào khuyến mãi cho khách (Phần 5b, PM-30 → PM-33)
 - Đã làm (người dùng yêu cầu thêm; vẫn CHƯA add/commit/push): docs (`api.md`: `onSale` ở `GET /products`, `GET /campaigns`;
   `pages.md`: `/promotions`). Backend: `ProductQuery.onSale` (`salePrice < price`), `GET /campaigns` (`CampaignService.listActive`,

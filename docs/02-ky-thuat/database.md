@@ -22,7 +22,7 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
 - Migration: `backend/src/main/resources/db/migration/V<n>__<mo_ta>.sql`. `V1__users.sql` (F-05) là
   migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6), `V5__order_schema.sql` (F-08) tạo 7 bảng
 mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng khuyến mãi (V7 là seed), `V8__reviews.sql` tạo bảng
-  `reviews` (mục 3.17), `V12__articles.sql` tạo bảng `articles` (mục 3.21; thêm ràng buộc đã đăng thì phải có
+  `reviews` (mục 3.17), `V13__support_messages.sql` tạo bảng `support_messages` (mục 3.19; số V13 vì V8–V12 đã dùng), `V12__articles.sql` tạo bảng `articles` (mục 3.21; thêm ràng buộc đã đăng thì phải có
   `published_at` và index `idx_articles_category_published_at` cho danh sách public); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).

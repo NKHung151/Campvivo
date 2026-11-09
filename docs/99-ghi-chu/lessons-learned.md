@@ -10,6 +10,23 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 
 ---
 
+### Số migration Flyway: kiểm tra `dev` mới trước khi mở PR, và nhớ `db/seed/` dùng chung dãy số
+- **Bài học:** Migration của nhánh chat mang số `V7`, còn trống lúc tạo nhánh. Một tuần sau `dev` đã có `V8`–`V12` và thư mục `db/seed/`
+  cũng đã dùng `V7` (cả hai thư mục chung MỘT dãy số Flyway). Flyway không bật `outOfOrder`, nên ai đã chạy `dev` (DB tới V12) mà gặp
+  một migration số nhỏ hơn chưa áp thì backend không khởi động; CI dùng DB mới nên không lộ.
+- **Áp dụng lại lần sau:** Trước khi mở PR có migration mới: `git fetch`, liệt kê số đã dùng ở CẢ `db/migration/` và `db/seed/` trên `origin/dev`,
+  chọn số lớn hơn tất cả. Mỗi số chỉ dùng một lần. Báo đồng đội số vừa lấy.
+
+### Test bằng client Java/Node không bắt được lỗi CORS của trình duyệt
+- **Bài học:** WebSocket của N3-08 có test STOMP thật (Java) và script Node đều xanh, nhưng chat trên trình duyệt báo "Mất kết nối
+  trực tiếp" (REST vẫn chạy nên tải lại trang vẫn thấy tin). Nguyên nhân: SockJS gọi `/ws/info` bằng XHR chế độ credentials "include",
+  trình duyệt chặn nếu phản hồi thiếu `Access-Control-Allow-Credentials: true`; `SecurityConfig` đặt `allowCredentials=false`. Chỉ trình
+  duyệt thật mới thi hành CORS, nên mọi test không phải trình duyệt đều bỏ sót. Chỉ tái hiện được khi điều khiển Chrome thật (puppeteer-core
+  với Chrome có sẵn, cài ngoài repo).
+- **Áp dụng lại lần sau:** Tính năng nói chuyện với backend từ trình duyệt phải được chạy ít nhất một lần trong trình duyệt thật trước khi
+  báo "đã kiểm chứng". Với lỗi CORS, thêm test đọc header `Access-Control-*` của phản hồi khi gửi kèm `Origin` (xem
+  `RealtimeIntegrationTest`), vì client Java/Node không có CORS.
+
 ### Test "bị từ chối" xanh vì mọi thứ đều hỏng
 - **Bài học:** Test kiểm tra kết nối WebSocket bị từ chối ban đầu chỉ khẳng định "không kết nối được". Khi cố ý làm hỏng cấu hình để kiểm tra
   đột biến, bắt tay trả HTTP 500 cho MỌI kết nối nên các test từ chối vẫn xanh dù cơ chế xác thực đã bị gỡ. Test chỉ đáng tin khi khẳng định
