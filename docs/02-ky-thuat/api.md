@@ -183,11 +183,18 @@ Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
 | GET | `/combos/{slug}` | Public | → `ComboDetail` |
 | GET | `/combos/{id}/recommendations` | Public | → tối đa 4 `ItemSummary` |
 | GET | `/combos/{id}/reviews`, `/combos/{id}/reviews/summary` | Public | như sản phẩm |
-| GET | `/search` | Public | `q` (bắt buộc, ≥ 2 ký tự), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` → `{products: [...], combos: [...], articles: [...]}` (+ `pagination` khi có `type`) |
+| GET | `/search` | Public | `q` (bắt buộc, 2–100 ký tự sau khi bỏ khoảng trắng hai đầu, có ít nhất một chữ hoặc số), `type=PRODUCT\|COMBO\|ARTICLE` (bỏ trống = cả 3, mỗi loại tối đa `limit`), `page`, `limit` (1..50, mặc định 12) → `{products: [ItemSummary], combos: [ComboSummary], articles: [ArticleSummary]}` + `totals` (+ `pagination` khi có `type`) |
 | GET | `/campaigns` | Public | → `[{id, name, slug, bannerUrl, discountType, discountValue, endDate, productCount}]` chiến dịch đang hiệu lực, sắp kết thúc trước (PromoBar, trang `/promotions`); `productCount` = số sản phẩm đang bán |
 | GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
 | GET | `/articles` | Public | `category`, `page`, `limit` (1..50, mặc định 12) → `[ArticleSummary]` (chỉ đã xuất bản, mới nhất trước) |
 | GET | `/articles/{slug}` | Public | → `ArticleDetail`; bài nháp hoặc không có → `NOT_FOUND` (`isFavorite` chờ module yêu thích) |
+
+Hành vi đã hiện thực của `GET /search` (N2-11):
+- Phản hồi: `{success, data: {products, combos, articles}, totals: {products, combos, articles}, pagination?}`. `data` luôn có đủ ba mảng (loại không được hỏi thì rỗng, không bao giờ null). `totals` là TỔNG số kết quả của từng loại, luôn có đủ ba số (để tab hiện "(n)"). `pagination` chỉ có khi hỏi `type` và mô tả loại đó.
+- Không có `type`: mỗi loại tối đa `limit` kết quả đầu tiên và `page` bị bỏ qua; có `type`: chỉ loại đó, phân trang bằng `page` và `limit`.
+- Chỉ trả hàng đang bán (`is_active`) và bài đã xuất bản (`is_published`); mặt hàng ẩn và bài nháp không xuất hiện và không được tính vào `totals`.
+- Tìm không phân biệt hoa thường và gõ không dấu được ("leu" ra "Lều…"). Sản phẩm và combo dùng đúng quy tắc của `GET /products?q=` và `GET /combos?q=`; bài viết khớp theo TIÊU ĐỀ (không tìm trong tóm tắt hay nội dung), xếp tiêu đề bắt đầu bằng từ khoá trước, rồi tiêu đề chứa từ khoá, rồi mới nhất trước.
+- `q` thiếu, ngắn hơn 2 ký tự, dài hơn 100 ký tự hoặc chỉ gồm ký hiệu (`!!`) → 400 `VALIDATION_ERROR`, lý do nằm ở `details.fieldErrors.q`. `type`, `page`, `limit` sai → 400 `VALIDATION_ERROR`.
 
 ```ts
 interface ProductDetail extends ItemSummary {
