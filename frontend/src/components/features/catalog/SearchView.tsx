@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ArticleCard, ProductCard } from "@/types/shop";
-import type { SearchTotals } from "@/types/api/search";
+import type { SearchSuggestion, SearchTotals } from "@/types/api/search";
 import { articleHref } from "@/lib/format";
 import { SearchCard } from "@/components/features/catalog/ProductCard";
 import { searchMore } from "@/services/searchService";
@@ -25,6 +25,8 @@ interface Props {
   articles: ArticleCard[];
   /** Từ khoá có nhưng server từ chối (ngắn hơn 2 ký tự hoặc chỉ có ký hiệu): hiện gợi ý thay vì "không có kết quả". */
   invalid: boolean;
+  /** "Có phải bạn muốn tìm…?": từ khoá đã sửa lỗi gõ, chỉ có khi từ khoá gốc không ra kết quả nào. */
+  suggestion: SearchSuggestion | null;
 }
 
 /** Thêm các thẻ mới vào danh sách, bỏ thẻ đã có (cùng slug) để một mặt hàng không hiện hai lần khi dữ liệu dịch chuyển giữa các trang. */
@@ -37,7 +39,7 @@ function appendUnique(current: ProductCard[], incoming: ProductCard[]): ProductC
  * Trang kết quả tìm kiếm (`/search?q=`): ba tab "Sản phẩm (n)", "Combo (n)", "Bài viết (n)". Sản phẩm và combo lấy từ `GET /search`
  * (phân trang thật bằng "Xem thêm"); bài viết đang là dữ liệu mẫu cho tới khi trang chi tiết bài viết nối API (N2-10).
  */
-export function SearchView({ query, products, combos, totals, articles, invalid }: Props) {
+export function SearchView({ query, products, combos, totals, articles, invalid, suggestion }: Props) {
   const [tab, setTab] = useState<Tab>(totals.products || (!totals.combos && !articles.length) ? "sp" : totals.combos ? "cb" : "bv");
   const [lists, setLists] = useState<Record<Kind, ProductCard[]>>({ PRODUCT: products, COMBO: combos });
   const [more, setMore] = useState<Record<Kind, boolean>>({ PRODUCT: products.length < totals.products, COMBO: combos.length < totals.combos });
@@ -107,6 +109,15 @@ export function SearchView({ query, products, combos, totals, articles, invalid 
     <div className="pageContent">
       <div id="ProductCategory" className="container">
         <div className="cb h10" />
+        {suggestion && (
+          <p className="cv-empty cv-did-you-mean" role="status">
+            Không tìm thấy kết quả cho &quot;{query}&quot;. Có phải bạn muốn tìm{" "}
+            <Link href={`/search?q=${encodeURIComponent(suggestion.q)}`} prefetch={false}>
+              <strong>{suggestion.q}</strong>
+            </Link>
+            ?
+          </p>
+        )}
         <div className="toptab">
           <a className={`headtab fl${tab === "sp" ? " active" : ""}`} onClick={() => setTab("sp")}>
             <span />

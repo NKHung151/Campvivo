@@ -1,0 +1,88 @@
+/* Danh sách gợi ý khi gõ của ô tìm kiếm ở header (SearchBox). */
+.masthead .searchBox .cv-suggest {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 100%;
+  max-width: 480px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #c5c5c5;
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  z-index: 1000;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.cv-suggest__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  color: #222;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cv-suggest__item.is-active,
+.cv-suggest__item:hover {
+  background: #eef4ef;
+}
+.cv-suggest__thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  background: #f1f1ee;
+  overflow: hidden;
+}
+.cv-suggest__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cv-suggest__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.cv-suggest__kind {
+  flex: none;
+  font-size: 11px;
+  color: #2f6a3f;
+  border: 1px solid #b9d3bf;
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.cv-suggest__all {
+  border-top: 1px solid #eee;
+  color: #2f6a3f;
+  font-weight: 600;
+  font-size: 13px;
+}
+.cv-suggest__state {
+  padding: 10px 12px;
+  color: #777;
+  font-size: 13px;
+}
+.cv-did-you-mean a {
+  color: #2f6a3f;
+}
+
+/* Màn hình hẹp: ô nhập của header co lại rất nhỏ nên danh sách gợi ý trải gần hết chiều ngang, ngay dưới header (cao 82px). */
+@media (max-width: 768px) {
+  .masthead .searchBox .cv-suggest {
+    position: fixed;
+    top: 84px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 100px);
+  }
+}

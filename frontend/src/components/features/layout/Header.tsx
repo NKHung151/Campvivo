@@ -1,22 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { MenuItem } from "@/types/shop";
 import { SmartLink } from "@/components/ui/SmartLink";
 import { useShop } from "@/components/features/shop/ShopProvider";
 import { useAuth } from "@/components/features/auth/AuthProvider";
 import { landingFor } from "@/lib/auth/redirect";
-import { CartIcon, PinIcon, SearchIcon, UserIcon } from "@/components/ui/icons";
+import { CartIcon, PinIcon, UserIcon } from "@/components/ui/icons";
+import { SearchBox } from "@/components/features/layout/SearchBox";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
   const { cartCount, user, ready, openLogin } = useShop();
   const auth = useAuth();
   // Nhân viên / quản trị viên không dùng khu vực tài khoản khách hàng: liên kết dẫn tới trang quản trị.
   const isStaff = auth.user?.role === "ADMIN" || auth.user?.role === "EMPLOYEE";
-  const router = useRouter();
-  const [q, setQ] = useState(initialQuery);
   const [popOpen, setPopOpen] = useState(false);
   const count = cartCount;
 
@@ -39,13 +37,6 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
     }
   };
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const key = q.trim();
-    if (!key) return;
-    router.push(`/search?q=${encodeURIComponent(key)}`);
-  };
-
   return (
     <header>
       <section className="masthead">
@@ -53,20 +44,7 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
           <Link className="logo" href="/">
             <span className="cv-logo">Campvivo</span>
           </Link>
-          <form id="searchBox" className="searchBox" onSubmit={submit}>
-            <input
-              type="text"
-              id="s"
-              name="key"
-              placeholder="Bạn chuẩn bị đi đâu?"
-              autoComplete="off"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <button type="submit" title="search">
-              <SearchIcon />
-            </button>
-          </form>
+          <SearchBox initialQuery={initialQuery} />
           <div className="actions">
             <Link className="action" href="/pages/he-thong-cua-hang">
               <PinIcon /> Campvivo Stores

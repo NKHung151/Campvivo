@@ -29,6 +29,7 @@ export default async function SearchPage({ searchParams }: Props) {
         totals={result ? result.totals : { products: 0, combos: 0, articles: 0 }}
         articles={q && !invalid ? searchArticles(q) : []}
         invalid={invalid}
+        suggestion={result?.suggestion ?? null}
       />
     </Shell>
   );

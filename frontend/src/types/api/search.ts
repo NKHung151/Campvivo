@@ -21,8 +21,22 @@ export interface SearchTotals {
   articles: number;
 }
 
-/** Cả body: `data`, `totals`, và `pagination` (chỉ có khi hỏi một `type`). */
-export type SearchBody = ApiSuccessBody<SearchResults> & { totals: SearchTotals };
+/** "Có phải bạn muốn tìm…?": từ khoá đã sửa lỗi gõ (có ít nhất một kết quả), chỉ có khi từ khoá gốc không ra kết quả nào. */
+export interface SearchSuggestion {
+  q: string;
+  totals: SearchTotals;
+}
+
+/** Cả body: `data`, `totals`, `pagination` (chỉ có khi hỏi một `type`) và `suggestion` (xem {@link SearchSuggestion}). */
+export type SearchBody = ApiSuccessBody<SearchResults> & { totals: SearchTotals; suggestion?: SearchSuggestion };
+
+/** Một dòng gợi ý khi gõ (`GET /search/suggestions`): chỉ sản phẩm và combo đang bán. */
+export interface SearchSuggestionItem {
+  type: "PRODUCT" | "COMBO";
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+}
 
 export interface SearchQuery {
   q: string;
