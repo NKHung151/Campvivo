@@ -17,6 +17,26 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-14 — Người 3 (Claude Code) — search: tìm kiếm gộp `GET /search` + trang `/search` (N2-11, N2-12a, FR-07)
+- Đã làm (nhánh `feature/search-fr07`, CHƯA push, CHƯA PR; người dùng nhận làm N2-11 và phần `/search` của N2-12 của Người 2): backend module `search` MỚI, không sửa code của Người 2 —
+  `SearchController`, `SearchService` (gọi lại `ProductService.list` và `ComboService.list` nên cùng quy tắc `?q=` của họ), `ArticleSearch` (bài đã xuất bản, theo TIÊU ĐỀ, có dấu hoặc không dấu qua slug,
+  xếp tiêu đề bắt đầu bằng từ khoá trước rồi mới nhất; dùng `ArticleRepository` có sẵn vì nó đã là `JpaSpecificationExecutor`), `SearchResponse`. Phản hồi `{data:{products,combos,articles}, totals, pagination?}`:
+  THÊM `totals` (tổng thật từng loại, để tab hiện "(n)") so với hợp đồng cũ; không `type` thì mỗi loại tối đa `limit` và bỏ qua `page`. `q` 2–100 ký tự, có chữ hoặc số, sai → 400 `VALIDATION_ERROR` ở `details.fieldErrors.q`.
+  KHÔNG cần migration (đã có `idx_*_lower`, dữ liệu nhỏ, tìm không dấu bằng slug như sản phẩm/combo). Giao diện: `/search` 3 tab, "Xem thêm" thật qua route `app/api/search/route.ts` (vì `toCard`/`comboCard` của
+  `catalogService` dùng `node:fs` nên chỉ chạy được ở server), `services/searchApi.ts` (SSR), `services/searchService.ts` (client), `types/api/search.ts`, `SearchView.tsx` viết lại, `SearchCard` trỏ về `p.href` cho thẻ combo,
+  `serverGetBody` thêm vào `serverApi.ts` (trả nguyên body vì `/search` có thêm `totals`).
+- Quyết định đã chốt với người dùng: gộp `/search` theo docs; thêm `totals`; chỉ 12a (không làm khối trang chủ 12b); bài viết tìm theo tiêu đề; KHÔNG dùng Elasticsearch (không có trong tài liệu nào của nhóm; dữ liệu nhỏ; phải đồng bộ
+  chỉ mục giá chiến dịch / tồn kho / bài nháp; thêm container cho CI; nếu muốn tốt hơn thì `unaccent` + `pg_trgm` bằng migration `CREATE EXTENSION`, chưa làm).
+- Kiểm chứng: `SearchIntegrationTest` 17 test (PostgreSQL thật; hàng ẩn / bài nháp không ra và không tính vào `totals`, gõ không dấu và hoa thường, `%` được thoát, thứ tự bài viết, phân trang không trùng không sót, `q` sai và lý do,
+  `type` / `page` / `limit` sai); 10 đột biến đều bị test bắt đúng chỗ (đột biến bỏ thoát `%` ban đầu LỌT vì dữ liệu thử toàn chữ có dấu, đã sửa test rồi bắt được). Chrome thật (puppeteer-core ngoài repo): 20 mục đạt
+  (tab (n), "Xem thêm" 24 → 30 và 24 → 26 không trùng, link combo `/combos/…`, gõ `LỀU` / `mua dong`, `a` / `!!` / rỗng hiện gợi ý, không kết quả, ô tìm trên header, không lỗi console). `tsc`, `next lint` sạch.
+- Lưu ý phát hiện: `ComboService.matchesKeyword` trả MỌI combo khi từ khoá chỉ có ký hiệu (không có từ nào → điều kiện "mọi từ khớp" luôn đúng); `/search` chặn bằng yêu cầu có ít nhất một chữ hoặc số, nhưng `GET /combos?q=!!` vẫn có lỗi này (của Người 2).
+  `types/api/catalog.ts` còn kiểu `SearchResult` cũ chưa dùng (combos kiểu `ItemSummary[]`).
+- Còn dang dở / TODO tiếp theo: **tab Bài viết vẫn là dữ liệu mẫu** vì trang chi tiết `/blog/[slug]` đọc file JSON mẫu (N2-10 của Người 2 chưa làm): bài thật trong CSDL mở ra sẽ 404, nên chưa nối tab này với API
+  (backend `/search` đã trả bài viết thật sẵn; đổi nguồn là sửa nhỏ ở `search/page.tsx` + `SearchView.tsx` + link theo `category`: BLOG `/blog`, JOURNAL `/journal`) — người dùng cần chọn khi nào nối;
+  N2-12b (khối dữ liệu trang chủ); báo Người 2 về N2-11 / N2-12a để khỏi làm trùng; chưa push / PR; thêm `GET /search` vào test ma trận phân quyền N3-10 (công khai: Guest được 200); gộp `dev` định kỳ vào nhánh.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N2-11 đã tick, N2-12 ghi chú 12a)
+
 ### 2026-11-06 — Người 4 (Claude Code) — review: đánh giá sản phẩm/combo + kiểm duyệt (FR-18, RV-01 → RV-35)
 - Đã làm: nhánh `feature/review-product` (tách từ `dev` @ `0899757`, vẫn CHƯA add/commit/push). Docs trước (api.md, database.md,
   features/use-cases/pages/user-flows, authentication.md, D-31 → D-35). Backend: `V8__reviews.sql` (cột kiểm duyệt + ẩn, CHECK,

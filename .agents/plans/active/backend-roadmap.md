@@ -143,8 +143,8 @@ bằng Swagger/Postman trước khi sửa FE.
 | - [ ] N2-08 | FE | 5 | Trang mới `/combos`, `/combos/[slug]` (tái dùng `ListingView`, `ProductPage`); khối combo ở trang chủ | N2-07, N2-05 | Thử tay; combo hết hàng hiển thị đúng; thêm link "Combo" vào menu |
 | - [ ] N2-09 | BE | 5 | `GET /articles?category=`, `GET /articles/{slug}` (chỉ bài đã xuất bản) | F-11 | IT: bài nháp không thấy; lọc `JOURNAL` chỉ ra bài journal; sắp mới nhất trước |
 | - [ ] N2-10 | FE | 5 | Nối `/blog`, `/blog/page/[n]`, `/blog/[slug]`, `/journal*`, `/guides` theo `category`; gỡ `/blog/category/*`, `/journal/category/*` (KI-05) | N2-09, N2-04 | Thử tay phân trang; slug sai → 404; route danh mục con đã bỏ không còn link trỏ tới |
-| - [ ] N2-11 | BE | 5 | `GET /search` (product/combo/article, không phân biệt hoa thường, có/không `type`) | N2-07, N2-09 | IT: "LỀU" ra "Lều…"; `q` 1 ký tự → 400; không `type` → mỗi nhóm tối đa `limit` |
-| - [ ] N2-12 | FE | 5 | Nối `/search` (thêm tab Combo) + ô tìm kiếm header; nối các khối dữ liệu trang chủ (sản phẩm mới, combo, bài viết — banner/hero giữ tĩnh trong FE vì không có bảng banner) | N2-11, N2-08 | Thử tay; từ khoá không có kết quả → empty state; trang chủ không còn đọc `cards.json` |
+| - [x] N2-11 | BE | 5 | `GET /search` (product/combo/article, không phân biệt hoa thường, có/không `type`) | N2-07, N2-09 | IT: "LỀU" ra "Lều…"; `q` 1 ký tự → 400; không `type` → mỗi nhóm tối đa `limit` |
+| - [ ] N2-12 (12a `/search` + ô tìm header đã làm trên nhánh `feature/search-fr07`; 12b khối trang chủ và tab Bài viết thật chưa làm) | FE | 5 | Nối `/search` (thêm tab Combo) + ô tìm kiếm header; nối các khối dữ liệu trang chủ (sản phẩm mới, combo, bài viết — banner/hero giữ tĩnh trong FE vì không có bảng banner) | N2-11, N2-08 | Thử tay; từ khoá không có kết quả → empty state; trang chủ không còn đọc `cards.json` |
 
 ### Giai đoạn B — Giá & khuyến mãi (tuần 6)
 
