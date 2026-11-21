@@ -17,6 +17,41 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-14 — Người 3 (Claude Code) — search: gợi ý khi gõ + chịu lỗi gõ sai (PostgreSQL `unaccent` + `pg_trgm`, D-39)
+- Đã làm (nhánh `feature/search-fr07`, CHƯA push, CHƯA PR; người dùng chọn "làm 2 và 3"): migration `V14__search_extensions.sql` (extension `unaccent`, `pg_trgm`; hàm `f_unaccent` IMMUTABLE vì `unaccent` chỉ STABLE; 4 chỉ mục
+  GIN trigram trên tên sản phẩm, thương hiệu, tên combo, tiêu đề bài). Backend (module `search`): `GET /search/suggestions` (sản phẩm + combo đang bán; hạng: tên bắt đầu bằng từ khoá, tên chứa, thương hiệu chứa, rồi gần giống
+  `word_similarity` ≥ 0,4 chỉ khi từ khoá ≥ 4 ký tự; `%` `_` `\` thoát; ảnh chính, combo lấy ảnh sản phẩm thành phần), trường `suggestion` ("Có phải bạn muốn tìm…?") của `GET /search` khi không có kết quả (sửa từng từ ≥ 3 ký tự thành từ giống nhất
+  trong kho bằng `similarity` ≥ 0,4, giữ dấu của từ trong kho, chỉ trả khi từ khoá sau sửa có kết quả), `SearchSuggestionRepository` (SQL thuần qua `NamedParameterJdbcTemplate`, chỉ đọc), `SearchText`; `SecurityConfig` mở `/api/search/**`.
+  Giao diện: `SearchBox` (header; chờ 250 ms, huỷ yêu cầu cũ bằng AbortController, ↑ ↓ Enter Esc, bấm ra ngoài, `role=combobox/listbox`, chỉ mở sau khi người dùng GÕ), banner "Có phải bạn muốn tìm …?" ở `SearchView`.
+  Quyết định thiết kế: KHÔNG trộn kết quả mờ vào danh sách chính (phải viết lại việc lấy sản phẩm / combo hoặc sửa file của Người 2); gợi ý khi gõ CHƯA gồm bài viết (trang chi tiết bài viết chưa nối API).
+- Kiểm chứng: `SearchSuggestIntegrationTest` 18 test (PostgreSQL thật, gồm kiểm migration: extension, hàm IMMUTABLE, 4 chỉ mục); 14 đột biến đều bị bắt (3 đột biến đầu tiên LỌT: từ khoá ngắn vẫn bật khớp gần giống, bỏ hạng thương hiệu, sửa lỗi
+  cả khi đã có kết quả → bổ sung dữ liệu và kiểm tra rồi bắt được). Chrome thật (puppeteer-core): kịch bản ô gợi ý 23 mục đạt 3 lần liên tiếp + kịch bản `/search` 20 mục đạt. Chrome phát hiện và đã sửa 2 lỗi component:
+  ↑ khi chưa chọn nhảy sai mục (phép quay vòng với -1) và danh sách gợi ý TỰ BẬT trên trang kết quả (ô đã có sẵn từ khoá) che nội dung. `tsc`, `next lint` sạch.
+- Lưu ý / hạn chế: lỗi đảo chữ ngắn ("lue" thay "leu", trigram ≈ 0,25) không sửa được; sửa chỉ theo từ vựng có trong dữ liệu; header của mẫu giao diện gốc CHƯA đáp ứng điện thoại (ở 390px ô nhập chỉ rộng ~57px, nút bên phải tràn) nên danh sách gợi ý ở ≤ 768px
+  được cố định gần hết chiều ngang dưới header (84px) — phần header còn lại chưa sửa; `LIKE '%x%'` có chỉ mục trigram nhưng phần gần giống so bằng hàm nên quét toàn bảng (đúng với dữ liệu nhỏ); migration cần quyền tạo extension (cả hai đều "trusted" từ PostgreSQL 13).
+- Còn dang dở / TODO tiếp theo: kiểm lại số migration (`V14`) khi mở PR (gộp `dev` trước); nối tab Bài viết sau N2-10 và thêm bài viết vào gợi ý; báo Người 2 / Người 4 về phần tìm kiếm; chưa push / PR.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N2-11, N2-12a)
+
+### 2026-11-14 — Người 3 (Claude Code) — search: tìm kiếm gộp `GET /search` + trang `/search` (N2-11, N2-12a, FR-07)
+- Đã làm (nhánh `feature/search-fr07`, CHƯA push, CHƯA PR; người dùng nhận làm N2-11 và phần `/search` của N2-12 của Người 2): backend module `search` MỚI, không sửa code của Người 2 —
+  `SearchController`, `SearchService` (gọi lại `ProductService.list` và `ComboService.list` nên cùng quy tắc `?q=` của họ), `ArticleSearch` (bài đã xuất bản, theo TIÊU ĐỀ, có dấu hoặc không dấu qua slug,
+  xếp tiêu đề bắt đầu bằng từ khoá trước rồi mới nhất; dùng `ArticleRepository` có sẵn vì nó đã là `JpaSpecificationExecutor`), `SearchResponse`. Phản hồi `{data:{products,combos,articles}, totals, pagination?}`:
+  THÊM `totals` (tổng thật từng loại, để tab hiện "(n)") so với hợp đồng cũ; không `type` thì mỗi loại tối đa `limit` và bỏ qua `page`. `q` 2–100 ký tự, có chữ hoặc số, sai → 400 `VALIDATION_ERROR` ở `details.fieldErrors.q`.
+  KHÔNG cần migration (đã có `idx_*_lower`, dữ liệu nhỏ, tìm không dấu bằng slug như sản phẩm/combo). Giao diện: `/search` 3 tab, "Xem thêm" thật qua route `app/api/search/route.ts` (vì `toCard`/`comboCard` của
+  `catalogService` dùng `node:fs` nên chỉ chạy được ở server), `services/searchApi.ts` (SSR), `services/searchService.ts` (client), `types/api/search.ts`, `SearchView.tsx` viết lại, `SearchCard` trỏ về `p.href` cho thẻ combo,
+  `serverGetBody` thêm vào `serverApi.ts` (trả nguyên body vì `/search` có thêm `totals`).
+- Quyết định đã chốt với người dùng: gộp `/search` theo docs; thêm `totals`; chỉ 12a (không làm khối trang chủ 12b); bài viết tìm theo tiêu đề; KHÔNG dùng Elasticsearch (không có trong tài liệu nào của nhóm; dữ liệu nhỏ; phải đồng bộ
+  chỉ mục giá chiến dịch / tồn kho / bài nháp; thêm container cho CI; nếu muốn tốt hơn thì `unaccent` + `pg_trgm` bằng migration `CREATE EXTENSION`, chưa làm).
+- Kiểm chứng: `SearchIntegrationTest` 17 test (PostgreSQL thật; hàng ẩn / bài nháp không ra và không tính vào `totals`, gõ không dấu và hoa thường, `%` được thoát, thứ tự bài viết, phân trang không trùng không sót, `q` sai và lý do,
+  `type` / `page` / `limit` sai); 10 đột biến đều bị test bắt đúng chỗ (đột biến bỏ thoát `%` ban đầu LỌT vì dữ liệu thử toàn chữ có dấu, đã sửa test rồi bắt được). Chrome thật (puppeteer-core ngoài repo): 20 mục đạt
+  (tab (n), "Xem thêm" 24 → 30 và 24 → 26 không trùng, link combo `/combos/…`, gõ `LỀU` / `mua dong`, `a` / `!!` / rỗng hiện gợi ý, không kết quả, ô tìm trên header, không lỗi console). `tsc`, `next lint` sạch.
+- Lưu ý phát hiện: `ComboService.matchesKeyword` trả MỌI combo khi từ khoá chỉ có ký hiệu (không có từ nào → điều kiện "mọi từ khớp" luôn đúng); `/search` chặn bằng yêu cầu có ít nhất một chữ hoặc số, nhưng `GET /combos?q=!!` vẫn có lỗi này (của Người 2).
+  `types/api/catalog.ts` còn kiểu `SearchResult` cũ chưa dùng (combos kiểu `ItemSummary[]`).
+- Còn dang dở / TODO tiếp theo: **tab Bài viết vẫn là dữ liệu mẫu** vì trang chi tiết `/blog/[slug]` đọc file JSON mẫu (N2-10 của Người 2 chưa làm): bài thật trong CSDL mở ra sẽ 404, nên chưa nối tab này với API
+  (backend `/search` đã trả bài viết thật sẵn; đổi nguồn là sửa nhỏ ở `search/page.tsx` + `SearchView.tsx` + link theo `category`: BLOG `/blog`, JOURNAL `/journal`) — người dùng cần chọn khi nào nối;
+  N2-12b (khối dữ liệu trang chủ); báo Người 2 về N2-11 / N2-12a để khỏi làm trùng; chưa push / PR; thêm `GET /search` vào test ma trận phân quyền N3-10 (công khai: Guest được 200); gộp `dev` định kỳ vào nhánh.
+- Plan liên quan: `.agents/plans/active/backend-roadmap.md` (N2-11 đã tick, N2-12 ghi chú 12a)
+
 ### 2026-11-06 — Người 4 (Claude Code) — review: đánh giá sản phẩm/combo + kiểm duyệt (FR-18, RV-01 → RV-35)
 - Đã làm: nhánh `feature/review-product` (tách từ `dev` @ `0899757`, vẫn CHƯA add/commit/push). Docs trước (api.md, database.md,
   features/use-cases/pages/user-flows, authentication.md, D-31 → D-35). Backend: `V8__reviews.sql` (cột kiểm duyệt + ẩn, CHECK,

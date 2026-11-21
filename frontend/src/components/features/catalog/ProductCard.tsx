@@ -58,7 +58,7 @@ export function HomeCard({ p }: { p: Card }) {
 /** Search results card (`.cvPromotion .groupItems .item`): like HomeCard. */
 export function SearchCard({ p }: { p: Card }) {
   return (
-    <Link className="item" title={p.name} href={productHref(p.slug)} prefetch={false}>
+    <Link className="item" title={p.name} href={p.href ?? productHref(p.slug)} prefetch={false}>
       <div className="wImage">
         <span className="khungAnhCrop0">
           <img loading="lazy" alt={p.name} width={350} src={p.img} />

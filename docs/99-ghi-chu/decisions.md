@@ -13,6 +13,15 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Tìm kiếm (2026-11-14)
+
+### 2026-11-14 — D-39: Tìm kiếm dùng PostgreSQL `unaccent` + `pg_trgm`, không dùng Elasticsearch
+- **Bối cảnh:** FR-07 chỉ yêu cầu tìm không phân biệt hoa thường theo tên (và tiêu đề bài viết). Dữ liệu nhỏ (~400 sản phẩm, vài combo và bài viết). Muốn thêm gợi ý khi gõ và chịu lỗi gõ sai. Không có tài liệu nào trong repo yêu cầu Elasticsearch (timeline 12 tuần nằm ngoài repo; nhóm xác nhận hiện chưa bắt buộc).
+- **Quyết định:** Dùng extension `unaccent` và `pg_trgm` của PostgreSQL (migration V14), hàm bọc `f_unaccent` IMMUTABLE và chỉ mục GIN trigram. Chịu lỗi gõ sai ở hai chỗ, KHÔNG trộn kết quả mờ vào danh sách: dòng "Có phải bạn muốn tìm…?" (`suggestion` của `GET /search`) khi không có kết quả, và danh sách gợi ý khi gõ (`GET /search/suggestions`, chỉ sản phẩm và combo).
+- **Lý do:** Không thêm dịch vụ (Elasticsearch cần ~1 GB RAM, thêm container cho CI và triển khai). Không phải đồng bộ chỉ mục mỗi khi đổi giá chiến dịch (tính động theo ngày), tồn kho, `is_active`, bài nháp / đã xuất bản. Một nguồn dữ liệu nên kết quả không lệch. Không sửa code tìm kiếm của `catalog` / `combo` (Người 2): kết quả chính vẫn đi qua `ProductService` / `ComboService`.
+- **Hạn chế đã biết:** lỗi đảo chữ ngắn ("lue" thay vì "leu") không sửa được (trigram ≈ 0,25); gợi ý chỉ sửa theo từ vựng đã có trong dữ liệu; từ khoá dưới 4 ký tự không bật khớp gần giống (trigram quá nhiễu).
+- **Phương án khác:** Elasticsearch / OpenSearch (tốt hơn ở dữ liệu lớn, đồng nghĩa, xếp hạng, nhưng nặng và phải đồng bộ); trộn kết quả mờ thẳng vào danh sách (phải viết lại việc lấy sản phẩm / combo hoặc sửa file của Người 2). Nếu sau này bắt buộc Elasticsearch: làm như một việc riêng, đặt sau một interface `SearchEngine`.
+
 ## Danh mục (2026-11-07)
 
 ### 2026-11-07 — D-38: Danh mục tối đa 2 cấp, mỗi loại hàng một chỗ

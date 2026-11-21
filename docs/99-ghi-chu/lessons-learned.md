@@ -17,6 +17,14 @@ Ghi lại bài học trong quá trình làm (kỹ thuật lẫn quy trình nhóm
 - **Áp dụng lại lần sau:** Trước khi mở PR có migration mới: `git fetch`, liệt kê số đã dùng ở CẢ `db/migration/` và `db/seed/` trên `origin/dev`,
   chọn số lớn hơn tất cả. Mỗi số chỉ dùng một lần. Báo đồng đội số vừa lấy.
 
+### Dữ liệu thử dùng nhãn dài làm bộ khớp gần giống "khớp nhầm" mọi thứ
+- **Bài học:** Test tìm kiếm gắn một nhãn ngẫu nhiên dài (11 ký tự) vào tên để cô lập dữ liệu. Khi thêm khớp gần giống (`pg_trgm`), nhãn chung nằm trong mọi từ khoá nên mọi mục chung nhãn đều "gần giống" và lọt vào danh sách, làm các test kiểu "đúng tập này" đỏ giả. Một đột biến cũng LỌT vì test đúng nhờ thứ tự chữ cái (mục cần xếp đầu cũng đứng đầu theo tên).
+- **Áp dụng lại lần sau:** Với tìm kiếm mờ, kiểm thứ tự ở các hạng đầu (khớp thật) thay vì cả tập; dựng dữ liệu để đột biến buộc thay đổi kết quả (mục đáng ra xếp trước phải đứng SAU nếu cơ chế bị bỏ); dùng từ khoá ngắn (không bật khớp mờ) khi cần kiểm riêng LIKE.
+
+### Component tự mở danh sách khi trang tải với từ khoá có sẵn
+- **Bài học:** Ô tìm kiếm ở header nhận từ khoá hiện tại từ URL; hiệu ứng "hỏi gợi ý khi từ khoá đổi" chạy ngay lúc tải trang nên danh sách gợi ý tự bật lên che nội dung kết quả. Chỉ Chrome thật (bấm vào liên kết dưới danh sách) mới lộ ra; kiểm tra bằng mã không thấy.
+- **Áp dụng lại lần sau:** Hiệu ứng phụ gắn với giá trị ô nhập phải gắn với hành động của NGƯỜI DÙNG (đã gõ), không với giá trị khởi tạo. Chạy kịch bản trình duyệt thật cho thành phần tương tác (bàn phím, bấm ra ngoài, gõ nhanh, lỗi mạng).
+
 ### Test bằng client Java/Node không bắt được lỗi CORS của trình duyệt
 - **Bài học:** WebSocket của N3-08 có test STOMP thật (Java) và script Node đều xanh, nhưng chat trên trình duyệt báo "Mất kết nối
   trực tiếp" (REST vẫn chạy nên tải lại trang vẫn thấy tin). Nguyên nhân: SockJS gọi `/ws/info` bằng XHR chế độ credentials "include",

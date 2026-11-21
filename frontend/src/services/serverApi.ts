@@ -66,6 +66,11 @@ export async function serverGet<T>(path: string, options: ServerRequestOptions =
   return (await request<T>(path, options)).data;
 }
 
+/** Như `serverGet` nhưng trả NGUYÊN body thành công (cho endpoint có trường ngoài `data` / `pagination`, vd. `/search` có `totals`). */
+export async function serverGetBody<B extends ApiSuccessBody<unknown>>(path: string, options: ServerRequestOptions = {}): Promise<B> {
+  return (await request<unknown>(path, options)) as B;
+}
+
 export async function serverGetPage<T>(path: string, options: ServerRequestOptions = {}): Promise<Page<T>> {
   const body = await request<T[]>(path, options);
   if (!body.pagination) {

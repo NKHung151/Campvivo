@@ -54,7 +54,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/shipping/**").permitAll()
                         // Nội dung công khai (chỉ GET)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/categories", "/api/brands", "/api/search",
+                                "/api/categories", "/api/brands", "/api/search/**",
                                 "/api/products/**", "/api/combos/**", "/api/articles/**", "/api/campaigns/**",
                                 "/api/vouchers/public")
                         .permitAll()
