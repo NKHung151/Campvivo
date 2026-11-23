@@ -64,7 +64,7 @@ Danh sách có phân trang:
 | 502 | IMAGE_UPLOAD_FAILED | Lỗi khi đẩy ảnh lên Cloudinary (hoặc chưa cấu hình Cloudinary) |
 | **cart/order/payment** | | |
 | 400 | PRODUCT_INACTIVE | Mặt hàng ngừng kinh doanh |
-| 409 | OUT_OF_STOCK | Vượt `available`; `details.items = [{type, id, name, availableQuantity}]` |
+| 409 | OUT_OF_STOCK | Vượt `available`; `details.items = [{type, id, variantId?, name, availableQuantity}]` — `variantId` khi thiếu ở một biến thể (D-40), `name` khi đó là "Tên — Tím / M" |
 | 400 | CART_EMPTY | |
 | 409 | PRICE_CHANGED | `expectedTotal` lệch; `details` = bảng giá mới (như response preview) |
 | 400 | INVALID_VOUCHER | Không tồn tại / đã tắt |
@@ -96,7 +96,9 @@ type OrderStatus = "PENDING" | "CONFIRMED" | "SHIPPING" | "COMPLETED"
                  | "CANCELLED" | "PAYMENT_FAILED" | "RETURNED";
 type PaymentMethod = "VNPAY" | "COD";
 type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
-type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED";   // D-41: duyệt là hoàn tất
+type ReturnReason = "MISSING_ITEMS" | "WRONG_ITEM" | "DAMAGED" | "DEFECTIVE" | "EXPIRED" | "NOT_AS_DESCRIBED"
+                  | "USED" | "COUNTERFEIT" | "CHANGED_MIND";
 type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
 type NotificationType = "ORDER_STATUS" | "ORDER_NEW" | "RETURN_STATUS" | "RETURN_NEW" | "SUPPORT_MESSAGE";
@@ -237,21 +239,24 @@ Mặt hàng không tồn tại hoặc đang tắt → `NOT_FOUND` (cùng quy t�
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
 | GET | `/cart` | Customer | → `Cart` |
-| POST | `/cart/items` | Customer | `{productId?, comboId?, quantity}` (đúng 1 trong 2 id) → `Cart`. Đã có → cộng dồn |
+| POST | `/cart/items` | Customer | `{productId?, variantId?, comboId?, quantity}` (đúng 1 trong productId/comboId) → `Cart`. `variantId` (D-40): biến thể khách chọn, phải thuộc `productId`; bỏ trống chỉ được khi sản phẩm có đúng 1 biến thể. Cùng biến thể đã có → cộng dồn; khác màu / size → dòng mới |
 | PATCH | `/cart/items/{id}` | Customer | `{quantity}` (≥ 1) → `Cart` |
 | DELETE | `/cart/items/{id}` | Customer | → `Cart` |
 
 ```ts
 interface Cart {
   items: { id: number; item: ItemSummary & { isActive: boolean }; quantity: number;
-           lineTotal: Money; }[];                     // giá hiện hành (D-04)
+           variant: { id: number; title: string | null } | null;  // D-40: null với combo; title null = sản phẩm không có tuỳ chọn
+           lineTotal: Money; }[];                     // giá hiện hành (D-04); dòng sản phẩm: availableQuantity/isActive theo biến thể
   subtotal: Money;
   itemCount: number;                                  // tổng số món (badge giỏ hàng)
   hasProblems: boolean;                               // có dòng hết hàng/ngừng bán/vượt available
 }
 ```
-Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`, `VALIDATION_ERROR` (số lượng 1..999; gửi cả hai hoặc không id nào →
-`fieldErrors.exactlyOneItem`). Giỏ được tạo khi khách dùng lần đầu.
+Lỗi: `OUT_OF_STOCK` (theo khả dụng của biến thể), `PRODUCT_INACTIVE` (sản phẩm hoặc biến thể tắt bán), `NOT_FOUND`
+(biến thể không thuộc sản phẩm), `VALIDATION_ERROR` (số lượng 1..999; gửi cả hai hoặc không id nào →
+`fieldErrors.exactlyOneItem`; sản phẩm nhiều biến thể mà không gửi `variantId` → `fieldErrors.variantId`). Giỏ được tạo
+khi khách dùng lần đầu.
 
 ### 4.5 order / payment — FR-10, FR-11, FR-12, FR-19a
 | Method | Path | Quyền | Body → Response |
@@ -264,13 +269,14 @@ Lỗi: `OUT_OF_STOCK`, `PRODUCT_INACTIVE`, `NOT_FOUND`, `VALIDATION_ERROR` (số
 | GET | `/orders` | Customer | `?status&page&limit` (limit mặc định 10) → `[OrderSummary]` (của chính mình, mới nhất trước) |
 | GET | `/orders/{id}` | Customer | → `OrderDetail` |
 | POST | `/orders/{id}/cancel` | Customer | `{reason?}` (≤ 500) → `OrderDetail`. Chỉ khi PENDING (`ORDER_NOT_CANCELLABLE`); đơn người khác → `NOT_FOUND` |
-| POST | `/orders/{id}/returns` | Customer | `{reason}` (10–1000 ký tự) → 201 `ReturnRequestDto` |
+| POST | `/orders/{id}/returns` | Customer | multipart (D-41): `reason` (`ReturnReason`), `description?` (≤ 2000), `images` 1–2 ảnh JPG/PNG/WEBP ≤ 5MB → 201 `ReturnRequestDto`. Thiếu / sai → 400 `fieldErrors.reason` \| `images` \| `description`; đơn người khác → 404; lỗi Cloudinary → `IMAGE_UPLOAD_FAILED` |
 | GET | `/vnpay/ipn` | Public (VNPay) | query `vnp_*` → `{RspCode, Message}` theo chuẩn VNPay (BR-12, D-28) — KHÔNG bọc `{success, data}` |
 | GET | `/vnpay/return` | Public | query `vnp_*` (trang `/payment/vnpay-return` chuyển nguyên) → `VnpayReturnResult`; cùng hàm xử lý với IPN (D-28) |
 
 ```ts
 interface OrderPreview {
   items: { cartItemId: number; type: ItemType; id: number; name: string; quantity: number;
+           variantId: number | null; variantTitle: string | null;   // D-40
            originalPrice: Money; unitPrice: Money; lineTotal: Money }[];
   subtotal: Money; discountAmount: Money; shippingFee: Money; finalAmount: Money;
   voucherCode: string | null;
@@ -293,6 +299,7 @@ interface OrderSummary { id: number; orderCode: string; status: OrderStatus; pay
   createdAt: string; }
 interface OrderDetail extends OrderSummary {
   items: { type: ItemType; itemId: number; name: string; imageUrl: string | null; originalPrice: Money;
+           variantId: number | null; variantTitle: string | null;   // D-40: snapshot lúc đặt; null với combo, đơn cũ
            unitPrice: Money; quantity: number; lineTotal: Money;
            myReviewId: number | null;          // đánh giá của khách cho mặt hàng này (từ bất kỳ đơn nào)
            canReview: boolean }[];             // = đơn COMPLETED && myReviewId == null
@@ -305,9 +312,11 @@ interface OrderDetail extends OrderSummary {
   history: { oldStatus: OrderStatus | null; newStatus: OrderStatus; note: string | null; createdAt: string }[];
   returnRequest: ReturnRequestDto | null;
   canCancel: boolean; canReturn: boolean; completedAt: string | null;
+  returnDeadline: string | null;                // D-41: completedAt + app.return.window-days; null khi chưa COMPLETED
 }
-interface ReturnRequestDto { id: number; orderId: number; reason: string; status: ReturnStatus;
-  note: string | null; processedAt: string | null; createdAt: string; }
+interface ReturnRequestDto { id: number; orderId: number; reason: ReturnReason; reasonLabel: string;
+  description: string | null; imageUrls: string[]; refundAmount: Money; status: ReturnStatus;
+  note: string | null; processedAt: string | null; createdAt: string; }   // note = ghi chú nhân viên
 interface PublicVoucher { code: string; discountType: DiscountType; discountValue: Money; maxDiscount: Money | null;
   minOrderValue: Money; expiryDate: string; }
 interface AvailableVoucher extends PublicVoucher {
@@ -443,9 +452,9 @@ Hành vi đã hiện thực (N3-08):
 | PATCH | `/admin/orders/{id}/status` | Staff | `{status, note?}` → `{orderId, oldStatus, newStatus, updatedAt}`. Nhân viên chỉ được: PENDING+COD → CONFIRMED / CANCELLED (bắt buộc `note`, thiếu → 400 `fieldErrors.note`); CONFIRMED → SHIPPING (không ghi chú thì tự ghi mã vận đơn GHN); SHIPPING → COMPLETED. Khác → `INVALID_STATUS_TRANSITION` |
 | POST | `/admin/orders/{id}/shipment` | Staff | Tạo (lại) vận đơn GHN cho đơn CONFIRMED/SHIPPING chưa có vận đơn → `AdminOrderDetail`; đã có thì giữ nguyên; lỗi GHN → `SHIPPING_GATEWAY_ERROR` (lỗi được lưu vào `shipping.error`) — D-28 |
 | GET | `/admin/orders/{id}/shipment` | Staff | Hành trình vận đơn đọc từ GHN → `ShipmentTracking`; chưa có vận đơn → `NOT_FOUND` |
-| GET | `/admin/returns` | Staff | `?status&page&limit` |
-| GET | `/admin/returns/{id}` | Staff | + `OrderDetail` |
-| PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT" \| "COMPLETE", note?}` (REJECT bắt buộc note) |
+| GET | `/admin/returns` | Staff | `?status&page&limit` (limit mặc định 20) → `[AdminReturnSummary]` mới nhất trước: `{id, orderId, orderCode, orderStatus, reason, reasonLabel, refundAmount, status, itemCount, firstItemName, firstItemImageUrl, firstImageUrl, customer, createdAt, processedAt}` |
+| GET | `/admin/returns/{id}` | Staff | → `{request: ReturnRequestDto, order: OrderDetail, customer}` |
+| PATCH | `/admin/returns/{id}` | Staff | `{action: "APPROVE" \| "REJECT", note?}` → như GET. APPROVE (D-41): cộng lại tồn kho + nhật ký RETURN, đơn → RETURNED. REJECT bắt buộc `note` (400 `fieldErrors.note`). Yêu cầu không còn PENDING → 409 `INVALID_STATUS_TRANSITION` |
 | GET | `/admin/vouchers` | Admin | `?q` (mã, chứa chuỗi), `status=UPCOMING\|ACTIVE\|EXPIRED\|EXHAUSTED\|INACTIVE`, `page`, `limit` → `[AdminVoucher]`, mới tạo trước |
 | POST | `/admin/vouchers` | Admin | `VoucherRequest` → 201 `AdminVoucher`. Mã lưu IN HOA; trùng → `VOUCHER_CODE_ALREADY_EXISTS` |
 | GET/PUT/DELETE | `/admin/vouchers/{id}` | Admin | PUT như POST; `quantity < usedCount` → 400 `fieldErrors.quantity`. DELETE → `VOUCHER_IN_USE` nếu đã có đơn dùng (chỉ được tắt) |

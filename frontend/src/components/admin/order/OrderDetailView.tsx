@@ -15,6 +15,7 @@ import {
   fmtDateTime,
   ghnStatusLabel,
 } from "@/lib/orderStatus";
+import { RETURN_STATUS } from "@/lib/returns";
 import { isApiError } from "@/services/apiError";
 import { changeOrderStatus, createShipment, getOrder, getShipmentTracking } from "@/services/admin/adminOrderService";
 import type { OrderStatus } from "@/types/api/common";
@@ -167,6 +168,19 @@ export function OrderDetailView({ id }: { id: number }) {
           message="Đơn VNPay đang chờ khách thanh toán — hệ thống tự xác nhận khi VNPay báo kết quả, hoặc tự huỷ khi quá hạn."
         />
       )}
+      {o.returnRequest && (
+        <Alert
+          type={o.returnRequest.status === "PENDING" ? "warning" : "info"}
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`Khách đã gửi yêu cầu trả hàng (${o.returnRequest.reasonLabel}) — ${RETURN_STATUS[o.returnRequest.status].label}`}
+          action={
+            <Button size="small" href={`/admin/returns/${o.returnRequest.id}`}>
+              Xem yêu cầu
+            </Button>
+          }
+        />
+      )}
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
@@ -279,7 +293,7 @@ function ItemsCard({ order: o }: { order: OrderDetail }) {
   return (
     <Card title={`Sản phẩm (${o.itemCount})`} size="small">
       <Table
-        rowKey={(i) => `${i.type}-${i.itemId}`}
+        rowKey={(i) => `${i.type}-${i.itemId}-${i.variantId ?? ""}`}
         size="small"
         pagination={false}
         dataSource={o.items}
@@ -294,6 +308,7 @@ function ItemsCard({ order: o }: { order: OrderDetail }) {
                 <div>
                   {i.name}
                   {i.type === "COMBO" && <Tag style={{ marginLeft: 6 }}>Combo</Tag>}
+                  {i.variantTitle && <div style={{ color: "#888", fontSize: 12 }}>Phân loại: {i.variantTitle}</div>}
                 </div>
               </Space>
             ),

@@ -9,7 +9,14 @@ import java.util.List;
  */
 public record CartResponse(List<Line> items, BigDecimal subtotal, int itemCount, boolean hasProblems) {
 
-    public record Line(Long id, Item item, int quantity, BigDecimal lineTotal) {}
+    /**
+     * `variant` = biến thể khách chọn (D-40), null với combo. Với dòng sản phẩm, `item.availableQuantity` và
+     * `item.isActive` tính theo biến thể đó.
+     */
+    public record Line(Long id, Item item, Variant variant, int quantity, BigDecimal lineTotal) {}
+
+    /** `title` = "Tím / M", null với biến thể mặc định (sản phẩm không có tuỳ chọn). */
+    public record Variant(Long id, String title) {}
 
     /** `ItemSummary` + `isActive` (api.md mục 3). */
     public record Item(

@@ -92,6 +92,8 @@ class AdminOrderIntegrationTest {
                 "INSERT INTO categories (name, slug, path) VALUES ('Lều', 'leu', '/') RETURNING id", Long.class);
         productId = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
                 + "VALUES (?, 'Lều 2 người', 'leu-2-nguoi', 500000, 10) RETURNING id", Long.class, category);
+        // Sản phẩm luôn có ít nhất 1 biến thể (D-37); giỏ hàng lưu biến thể (D-40)
+        jdbc.update("INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM products WHERE id = ?", productId);
         staff = AdminMockMvc.as(Role.EMPLOYEE, context, users, jwt);
         customer = AdminMockMvc.as(Role.CUSTOMER, context, users, jwt);
         customerId = users.findByEmail("test-customer@campvivo.vn").orElseThrow().getId();
@@ -100,7 +102,7 @@ class AdminOrderIntegrationTest {
     }
 
     private CreateOrderResponse order(PaymentMethod method) {
-        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, 2));
+        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, null, 2));
         return orderService.create(customerId, new OrderRequests.Create("Nguyễn Văn A", "0901234567", "12 Lê Lợi",
                 1442, "20109", false, method, null, null, 1_030_000L, null), "127.0.0.1");
     }

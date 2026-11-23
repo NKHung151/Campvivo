@@ -13,7 +13,7 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
 
     Optional<Cart> findByUserId(Long userId);
 
-    /** Khoá giỏ khi sửa: hai request thêm cùng mặt hàng song song không vướng unique (cart_id, product_id). */
+    /** Khoá giỏ khi sửa: hai request thêm cùng mặt hàng song song không vướng unique (cart_id, variant_id). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Cart c where c.userId = :userId")
     Optional<Cart> findByUserIdForUpdate(@Param("userId") Long userId);

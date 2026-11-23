@@ -19,6 +19,8 @@ export async function GET(request: Request) {
       brand: p.brand ?? "",
       rating: p.averageRating === null ? null : p.averageRating * 20,
       specs: p.specs.map((s) => [s.name, s.value] as [string, string]),
+      // Nhiều màu / size: phải chọn ở trang sản phẩm trước khi thêm vào giỏ (D-40)
+      hasOptions: p.options.length > 0,
     }));
   return Response.json(rows);
 }

@@ -10,6 +10,7 @@ import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.common.dto.PageResponse;
 import vn.campvivo.order.dto.OrderDetailResponse;
+import vn.campvivo.order.returns.ReturnService;
 import vn.campvivo.order.dto.OrderSummaryResponse;
 import vn.campvivo.payment.PaymentService;
 import vn.campvivo.review.ReviewQueryService;
@@ -23,12 +24,14 @@ public class OrderQueryService {
     private final OrderRepository orderRepository;
     private final PaymentService paymentService;
     private final ReviewQueryService reviewQueryService;
+    private final ReturnService returnService;
 
     public OrderQueryService(OrderRepository orderRepository, PaymentService paymentService,
-                             ReviewQueryService reviewQueryService) {
+                             ReviewQueryService reviewQueryService, ReturnService returnService) {
         this.orderRepository = orderRepository;
         this.paymentService = paymentService;
         this.reviewQueryService = reviewQueryService;
+        this.returnService = returnService;
     }
 
     /** Đơn của chính khách, mới nhất trước, lọc theo trạng thái (FR-12). */
@@ -71,6 +74,7 @@ public class OrderQueryService {
         List<Long> productIds = order.getItems().stream().filter(OrderItem::isProduct).map(OrderItem::getProductId).toList();
         List<Long> comboIds = order.getItems().stream().filter(i -> !i.isProduct()).map(OrderItem::getComboId).toList();
         ReviewQueryService.ReviewIds reviews = reviewQueryService.reviewIds(userId, productIds, comboIds);
-        return OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null), reviews::of);
+        return OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null), reviews::of,
+                returnService.infoFor(order));
     }
 }

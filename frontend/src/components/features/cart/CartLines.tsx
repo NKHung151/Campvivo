@@ -10,7 +10,7 @@ const LOW_STOCK = 5;
 
 /** Vấn đề của một dòng giỏ (BR-1, BR-14) — dòng có vấn đề phải xử lý trước khi đặt hàng. */
 export function lineProblem(l: CartLine): string | null {
-  if (!l.item.isActive) return "Sản phẩm đã ngừng kinh doanh";
+  if (!l.item.isActive) return l.variant?.title ? "Phân loại này đã ngừng bán" : "Sản phẩm đã ngừng kinh doanh";
   if (l.item.availableQuantity <= 0) return "Tạm hết hàng";
   if (l.quantity > l.item.availableQuantity) return `Chỉ còn ${l.item.availableQuantity} sản phẩm`;
   return null;
@@ -113,6 +113,7 @@ export function CartLines({
                 <Link className="itemName" href={hrefOf(l)}>
                   {l.item.name}
                 </Link>
+                {l.variant?.title && <div className="cv-cart-variant">Phân loại: {l.variant.title}</div>}
                 <div className="info">
                   <div className="info-text">{l.item.type === "COMBO" ? "Combo" : l.item.brand || ""}</div>
                 </div>

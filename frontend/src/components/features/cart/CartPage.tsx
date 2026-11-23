@@ -199,7 +199,10 @@ export function CartPage({ csvcHtml, pvcHtml }: { csvcHtml: string; pvcHtml: str
     if (submitting) return;
     if (!selected.length) return shop.notify("Vui lòng chọn ít nhất 1 sản phẩm.");
     const problem = selected.find((l) => lineProblem(l));
-    if (problem) return shop.notify(`"${problem.item.name}": ${lineProblem(problem)}. Vui lòng sửa giỏ hàng trước khi đặt.`);
+    if (problem) {
+      const name = problem.variant?.title ? `${problem.item.name} — ${problem.variant.title}` : problem.item.name;
+      return shop.notify(`"${name}": ${lineProblem(problem)}. Vui lòng sửa giỏ hàng trước khi đặt.`);
+    }
     if (!deliverTo) return setInfoOpen(true);
     if (previewState.status === "loading") return shop.notify("Đang tính tiền, vui lòng đợi giây lát.");
     if (previewState.status !== "ready" || !previewState.preview.shippingCalculated) {

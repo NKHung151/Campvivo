@@ -10,11 +10,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import vn.campvivo.catalog.Product;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ProductCombo;
 
 import java.time.OffsetDateTime;
 
-/** Dòng giỏ — database.md mục 3.8: sản phẩm HOẶC combo, không lưu giá (D-04). */
+/**
+ * Dòng giỏ — database.md mục 3.8: sản phẩm HOẶC combo, không lưu giá (D-04). Dòng sản phẩm luôn có biến thể khách chọn
+ * (D-40) — cùng sản phẩm khác màu / size là hai dòng.
+ */
 @Entity
 @Table(name = "cart_items")
 public class CartItem {
@@ -30,6 +34,10 @@ public class CartItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "variant_id")
+    private ProductVariant variant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "combo_id")
@@ -48,9 +56,10 @@ public class CartItem {
         // JPA
     }
 
-    CartItem(Cart cart, Product product, ProductCombo combo, int quantity, OffsetDateTime now) {
+    CartItem(Cart cart, ProductVariant variant, ProductCombo combo, int quantity, OffsetDateTime now) {
         this.cart = cart;
-        this.product = product;
+        this.product = variant == null ? null : variant.getProduct();
+        this.variant = variant;
         this.combo = combo;
         this.quantity = quantity;
         this.createdAt = now;
@@ -69,6 +78,7 @@ public class CartItem {
     public Long getId() { return id; }
     public Cart getCart() { return cart; }
     public Product getProduct() { return product; }
+    public ProductVariant getVariant() { return variant; }
     public ProductCombo getCombo() { return combo; }
     public int getQuantity() { return quantity; }
 }

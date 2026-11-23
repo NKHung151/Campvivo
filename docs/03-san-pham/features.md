@@ -231,9 +231,10 @@ xem BR-xx trong `database.md`.
 - **Ngoại lệ:** ẩn thiếu lý do → `VALIDATION_ERROR`; Employee xoá → 403 `FORBIDDEN`.
 
 ### FR-19 Trả hàng
-- **Khách:** chọn đơn COMPLETED → nhập lý do → tạo yêu cầu `PENDING` (BR-9).
-- **Nhân viên:** duyệt (`APPROVED`) hoặc từ chối (`REJECTED`, bắt buộc ghi chú); sau khi nhận
-  hàng → `COMPLETED`: cộng tồn kho, ghi log, đơn `RETURNED`. Mỗi bước phát thông báo + email.
+- **Khách:** chọn đơn COMPLETED → chọn lý do, chụp / tải 1–2 ảnh, mô tả (không bắt buộc) → tạo yêu cầu `PENDING`
+  (BR-9, D-41).
+- **Nhân viên:** duyệt (`APPROVED` — hoàn tất luôn: cộng tồn kho, ghi log, đơn `RETURNED`) hoặc từ chối (`REJECTED`, bắt
+  buộc ghi chú). Mỗi bước phát thông báo + email (chưa làm — module notification).
 - **Ngoại lệ:** đơn không COMPLETED → `RETURN_NOT_ALLOWED`; quá hạn → `RETURN_WINDOW_EXPIRED`;
   đã có yêu cầu → `RETURN_ALREADY_EXISTS`; thao tác sai trạng thái yêu cầu →
   `INVALID_STATUS_TRANSITION`.

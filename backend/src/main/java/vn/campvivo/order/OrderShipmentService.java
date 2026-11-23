@@ -85,7 +85,7 @@ public class OrderShipmentService {
                 shippingService.weightOf(order.totalQuantity()),
                 order.getNote(),
                 order.getItems().stream().map(i -> new GhnCreateOrderRequest.Item(
-                        i.getItemName(),
+                        i.getVariantTitle() == null ? i.getItemName() : i.getItemName() + " — " + i.getVariantTitle(),
                         (i.isProduct() ? "SP-" + i.getProductId() : "CB-" + i.getComboId()),
                         i.getQuantity(),
                         i.getUnitPrice().longValueExact(),

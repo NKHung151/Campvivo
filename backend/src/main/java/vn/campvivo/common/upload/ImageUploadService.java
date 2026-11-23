@@ -13,7 +13,7 @@ import java.util.Set;
 public class ImageUploadService {
 
     static final long MAX_BYTES = 5L * 1024 * 1024;
-    private static final Set<String> FOLDERS = Set.of("products", "combos", "articles", "campaigns");
+    private static final Set<String> FOLDERS = Set.of("products", "combos", "articles", "campaigns", "returns");
 
     private final ImageStorage storage;
 

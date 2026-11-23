@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { vnd } from "@/lib/format";
 import { getErrorMessage } from "@/lib/errorMessages";
 import { ORDER_STATUS, PAYMENT_METHOD_LABEL, PAYMENT_STATUS, fmtDateTime } from "@/lib/orderStatus";
+import { RETURN_STATUS } from "@/lib/returns";
 import { isApiError } from "@/services/apiError";
 import { cancelOrder, getOrder } from "@/services/orderService";
 import { useShop } from "@/components/features/shop/ShopProvider";
@@ -14,7 +15,10 @@ import type { OrderDetail } from "@/types/api/order";
 
 type Load = { status: "loading" } | { status: "ready"; order: OrderDetail } | { status: "error"; message: string; notFound: boolean };
 
-/** /account/orders/[id] — chi tiết đơn của khách (FR-12): dòng hàng, tiền, người nhận, vận đơn, lịch sử; huỷ khi PENDING. */
+/**
+ * /account/orders/[id] — chi tiết đơn của khách (FR-12): dòng hàng, tiền, người nhận, vận đơn, lịch sử; huỷ khi PENDING;
+ * trả hàng khi COMPLETED trong hạn (FR-19a) và trạng thái yêu cầu đã gửi.
+ */
 export function MyOrderDetail({ id }: { id: number }) {
   const { ready, user, openLogin, notify } = useShop();
   const [load, setLoad] = useState<Load>({ status: "loading" });
@@ -113,11 +117,12 @@ export function MyOrderDetail({ id }: { id: number }) {
           </span>
         </div>
         {o.items.map((i) => (
-          <div className="row" key={`${i.type}-${i.itemId}`}>
+          <div className="row" key={`${i.type}-${i.itemId}-${i.variantId ?? ""}`}>
             {i.imageUrl && <img src={i.imageUrl} alt="" />}
             <div className="nm">
               {i.name}
               {i.type === "COMBO" && <span style={{ color: "#777" }}> (Combo)</span>}
+              {i.variantTitle && <div style={{ color: "#777", fontSize: 13 }}>Phân loại: {i.variantTitle}</div>}
               <div style={{ color: "#777", fontSize: 13 }}>{vnd(i.unitPrice)} / sản phẩm</div>
               {completed && (
                 <button
@@ -162,6 +167,42 @@ export function MyOrderDetail({ id }: { id: number }) {
         </div>
       </div>
 
+      {o.returnRequest && (
+        <div className="cv-order cv-return-status">
+          <div className="hd">
+            <span>Yêu cầu trả hàng</span>
+            <b style={{ color: RETURN_STATUS[o.returnRequest.status].color }}>{RETURN_STATUS[o.returnRequest.status].label}</b>
+          </div>
+          <div className="row" style={{ display: "block" }}>
+            Lý do: {o.returnRequest.reasonLabel} · Gửi lúc {fmtDateTime(o.returnRequest.createdAt)}
+            {o.returnRequest.description && <div style={{ color: "#555", marginTop: 4 }}>{o.returnRequest.description}</div>}
+            <div className="imgs">
+              {o.returnRequest.imageUrls.map((url) => (
+                <a key={url} href={url} target="_blank" rel="noreferrer">
+                  <img src={url} alt="Ảnh trả hàng" />
+                </a>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              Số tiền hoàn: <b style={{ color: "#c7370f" }}>{vnd(o.returnRequest.refundAmount)}</b>
+            </div>
+            {o.returnRequest.status === "PENDING" && (
+              <div style={{ color: "#777", fontSize: 13, marginTop: 4 }}>Campvivo đang xem xét yêu cầu của bạn.</div>
+            )}
+            {o.returnRequest.status === "APPROVED" && (
+              <div style={{ color: "#777", fontSize: 13, marginTop: 4 }}>
+                Yêu cầu đã được duyệt. Vui lòng gửi trả hàng; Campvivo sẽ liên hệ để hoàn tiền.
+              </div>
+            )}
+            {o.returnRequest.note && (
+              <div style={{ marginTop: 6 }}>
+                Phản hồi của Campvivo: <i>{o.returnRequest.note}</i>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="cv-order">
         <div className="hd">
           <span>Lịch sử đơn hàng</span>
@@ -174,6 +215,14 @@ export function MyOrderDetail({ id }: { id: number }) {
         ))}
       </div>
 
+      {o.canReturn && (
+        <p style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+          <Link className="cv-btn ghost" href={`/account/orders/${o.id}/return`}>
+            Trả hàng/Hoàn tiền
+          </Link>
+          {o.returnDeadline && <span style={{ color: "#777", fontSize: 13 }}>Hạn gửi yêu cầu: {fmtDateTime(o.returnDeadline)}</span>}
+        </p>
+      )}
       {o.canCancel && !cancelOpen && (
         <button type="button" className="cv-btn ghost" onClick={() => setCancelOpen(true)}>
           Huỷ đơn hàng

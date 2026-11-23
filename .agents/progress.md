@@ -17,6 +17,34 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-23 — Người 1 (Claude Code) — order (trả hàng FR-19, D-41)
+- Đã làm (nhánh `feature/order-payment-service`, chưa commit): migration `V16__return_request_details.sql` (lý do = mã cố định,
+  `description`, `image_urls` 1–2 ảnh, `refund_amount`; trạng thái chỉ PENDING/APPROVED/REJECTED). Backend gói `order.returns`:
+  `POST /orders/{id}/returns` (multipart, kiểm điều kiện → tải ảnh Cloudinary thư mục `returns` → khoá đơn, kiểm lại, lưu),
+  `GET/PATCH /admin/returns[/{id}]` (duyệt = `InventoryService.restockReturn` cộng kho theo biến thể + nhật ký RETURN, đơn
+  RETURNED; từ chối bắt buộc ghi chú). `OrderDetail` có `returnRequest`, `canReturn`, `returnDeadline`. Frontend: trang
+  `/account/orders/[id]/return` (theo mẫu sàn TMĐT: bảng chọn lý do, ảnh, mô tả 0/2000, email), nút + khối trạng thái ở chi tiết
+  đơn; admin `/admin/returns` (lọc trạng thái) và `/admin/returns/[id]` (xem ảnh, Duyệt / Từ chối); chi tiết đơn admin có liên kết
+  tới yêu cầu. Docs: D-41, database.md (3.13, BR-2, BR-9, 5.1, 5.2), api.md, pages.md, user-flows.md, features.md.
+- Kiểm chứng: `ReturnFlowIntegrationTest` 4 test (Cloudinary/GHN giả lập); toàn bộ `mvn test` 582 test xanh (image pg17 gắn tạm tag
+  `postgres:16`). `next lint` sạch, `tsc` chỉ còn lỗi cũ ở `useSupportSocket.ts`. CHƯA chạy thử giao diện trên trình duyệt.
+- TODO: `.env` local chưa có `CLOUDINARY_*` → khách không tải ảnh được (`IMAGE_UPLOAD_FAILED`) cho tới khi cấu hình. Thông báo /
+  email từng bước trả hàng chờ module notification.
+
+### 2026-11-23 — Người 1 (Claude Code) — cart, order, inventory: giỏ hàng / đơn hàng theo biến thể (D-40)
+- Đã làm (nhánh `feature/order-payment-service`, chưa commit): migration `V15__cart_order_variants.sql` (`cart_items.variant_id`
+  bắt buộc với dòng sản phẩm, unique `(cart_id, variant_id)`; `order_items.variant_id` + `variant_title` snapshot). Backend:
+  `POST /cart/items` nhận `variantId` (bỏ trống chỉ khi sản phẩm 1 biến thể), khả dụng / đang bán theo biến thể; `Cart.items[].variant`,
+  `OrderPreview`/`OrderDetail` có `variantId`/`variantTitle`; `InventoryService` khoá sản phẩm → combo → biến thể, giữ chỗ / trừ / trả
+  cả tổng và biến thể (`ProductVariant.reserve/commit/release`; biến thể duy nhất không giữ chỗ riêng); `adjustStock`/`allocateSold`
+  không được xuống dưới phần đang giữ chỗ; tên hàng gửi GHN kèm màu / size. Frontend: trang sản phẩm gửi `variantId`; giỏ, trang đặt
+  thành công, chi tiết đơn (khách + admin) hiện "Phân loại: …"; lỗi giỏ hiện câu cụ thể của server; trang So sánh chuyển sang trang
+  sản phẩm khi có màu / size. Docs: D-40, database.md (3.3, 3.3c, 3.8, 3.10, BR-2, thứ tự khoá), api.md (mục 2, 4.4, 4.5).
+- Kiểm chứng: toàn bộ `mvn test` 578 test xanh (thêm 2 test biến thể trong `OrderPaymentFlowIntegrationTest`; fixture test chèn
+  biến thể mặc định cho sản phẩm tạo bằng SQL). Chạy trên image pg17 có sẵn vì máy không tải được `postgres:16`. `next lint` sạch;
+  `tsc` chỉ còn lỗi cũ ở `useSupportSocket.ts` (thiếu `@stomp/stompjs` trong node_modules). Chưa chạy thử giao diện trên trình duyệt.
+- TODO: đơn cũ (trước V15) vẫn phân bổ tay ở trang Tồn kho; migration xoá dòng giỏ cũ của sản phẩm nhiều biến thể.
+
 ### 2026-11-14 — Người 3 (Claude Code) — search: gợi ý khi gõ + chịu lỗi gõ sai (PostgreSQL `unaccent` + `pg_trgm`, D-39)
 - Đã làm (nhánh `feature/search-fr07`, CHƯA push, CHƯA PR; người dùng chọn "làm 2 và 3"): migration `V14__search_extensions.sql` (extension `unaccent`, `pg_trgm`; hàm `f_unaccent` IMMUTABLE vì `unaccent` chỉ STABLE; 4 chỉ mục
   GIN trigram trên tên sản phẩm, thương hiệu, tên combo, tiêu đề bài). Backend (module `search`): `GET /search/suggestions` (sản phẩm + combo đang bán; hạng: tên bắt đầu bằng từ khoá, tên chứa, thương hiệu chứa, rồi gần giống

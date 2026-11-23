@@ -81,6 +81,8 @@ class ReviewFlowIntegrationTest {
                 + "VALUES (?, 'Lều 2 người', 'leu-2-nguoi', 500000, 50) RETURNING id", Long.class, category);
         otherProductId = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
                 + "VALUES (?, 'Túi ngủ', 'tui-ngu', 300000, 50) RETURNING id", Long.class, category);
+        // Sản phẩm luôn có ít nhất 1 biến thể (D-37); giỏ hàng lưu biến thể (D-40)
+        jdbc.update("INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM products");
         comboId = jdbc.queryForObject("INSERT INTO product_combos (category_id, name, slug, combo_price, stock_quantity) "
                 + "VALUES (?, 'Combo cắm trại', 'combo-cam-trai', 900000, 10) RETURNING id", Long.class, category);
         buyer = user("review-buyer@campvivo.vn", Role.CUSTOMER);

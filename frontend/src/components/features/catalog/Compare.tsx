@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { ProductCard } from "@/types/shop";
 import { productHref, vnd } from "@/lib/format";
@@ -20,6 +21,7 @@ interface CompareRow {
   brand: string;
   rating: number | null;
   specs: [string, string][];
+  hasOptions: boolean;
 }
 
 export function useCompare() {
@@ -73,6 +75,7 @@ export function CompareBar({ compare }: { compare: ReturnType<typeof useCompare>
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<CompareRow[] | null>(null);
   const { addToCart, notify } = useShop();
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -184,6 +187,11 @@ export function CompareBar({ compare }: { compare: ReturnType<typeof useCompare>
                         className="cmp-footer-cart"
                         onClick={async () => {
                           if (!r.price) return;
+                          if (r.hasOptions) {
+                            notify("Vui lòng chọn màu / size trước khi thêm vào giỏ");
+                            router.push(productHref(r.slug));
+                            return;
+                          }
                           if (await addToCart({ productId: r.id })) notify("Đã thêm vào giỏ hàng");
                         }}
                       >
