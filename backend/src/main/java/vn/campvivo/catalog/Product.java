@@ -14,10 +14,10 @@ import java.util.List;
  * Sản phẩm — cột theo docs/02-ky-thuat/database.md mục 3.3. Entity KHÔNG trả thẳng ra API (qua DTO).
  * Tồn kho/giữ chỗ (BR-1, BR-2) chỉ đổi qua method nghiệp vụ, gọi trong transaction đã khoá dòng. Thời gian do service
  * gán từ bean Clock.
- * <p>Biến thể tối đa 2 chiều (D-37): `stock_quantity`/`reserved_quantity` ở đây vẫn là số mà giỏ hàng / đơn hàng dùng
- * (giữ chỗ, trừ kho theo sản phẩm). Từng biến thể có tồn riêng ({@link ProductVariant}); nhập/xuất/đóng gói theo biến thể
- * đổi cả biến thể và tổng ở đây. Đơn hàng chỉ trừ tổng → phần chênh {@link #getUnallocatedSold()} là hàng đã bán chưa
- * trừ theo biến thể, nhân viên phân bổ ở trang Tồn kho.
+ * <p>Biến thể tối đa 2 chiều (D-37): `stock_quantity`/`reserved_quantity` ở đây là tổng của mọi biến thể. Từng biến thể
+ * có tồn riêng ({@link ProductVariant}); nhập/xuất/đóng gói và đơn hàng có biến thể (D-40) đổi cả biến thể và tổng ở
+ * đây. Đơn cũ chưa lưu biến thể chỉ trừ tổng → phần chênh {@link #getUnallocatedSold()} là hàng đã bán chưa trừ theo
+ * biến thể, nhân viên phân bổ ở trang Tồn kho.
  */
 @Entity
 @Table(name = "products")
@@ -193,7 +193,7 @@ public class Product {
     }
 
     /**
-     * Hàng đã bán qua đơn (trừ vào tổng) nhưng chưa trừ theo biến thể = tổng tồn các biến thể − tồn sản phẩm.
+     * Hàng đã bán qua đơn cũ (chỉ trừ vào tổng) nhưng chưa trừ theo biến thể = tổng tồn các biến thể − tồn sản phẩm.
      * Nhân viên phân bổ phần này vào đúng biến thể khách mua (D-37). Không âm.
      */
     public int getUnallocatedSold() {

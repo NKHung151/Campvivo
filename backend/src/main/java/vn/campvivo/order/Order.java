@@ -143,9 +143,10 @@ public class Order {
         this.history.add(new OrderStatusHistory(this, null, OrderStatus.PENDING, userId, null, now));
     }
 
-    public void addItem(Long productId, Long comboId, String name, String imageUrl,
+    public void addItem(Long productId, Long variantId, String variantTitle, Long comboId, String name, String imageUrl,
                         BigDecimal originalPrice, BigDecimal unitPrice, int quantity) {
-        items.add(new OrderItem(this, productId, comboId, name, imageUrl, originalPrice, unitPrice, quantity));
+        items.add(new OrderItem(this, productId, variantId, variantTitle, comboId, name, imageUrl, originalPrice,
+                unitPrice, quantity));
     }
 
     /** Chỉ gọi từ OrderStateService (đã kiểm máy trạng thái, đã khoá dòng). */

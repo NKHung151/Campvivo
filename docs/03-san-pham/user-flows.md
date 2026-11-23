@@ -68,12 +68,12 @@ Khám phá: /, /products, /categories/[slug], /combos, /search
 
 ## 6. Trả hàng (FR-19)
 ```
-Khách: /account/orders/[id] → đơn COMPLETED, còn trong 7 ngày → "Yêu cầu trả hàng", nhập lý do
-       [POST /orders/{id}/returns] → yêu cầu PENDING; nhân viên nhận thông báo
-  ⚠ RETURN_WINDOW_EXPIRED / RETURN_ALREADY_EXISTS / RETURN_NOT_ALLOWED
-Nhân viên: /admin/returns → mở yêu cầu → Duyệt (APPROVED) hoặc Từ chối (REJECTED, bắt buộc ghi chú)
-       → khi nhận lại hàng → "Xác nhận đã nhận hàng" (COMPLETED)
-       → hệ thống cộng lại tồn kho (ghi nhật ký RETURN), đơn chuyển RETURNED
+Khách: /account/orders/[id] → đơn COMPLETED, còn trong 7 ngày → "Trả hàng/Hoàn tiền"
+       → /account/orders/[id]/return: chọn lý do, chụp / tải 1–2 ảnh, mô tả (không bắt buộc) → "Gửi yêu cầu"
+       [POST /orders/{id}/returns, multipart] → yêu cầu PENDING; nhân viên nhận thông báo
+  ⚠ RETURN_WINDOW_EXPIRED / RETURN_ALREADY_EXISTS / RETURN_NOT_ALLOWED / IMAGE_UPLOAD_FAILED
+Nhân viên: /admin/returns → /admin/returns/[id] → xem ảnh → Duyệt (APPROVED) hoặc Từ chối (REJECTED, bắt buộc ghi chú)
+       → Duyệt là xong (D-41): hệ thống cộng lại tồn kho (ghi nhật ký RETURN), đơn chuyển RETURNED
 Khách nhận thông báo + email ở mỗi bước. Hoàn tiền thực hiện ngoài hệ thống.
 ```
 

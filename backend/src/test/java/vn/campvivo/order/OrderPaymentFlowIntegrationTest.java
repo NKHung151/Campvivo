@@ -1,5 +1,6 @@
 package vn.campvivo.order;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.web.context.WebApplicationContext;
 import vn.campvivo.auth.JwtService;
 import vn.campvivo.cart.CartService;
 import vn.campvivo.cart.dto.CartRequests;
+import vn.campvivo.cart.dto.CartResponse;
 import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.order.dto.CreateOrderResponse;
 import vn.campvivo.order.dto.OrderRequests;
@@ -40,6 +42,7 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
@@ -110,6 +113,8 @@ class OrderPaymentFlowIntegrationTest {
                 "INSERT INTO categories (name, slug, path) VALUES ('Lều', 'leu', '/') RETURNING id", Long.class);
         productId = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
                 + "VALUES (?, 'Lều 2 người', 'leu-2-nguoi', 500000, 10) RETURNING id", Long.class, category);
+        // Sản phẩm luôn có ít nhất 1 biến thể (D-37); giỏ hàng lưu biến thể (D-40)
+        jdbc.update("INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM products WHERE id = ?", productId);
         comboId = jdbc.queryForObject("INSERT INTO product_combos (category_id, name, slug, combo_price, stock_quantity) "
                 + "VALUES (?, 'Combo cắm trại', 'combo-cam-trai', 900000, 4) RETURNING id", Long.class, category);
         customerId = customer("buyer@campvivo.vn").getId();
@@ -145,8 +150,8 @@ class OrderPaymentFlowIntegrationTest {
 
     /** 2 lều (1.000.000) + 1 combo (900.000) + ship 30.000. */
     private CreateOrderResponse placeOrder(Long userId, PaymentMethod method) {
-        cartService.addItem(userId, new CartRequests.AddItem(productId, null, 2));
-        cartService.addItem(userId, new CartRequests.AddItem(null, comboId, 1));
+        cartService.addItem(userId, new CartRequests.AddItem(productId, null, null, 2));
+        cartService.addItem(userId, new CartRequests.AddItem(null, null, comboId, 1));
         return orderService.create(userId, request(method, 1_930_000), "127.0.0.1");
     }
 
@@ -167,7 +172,7 @@ class OrderPaymentFlowIntegrationTest {
 
     @Test
     void priceChangedRollsBackEverything() {
-        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, 1));
+        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, null, 1));
 
         assertThatThrownBy(() -> orderService.create(customerId, request(PaymentMethod.COD, 1), "127.0.0.1"))
                 .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo("PRICE_CHANGED"));
@@ -258,7 +263,7 @@ class OrderPaymentFlowIntegrationTest {
         List<Long> buyers = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
             Long id = customer("race" + i + "@campvivo.vn").getId();
-            cartService.addItem(id, new CartRequests.AddItem(productId, null, 1));
+            cartService.addItem(id, new CartRequests.AddItem(productId, null, null, 1));
             buyers.add(id);
         }
         ExecutorService pool = Executors.newFixedThreadPool(buyers.size());
@@ -301,6 +306,90 @@ class OrderPaymentFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.outcome").value("ALREADY_PROCESSED"))
                 .andExpect(jsonPath("$.data.orderStatus").value("CONFIRMED"));
+    }
+
+    /** Áo khoác 2 size (D-37): S tồn 3, M tồn 5, tổng sản phẩm 8. Trả về {productId, variant S, variant M}. */
+    private long[] twoSizeJacket() {
+        long category = jdbc.queryForObject("SELECT id FROM categories WHERE slug = 'leu'", Long.class);
+        long product = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
+                + "VALUES (?, 'Áo khoác', 'ao-khoac', 300000, 8) RETURNING id", Long.class, category);
+        long option = jdbc.queryForObject("INSERT INTO product_options (product_id, name, position) "
+                + "VALUES (?, 'Size', 1) RETURNING id", Long.class, product);
+        long[] out = {product, 0, 0};
+        String[] sizes = {"S", "M"};
+        int[] stocks = {3, 5};
+        for (int i = 0; i < 2; i++) {
+            long value = jdbc.queryForObject("INSERT INTO product_option_values (option_id, value, position) "
+                    + "VALUES (?, ?, ?) RETURNING id", Long.class, option, sizes[i], i);
+            out[i + 1] = jdbc.queryForObject("INSERT INTO product_variants (product_id, option1_value_id, "
+                    + "stock_quantity, position) VALUES (?, ?, ?, ?) RETURNING id", Long.class, product, value, stocks[i], i);
+        }
+        return out;
+    }
+
+    private static void assertError(ThrowingCallable call, String code) {
+        assertThatThrownBy(call).isInstanceOfSatisfying(BusinessException.class,
+                e -> assertThat(e.getErrorCode()).isEqualTo(code));
+    }
+
+    @Test
+    void cartKeepsChosenVariantAndChecksItsOwnStock() {
+        long[] jacket = twoSizeJacket();
+
+        // Sản phẩm nhiều size: phải chọn; biến thể của sản phẩm khác → NOT_FOUND
+        assertError(() -> cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], null, null, 1)),
+                "VALIDATION_ERROR");
+        long tentVariant = jdbc.queryForObject("SELECT id FROM product_variants WHERE product_id = ?", Long.class, productId);
+        assertError(() -> cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], tentVariant, null, 1)),
+                "NOT_FOUND");
+
+        cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[1], null, 2));
+        cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[2], null, 1));
+        CartResponse cart = cartService.getCart(customerId);
+        assertThat(cart.items()).extracting(l -> l.variant().title(), CartResponse.Line::quantity)
+                .containsExactly(tuple("S", 2), tuple("M", 1));
+        assertThat(cart.items()).extracting(l -> l.item().availableQuantity()).containsExactly(3, 5);
+        assertThat(cart.items().get(0).variant().id()).isEqualTo(jacket[1]);
+
+        // Tổng sản phẩm còn 8 nhưng size S chỉ có 3
+        assertError(() -> cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[1], null, 2)),
+                "OUT_OF_STOCK");
+        // Sản phẩm 1 biến thể: không gửi biến thể vẫn được
+        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, null, 1));
+        assertThat(cartService.getCart(customerId).items().get(2).variant().title()).isNull();
+    }
+
+    @Test
+    void variantOrderReservesCommitsAndReleasesTheChosenVariant() {
+        long[] jacket = twoSizeJacket();
+        cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[1], null, 2));
+        cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[2], null, 1));
+
+        CreateOrderResponse paid = orderService.create(customerId, request(PaymentMethod.VNPAY, 930_000), "127.0.0.1");
+        assertThat(reserved("products", jacket[0])).isEqualTo(3);
+        assertThat(reserved("product_variants", jacket[1])).isEqualTo(2);
+        assertThat(reserved("product_variants", jacket[2])).isEqualTo(1);
+        assertThat(jdbc.queryForList("SELECT variant_title FROM order_items WHERE order_id = ? ORDER BY id",
+                String.class, paid.orderId())).containsExactly("S", "M");
+
+        paymentResultService.handlePaymentResult(PaymentMethod.VNPAY,
+                VnpayTestSigner.callback(paid.orderCode(), 930_000, "00", "14000003", SECRET));
+        assertThat(stock("products", jacket[0])).isEqualTo(5);
+        assertThat(stock("product_variants", jacket[1])).isEqualTo(1);
+        assertThat(stock("product_variants", jacket[2])).isEqualTo(4);
+        assertThat(reserved("product_variants", jacket[1])).isZero();
+        assertThat(reserved("product_variants", jacket[2])).isZero();
+
+        // Đơn huỷ trả giữ chỗ về đúng biến thể
+        cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[2], null, 4));
+        CreateOrderResponse cancelled = orderService.create(customerId, request(PaymentMethod.COD, 1_230_000), "127.0.0.1");
+        assertThat(reserved("product_variants", jacket[2])).isEqualTo(4);
+        assertError(() -> cartService.addItem(customerId, new CartRequests.AddItem(jacket[0], jacket[2], null, 1)),
+                "OUT_OF_STOCK");
+        orderService.cancelByCustomer(customerId, cancelled.orderId(), null);
+        assertThat(reserved("product_variants", jacket[2])).isZero();
+        assertThat(reserved("products", jacket[0])).isZero();
+        assertThat(stock("product_variants", jacket[2])).isEqualTo(4);
     }
 
     @Test

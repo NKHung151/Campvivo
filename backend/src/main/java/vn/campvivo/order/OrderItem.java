@@ -15,7 +15,8 @@ import java.math.BigDecimal;
 
 /**
  * Dòng đơn — database.md mục 3.10: snapshot tên/ảnh/giá lúc đặt, không bao giờ sửa (BR-4).
- * Chỉ giữ id mặt hàng (không nạp entity) vì sản phẩm có thể đã đổi tên/giá/ẩn.
+ * Chỉ giữ id mặt hàng (không nạp entity) vì sản phẩm có thể đã đổi tên/giá/ẩn. Dòng sản phẩm có biến thể khách chọn
+ * (D-40): `variantId` + `variantTitle` ("Tím / M", null với biến thể mặc định); đơn cũ trước V15 không có biến thể.
  */
 @Entity
 @Table(name = "order_items")
@@ -31,6 +32,12 @@ public class OrderItem {
 
     @Column(name = "product_id")
     private Long productId;
+
+    @Column(name = "variant_id")
+    private Long variantId;
+
+    @Column(name = "variant_title")
+    private String variantTitle;
 
     @Column(name = "combo_id")
     private Long comboId;
@@ -57,10 +64,12 @@ public class OrderItem {
         // JPA
     }
 
-    OrderItem(Order order, Long productId, Long comboId, String itemName, String itemImageUrl,
-              BigDecimal originalPrice, BigDecimal unitPrice, int quantity) {
+    OrderItem(Order order, Long productId, Long variantId, String variantTitle, Long comboId, String itemName,
+              String itemImageUrl, BigDecimal originalPrice, BigDecimal unitPrice, int quantity) {
         this.order = order;
         this.productId = productId;
+        this.variantId = variantId;
+        this.variantTitle = variantTitle;
         this.comboId = comboId;
         this.itemName = itemName;
         this.itemImageUrl = itemImageUrl;
@@ -71,7 +80,7 @@ public class OrderItem {
     }
 
     public StockLine toStockLine() {
-        return productId != null ? StockLine.product(productId, quantity) : StockLine.combo(comboId, quantity);
+        return productId != null ? StockLine.product(productId, variantId, quantity) : StockLine.combo(comboId, quantity);
     }
 
     public boolean isProduct() {
@@ -80,6 +89,8 @@ public class OrderItem {
 
     public Long getId() { return id; }
     public Long getProductId() { return productId; }
+    public Long getVariantId() { return variantId; }
+    public String getVariantTitle() { return variantTitle; }
     public Long getComboId() { return comboId; }
     public String getItemName() { return itemName; }
     public String getItemImageUrl() { return itemImageUrl; }

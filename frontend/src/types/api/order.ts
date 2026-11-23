@@ -1,11 +1,20 @@
 import type { ItemSummary } from "@/types/api/catalog";
-import type { ItemType, Money, OrderStatus, PaymentMethod, PaymentStatus } from "@/types/api/common";
+import type { ItemType, Money, OrderStatus, PaymentMethod, PaymentStatus, ReturnStatus } from "@/types/api/common";
 
 /** Giỏ hàng, đặt hàng, thanh toán — khớp docs/02-ky-thuat/api.md mục 4.4, 4.5. */
 
+/** Biến thể khách chọn (D-40). `title` = "Tím / M"; null với sản phẩm không có tuỳ chọn. */
+export interface CartVariant {
+  id: number;
+  title: string | null;
+}
+
 export interface CartLine {
   id: number;
+  /** Dòng sản phẩm: `availableQuantity` / `isActive` tính theo biến thể đã chọn. */
   item: ItemSummary & { isActive: boolean };
+  /** null với combo. */
+  variant: CartVariant | null;
   quantity: number;
   /** Giá hiện hành × số lượng (D-04). */
   lineTotal: Money;
@@ -22,6 +31,8 @@ export interface Cart {
 
 export interface AddCartItemRequest {
   productId?: number;
+  /** Bắt buộc khi sản phẩm có nhiều màu / size; bỏ trống = biến thể duy nhất (D-40). */
+  variantId?: number;
   comboId?: number;
   quantity: number;
 }
@@ -39,6 +50,8 @@ export interface OrderPreview {
     cartItemId: number;
     type: ItemType;
     id: number;
+    variantId: number | null;
+    variantTitle: string | null;
     name: string;
     quantity: number;
     originalPrice: Money;
@@ -95,6 +108,9 @@ export interface OrderDetail {
   items: {
     type: ItemType;
     itemId: number;
+    /** Biến thể đã chọn lúc đặt (snapshot); null với combo và đơn cũ. */
+    variantId: number | null;
+    variantTitle: string | null;
     name: string;
     imageUrl: string | null;
     originalPrice: Money;
@@ -118,10 +134,49 @@ export interface OrderDetail {
   /** Vận đơn GHN (D-27): `trackingCode` null = chưa tạo. */
   shipping: { carrier: string; districtId: number | null; wardCode: string | null; trackingCode: string | null; error: string | null };
   history: { oldStatus: OrderStatus | null; newStatus: OrderStatus; note: string | null; createdAt: string }[];
-  returnRequest: null;
+  /** Yêu cầu trả hàng đã gửi; null = chưa gửi. */
+  returnRequest: ReturnRequestDto | null;
   canCancel: boolean;
+  /** Đơn COMPLETED, còn trong hạn, chưa gửi yêu cầu. */
   canReturn: boolean;
   completedAt: string | null;
+  /** Hạn gửi yêu cầu trả hàng (completedAt + số ngày cấu hình); null khi đơn chưa hoàn tất. */
+  returnDeadline: string | null;
+}
+
+/** Lý do trả hàng (D-41) — nhãn ở `RETURN_REASONS` (lib/returns.ts). */
+export type ReturnReason =
+  | "MISSING_ITEMS"
+  | "WRONG_ITEM"
+  | "DAMAGED"
+  | "DEFECTIVE"
+  | "EXPIRED"
+  | "NOT_AS_DESCRIBED"
+  | "USED"
+  | "COUNTERFEIT"
+  | "CHANGED_MIND";
+
+export interface ReturnRequestDto {
+  id: number;
+  orderId: number;
+  reason: ReturnReason;
+  reasonLabel: string;
+  description: string | null;
+  imageUrls: string[];
+  /** Tạm tính − giảm giá (phí vận chuyển không hoàn); hoàn tiền làm ngoài hệ thống. */
+  refundAmount: Money;
+  status: ReturnStatus;
+  /** Ghi chú của nhân viên (bắt buộc khi từ chối). */
+  note: string | null;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateReturnRequest {
+  reason: ReturnReason;
+  description?: string;
+  /** 1–2 ảnh JPG/PNG/WEBP ≤ 5MB. */
+  images: File[];
 }
 
 export type PaymentOutcome = "SUCCESS" | "FAILED" | "ALREADY_PROCESSED" | "INVALID_SIGNATURE" | "ORDER_NOT_FOUND" | "AMOUNT_MISMATCH";
@@ -184,6 +239,33 @@ export interface AdminOrderDetail {
   allowedStatuses: OrderStatus[];
   /** Tạo / tạo lại vận đơn GHN được không (đơn CONFIRMED/SHIPPING chưa có vận đơn). */
   canCreateShipment: boolean;
+}
+
+// ---------------------------------------------------------------- admin trả hàng (api.md 4.10, FR-19b)
+
+export interface AdminReturnSummary {
+  id: number;
+  orderId: number;
+  orderCode: string | null;
+  orderStatus: OrderStatus | null;
+  reason: ReturnReason;
+  reasonLabel: string;
+  refundAmount: Money;
+  status: ReturnStatus;
+  itemCount: number;
+  firstItemName: string | null;
+  firstItemImageUrl: string | null;
+  /** Ảnh đầu tiên khách chụp. */
+  firstImageUrl: string | null;
+  customer: AdminOrderCustomer | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+export interface AdminReturnDetail {
+  request: ReturnRequestDto;
+  order: OrderDetail;
+  customer: AdminOrderCustomer | null;
 }
 
 export interface OrderStatusChange {

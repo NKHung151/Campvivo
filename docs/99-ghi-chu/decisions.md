@@ -13,6 +13,56 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Trả hàng (2026-11-23)
+
+### 2026-11-23 — D-41: Trả hàng có ảnh, lý do chọn sẵn; nhân viên duyệt là hoàn tất
+- **Bối cảnh:** người dùng (Người 1) muốn luồng giống sàn TMĐT: sau khi nhận hàng, khách nhập thông tin, chụp hoặc tải 1–2 ảnh
+  rồi gửi; nhân viên duyệt là xong. D-07 / BR-9 cũ có 3 bước (duyệt → nhận lại hàng → COMPLETED) và lý do là chữ tự do.
+- **Quyết định:**
+  - Khách (đơn của mình, COMPLETED, trong `app.return.window-days` = 7 ngày từ `completed_at`, chưa có yêu cầu) gửi multipart
+    `POST /orders/{id}/returns`: `reason` (1 mã trong 9 lý do cố định — `ReturnReason`), `description?` (≤ 2000), `images` 1–2
+    ảnh (JPG/PNG/WEBP ≤ 5MB, lưu Cloudinary thư mục `returns`). Phương án duy nhất: trả hàng và hoàn tiền, vẫn trả nguyên đơn.
+  - `refund_amount` = tạm tính − giảm giá lúc gửi (phí vận chuyển không hoàn), chỉ để hiển thị; hoàn tiền vẫn làm ngoài hệ thống.
+  - Trạng thái yêu cầu: `PENDING → APPROVED | REJECTED`; bỏ `COMPLETED`. Duyệt = cộng lại tồn kho từng dòng (theo biến thể —
+    D-40; ghi nhật ký RETURN) + đơn `COMPLETED → RETURNED` trong cùng transaction. Từ chối bắt buộc ghi chú, đơn giữ COMPLETED,
+    không gửi lại được.
+  - Kiểm điều kiện trước khi tải ảnh lên, rồi khoá đơn và kiểm lại trước khi lưu (không giữ khoá trong lúc gọi Cloudinary).
+    Thứ tự khoá khi duyệt: orders → return_requests → products → product_combos → product_variants.
+  - Route mới: `/account/orders/[id]/return` (form), `/admin/returns/[id]` (chi tiết + duyệt / từ chối).
+- **Lý do:** ảnh giúp nhân viên quyết định mà không cần trao đổi thêm; bỏ bước "đã nhận hàng" theo yêu cầu, đồ án không theo dõi
+  vận đơn chiều trả.
+- **Phương án khác đã cân nhắc:** giữ 3 bước của D-07 (người dùng không muốn); trả từng dòng hàng (quá phạm vi, giữ D-07: trả
+  nguyên đơn).
+- **Ảnh hưởng:** migration `V16__return_request_details.sql` (cột `description`, `image_urls`, `refund_amount`; CHECK lý do và
+  trạng thái mới). Thông báo / email cho từng bước chưa làm (module notification chưa có). Cloudinary phải được cấu hình
+  (`CLOUDINARY_*`) thì khách mới tải ảnh lên được (`IMAGE_UPLOAD_FAILED`).
+- **Thay thế một phần D-07:** bỏ bước "xác nhận đã nhận hàng"; phần còn lại của D-07 (trả nguyên đơn, 1 yêu cầu/đơn, hoàn
+  tiền thủ công) giữ nguyên.
+
+## Giỏ hàng / đơn hàng theo biến thể (2026-11-23)
+
+### 2026-11-23 — D-40: Giỏ hàng và đơn hàng lưu biến thể; giữ chỗ / trừ kho theo biến thể
+- **Bối cảnh:** D-37 thêm biến thể nhưng giỏ / đơn chỉ lưu sản phẩm → giỏ không hiện màu / size khách chọn, nhân viên
+  không biết giao size nào, đơn chỉ trừ tổng nên phải phân bổ tay, và có thể bán vượt một size hết hàng khi tổng còn hàng.
+- **Quyết định:**
+  - `cart_items.variant_id` (bắt buộc với dòng sản phẩm). Cùng sản phẩm khác màu / size là hai dòng giỏ; thêm lại cùng biến
+    thể thì cộng dồn. `POST /cart/items` nhận `variantId`; bỏ trống chỉ được khi sản phẩm có đúng 1 biến thể.
+  - Khả dụng của dòng giỏ / khi đặt = `min(stock − reserved của biến thể, available của sản phẩm)`; biến thể tắt bán coi như
+    ngừng kinh doanh (PRODUCT_INACTIVE).
+  - `order_items.variant_id` + `variant_title` (snapshot, BR-4). Hiện ở trang đặt thành công, chi tiết đơn của khách và admin,
+    tên hàng gửi GHN.
+  - Tồn kho (BR-2): dòng có biến thể đổi cả tổng sản phẩm và biến thể (giữ chỗ khi tạo, trừ khi CONFIRMED, trả khi huỷ /
+    PAYMENT_FAILED). Biến thể duy nhất không giữ chỗ riêng (tồn và giữ chỗ là của sản phẩm). Khoá theo thứ tự sản phẩm →
+    combo → biến thể → voucher.
+  - Đơn cũ (trước V15, `variant_id` NULL) giữ cách cũ: chỉ đổi tổng, vẫn phân bổ tay ở trang Tồn kho.
+  - Migration V15: dòng giỏ cũ của sản phẩm 1 biến thể được gán biến thể đó; dòng của sản phẩm nhiều biến thể bị xoá (không biết
+    khách muốn màu / size nào). Xoá biến thể ở admin → dòng giỏ của nó bị xoá theo, dòng đơn giữ `variant_title`.
+- **Lý do:** bán đúng hàng khách chọn mà không đổi giá (mọi biến thể cùng giá — D-37) và không phải sửa luồng thanh toán.
+- **Phương án khác đã cân nhắc:** chỉ lưu tên biến thể vào dòng giỏ / đơn, vẫn trừ tổng → không chặn được bán vượt theo size,
+  vẫn phải phân bổ tay.
+- **Ảnh hưởng:** migration `V15__cart_order_variants.sql`; API `POST /cart/items`, `Cart`, `OrderPreview`, `OrderDetail`,
+  `details.items` của OUT_OF_STOCK (api.md). Trang So sánh: sản phẩm có màu / size chuyển sang trang sản phẩm để chọn.
+
 ## Tìm kiếm (2026-11-14)
 
 ### 2026-11-14 — D-39: Tìm kiếm dùng PostgreSQL `unaccent` + `pg_trgm`, không dùng Elasticsearch
@@ -60,7 +110,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
   - Đơn hàng chỉ trừ tổng → phần chênh Σ tồn biến thể − tồn sản phẩm = "hàng đã bán chưa phân bổ"; nhân viên trừ vào
     đúng biến thể khách mua ở trang Tồn kho (`allocateSold`, ghi nhật ký EXPORT, tổng không đổi). Sản phẩm chỉ 1 biến
     thể: tồn biến thể luôn bằng tồn sản phẩm, không cần phân bổ.
-  - Cửa hàng chưa cho khách chọn biến thể (giỏ hàng chưa lưu biến thể).
+  - ~~Cửa hàng chưa cho khách chọn biến thể (giỏ hàng chưa lưu biến thể).~~ Đã làm ở D-40.
   - SKU không bắt buộc, không trùng — mã hàng nội bộ để kho / nhà cung cấp tra cứu, in nhãn.
   - Tuỳ chọn và giá trị nhận diện theo id: đổi tên vẫn giữ biến thể và tồn kho. Thêm tuỳ chọn mới thì biến thể cũ chuyển
     sang giá trị đầu tiên của tuỳ chọn đó (mang theo tồn kho). Biến thể còn tồn kho / đã dùng trong combo / đã có lịch sử
@@ -70,7 +120,7 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 - **Để sau:** ảnh theo màu (`images.option_value_id`); gộp các sản phẩm đang tách riêng theo màu/size thành một sản phẩm
   nhiều biến thể.
 - **Để sau (Người 1):** `cart_items.variant_id`, `order_items.variant_id`, giữ chỗ / trừ kho theo biến thể; khi đó bỏ bước
-  phân bổ tay và cho khách chọn màu/size ở trang sản phẩm.
+  phân bổ tay và cho khách chọn màu/size ở trang sản phẩm. → **Đã làm ở D-40 (2026-11-23).**
 - **Ảnh hưởng:** migration `V10__product_variants.sql` (dữ liệu cũ: mỗi sản phẩm → 1 biến thể mặc định mang nguyên tồn kho;
   không xoá cột nào của `products`). Khoá dòng theo thứ tự sản phẩm → combo → biến thể (database.md mục 6).
 
@@ -288,6 +338,7 @@ Bổ sung cho D-09 (D-09 vẫn giữ nguyên: 1 đánh giá / user / mặt hàng
 - **Lý do:** Use case "Add to favorite" trong báo cáo gồm sản phẩm, combo, bài viết.
 
 ### 2026-10-17 — D-07: Có duyệt trả hàng; trả nguyên đơn; hoàn tiền thủ công
+- **Bước "xác nhận đã nhận hàng" bị D-41 (2026-11-23) bỏ: duyệt là hoàn tất.**
 - **Quyết định:** Khách gửi yêu cầu trả hàng cho đơn COMPLETED trong thời hạn cấu hình (mặc
   định 7 ngày). Employee/Admin duyệt/từ chối, rồi xác nhận đã nhận hàng → cộng lại tồn kho, đơn
   chuyển `RETURNED`. Trả nguyên đơn, mỗi đơn tối đa 1 yêu cầu. Hoàn tiền xử lý ngoài hệ thống.

@@ -111,10 +111,11 @@ export function OrderSuccess() {
       <p>{h.text}</p>
       <div className="box">
         {o.items.map((i) => (
-          <div key={`${i.type}-${i.itemId}`} style={{ display: "flex", gap: 12, alignItems: "center", padding: "6px 0" }}>
+          <div key={`${i.type}-${i.itemId}-${i.variantId ?? ""}`} style={{ display: "flex", gap: 12, alignItems: "center", padding: "6px 0" }}>
             {i.imageUrl && <img src={i.imageUrl} alt={i.name} width={56} height={56} style={{ objectFit: "cover" }} />}
             <div style={{ flex: 1 }}>
               {i.name} <span style={{ color: "#777" }}>× {i.quantity}</span>
+              {i.variantTitle && <div style={{ color: "#777", fontSize: 13 }}>Phân loại: {i.variantTitle}</div>}
             </div>
             <div>{vnd(i.lineTotal)}</div>
           </div>

@@ -9,9 +9,9 @@ import java.util.List;
 /**
  * Biến thể = một tổ hợp giá trị tuỳ chọn (vd. Tím / S/M), cùng giá với sản phẩm (D-37).
  * Sản phẩm không có tuỳ chọn có đúng 1 biến thể mặc định (option1/option2 null).
- * <p>Tồn kho chi tiết theo biến thể. Nhập/xuất/đóng gói/tháo đổi CẢ biến thể và tổng ở {@link Product} (giỏ hàng / đơn
- * hàng hiện giữ chỗ và trừ kho theo tổng sản phẩm). `reserved_quantity` của biến thể chưa dùng (= 0) cho tới khi giỏ /
- * đơn lưu biến thể. Gọi trong transaction đã khoá dòng sản phẩm và biến thể.
+ * <p>Tồn kho chi tiết theo biến thể. Nhập/xuất/đóng gói/tháo và đơn hàng (D-40) đổi CẢ biến thể và tổng ở
+ * {@link Product}. Biến thể duy nhất không giữ chỗ riêng — tồn và giữ chỗ của nó là của sản phẩm. Gọi trong transaction
+ * đã khoá dòng sản phẩm và biến thể.
  */
 @Entity
 @Table(name = "product_variants")
@@ -123,12 +123,40 @@ public class ProductVariant {
     }
 
     /**
-     * Số lấy ra được ngay: không vượt tồn của biến thể và không vượt phần khả dụng của sản phẩm (hàng đang giữ chỗ cho
-     * đơn tính ở tổng sản phẩm).
+     * Số lấy ra được ngay (BR-1): không vượt phần chưa giữ chỗ của biến thể và không vượt phần khả dụng của sản phẩm
+     * (đơn cũ chưa lưu biến thể chỉ giữ chỗ ở tổng sản phẩm).
      */
     public int getAvailableQuantity() {
         return isOnly() ? product.getAvailableQuantity()
                 : Math.min(stockQuantity - reservedQuantity, product.getAvailableQuantity());
+    }
+
+    /**
+     * Tạo đơn (BR-2, D-40): giữ chỗ ở biến thể. Gọi SAU {@link Product#reserve} — sản phẩm đã kiểm phần khả dụng của
+     * tổng. Biến thể duy nhất không giữ chỗ riêng.
+     */
+    public void reserve(int quantity) {
+        if (isOnly()) {
+            return;
+        }
+        if (stockQuantity - reservedQuantity < quantity) {
+            throw new IllegalStateException("Không đủ tồn kho khả dụng cho " + displayName());
+        }
+        this.reservedQuantity += quantity;
+    }
+
+    /** Đơn CANCELLED / PAYMENT_FAILED: trả phần giữ chỗ ở biến thể. */
+    public void release(int quantity) {
+        this.reservedQuantity = Math.max(0, reservedQuantity - quantity);
+    }
+
+    /**
+     * Đơn CONFIRMED: trừ tồn biến thể đúng số khách mua — không còn phần "chưa phân bổ". Gọi SAU {@link Product#commit}.
+     * Không để âm: biến thể vừa tách từ biến thể duy nhất (admin thêm tuỳ chọn khi đơn đang chờ) có thể chưa giữ chỗ.
+     */
+    public void commit(int quantity) {
+        this.reservedQuantity = Math.max(0, reservedQuantity - quantity);
+        this.stockQuantity = isOnly() ? product.getStockQuantity() : Math.max(0, stockQuantity - quantity);
     }
 
     /** Đóng gói combo (D-22): lấy hàng ra khỏi biến thể và tổng sản phẩm. */
@@ -149,11 +177,11 @@ public class ProductVariant {
     }
 
     /**
-     * Nhập/xuất/kiểm kê tay (FR-08, BR-8): stock += change ở biến thể và tổng sản phẩm. Biến thể không được âm; tổng không
-     * được thấp hơn số đang giữ chỗ cho đơn. Trả về tồn của biến thể sau thay đổi.
+     * Nhập/xuất/kiểm kê tay (FR-08, BR-8): stock += change ở biến thể và tổng sản phẩm. Biến thể và tổng đều không được
+     * thấp hơn số đang giữ chỗ cho đơn. Trả về tồn của biến thể sau thay đổi.
      */
     public int adjustStock(int change, OffsetDateTime now) {
-        if (change == 0 || getStockQuantity() + change < 0) {
+        if (change == 0 || getStockQuantity() + change < (isOnly() ? 0 : reservedQuantity)) {
             throw new IllegalStateException("Điều chỉnh tồn kho không hợp lệ cho " + displayName());
         }
         product.adjustStock(change, now);
@@ -167,7 +195,8 @@ public class ProductVariant {
      * biến thể (tổng đã trừ khi đơn xác nhận); tối đa phần chênh {@link Product#getUnallocatedSold()}.
      */
     public int allocateSold(int quantity, OffsetDateTime now) {
-        if (isOnly() || quantity <= 0 || quantity > stockQuantity || quantity > product.getUnallocatedSold()) {
+        if (isOnly() || quantity <= 0 || quantity > stockQuantity - reservedQuantity
+                || quantity > product.getUnallocatedSold()) {
             throw new IllegalStateException("Phân bổ hàng đã bán không hợp lệ cho " + displayName());
         }
         this.stockQuantity -= quantity;

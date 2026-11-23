@@ -7,6 +7,7 @@ import vn.campvivo.cart.dto.CartRequests;
 import vn.campvivo.cart.dto.CartResponse;
 import vn.campvivo.catalog.Product;
 import vn.campvivo.catalog.ProductService;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ComboService;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.common.exception.BusinessException;
@@ -28,12 +29,13 @@ import java.util.Set;
 /**
  * Giỏ hàng (FR-09, api.md 4.4). Giá luôn tính lại bằng PricingService (D-04). Thêm/sửa khoá dòng `carts` của user để
  * các request song song của cùng một người không vướng unique; số lượng kiểm theo BR-1 (gồm số đã có trong giỏ).
+ * Dòng sản phẩm theo biến thể khách chọn (D-40): khả dụng / đang bán tính theo biến thể.
  */
 @Service
 public class CartService {
 
-    /** Dòng giỏ đem đi đặt hàng. */
-    public record CheckoutLine(Long cartItemId, Long productId, Long comboId, int quantity) {}
+    /** Dòng giỏ đem đi đặt hàng. `variantId` khác null khi và chỉ khi là dòng sản phẩm. */
+    public record CheckoutLine(Long cartItemId, Long productId, Long variantId, Long comboId, int quantity) {}
 
     private final CartRepository cartRepository;
     private final EntityManager em;
@@ -67,22 +69,27 @@ public class CartService {
     public CartResponse addItem(Long userId, CartRequests.AddItem req) {
         Cart cart = lockCart(userId);
         OffsetDateTime now = OffsetDateTime.now(clock);
-        CartItem existing = cart.getItems().stream()
-                .filter(i -> req.productId() != null ? i.isProduct() && i.getProduct().getId().equals(req.productId())
-                        : !i.isProduct() && i.getCombo().getId().equals(req.comboId()))
-                .findFirst().orElse(null);
-        int newQuantity = req.quantity() + (existing == null ? 0 : existing.getQuantity());
-
         if (req.productId() != null) {
             Product product = em.find(Product.class, req.productId());
-            ensureSellable(product == null ? null : product.isActive(), "PRODUCT", req.productId(),
-                    product == null ? null : product.getName(), product == null ? 0 : product.getAvailableQuantity(), newQuantity);
+            if (product == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND);
+            }
+            ProductVariant variant = variantOf(product, req.variantId());
+            CartItem existing = cart.getItems().stream()
+                    .filter(i -> i.isProduct() && i.getVariant().getId().equals(variant.getId()))
+                    .findFirst().orElse(null);
+            int newQuantity = req.quantity() + (existing == null ? 0 : existing.getQuantity());
+            ensureSellable(variant, newQuantity);
             if (existing == null) {
-                cart.getItems().add(new CartItem(cart, product, null, newQuantity, now));
+                cart.getItems().add(new CartItem(cart, variant, null, newQuantity, now));
             } else {
                 existing.changeQuantity(newQuantity, now);
             }
         } else {
+            CartItem existing = cart.getItems().stream()
+                    .filter(i -> !i.isProduct() && i.getCombo().getId().equals(req.comboId()))
+                    .findFirst().orElse(null);
+            int newQuantity = req.quantity() + (existing == null ? 0 : existing.getQuantity());
             ProductCombo combo = em.find(ProductCombo.class, req.comboId());
             ensureSellable(combo == null ? null : combo.isActive(), "COMBO", req.comboId(),
                     combo == null ? null : combo.getName(), combo == null ? 0 : combo.getAvailableQuantity(), newQuantity);
@@ -102,8 +109,7 @@ public class CartService {
         Cart cart = lockCart(userId);
         CartItem item = findLine(cart, cartItemId);
         if (item.isProduct()) {
-            Product p = item.getProduct();
-            ensureSellable(p.isActive(), "PRODUCT", p.getId(), p.getName(), p.getAvailableQuantity(), quantity);
+            ensureSellable(item.getVariant(), quantity);
         } else {
             ProductCombo c = item.getCombo();
             ensureSellable(c.isActive(), "COMBO", c.getId(), c.getName(), c.getAvailableQuantity(), quantity);
@@ -137,6 +143,7 @@ public class CartService {
                 .filter(i -> wanted.isEmpty() || wanted.contains(i.getId()))
                 .map(i -> new CheckoutLine(i.getId(),
                         i.isProduct() ? i.getProduct().getId() : null,
+                        i.isProduct() ? i.getVariant().getId() : null,
                         i.isProduct() ? null : i.getCombo().getId(),
                         i.getQuantity()))
                 .toList();
@@ -172,6 +179,40 @@ public class CartService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     }
 
+    /**
+     * Biến thể khách chọn, phải thuộc đúng sản phẩm (khác → NOT_FOUND). Bỏ trống chỉ được khi sản phẩm có đúng 1 biến thể;
+     * sản phẩm nhiều màu / size mà chưa chọn → VALIDATION_ERROR (D-40).
+     */
+    private ProductVariant variantOf(Product product, Long variantId) {
+        if (variantId == null) {
+            if (product.getVariants().size() != 1) {
+                String message = "Vui lòng chọn phân loại (màu / size) của \"" + product.getName() + "\".";
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, message,
+                        Map.of("fieldErrors", Map.of("variantId", message)));
+            }
+            return product.getVariants().get(0);
+        }
+        ProductVariant variant = em.find(ProductVariant.class, variantId);
+        if (variant == null || !variant.getProduct().getId().equals(product.getId())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        return variant;
+    }
+
+    /** Sản phẩm hoặc biến thể ngừng bán → PRODUCT_INACTIVE; vượt khả dụng của biến thể → OUT_OF_STOCK. */
+    private static void ensureSellable(ProductVariant v, int wanted) {
+        Product p = v.getProduct();
+        String name = v.displayName();
+        if (!p.isActive() || !v.isActive()) {
+            throw new BusinessException(ErrorCode.PRODUCT_INACTIVE, p.isActive()
+                    ? "\"" + name + "\" đã ngừng bán. Vui lòng chọn màu / size khác." : ErrorCode.PRODUCT_INACTIVE.getMessage());
+        }
+        if (wanted > v.getAvailableQuantity()) {
+            throw InventoryService.outOfStock(List.of(
+                    InventoryService.shortage("PRODUCT", p.getId(), v.getId(), name, v.getAvailableQuantity())));
+        }
+    }
+
     /** Không tồn tại → NOT_FOUND; ngừng bán → PRODUCT_INACTIVE; vượt khả dụng → OUT_OF_STOCK (BR-1, BR-14). */
     private static void ensureSellable(Boolean active, String type, Long id, String name, int available, int wanted) {
         if (active == null) {
@@ -197,11 +238,14 @@ public class CartService {
         List<CartResponse.Line> lines = new ArrayList<>();
         for (CartItem i : cart.getItems()) {
             CartResponse.Item item;
+            CartResponse.Variant variant = null;
             if (i.isProduct()) {
                 Product p = i.getProduct();
+                ProductVariant v = i.getVariant();
                 item = new CartResponse.Item("PRODUCT", p.getId(), p.getName(), p.getSlug(), productImages.get(p.getId()),
-                        p.getPrice(), pricingService.unitPrice(p), p.getAvailableQuantity(), p.getAverageRating(),
-                        p.getReviewCount(), p.getBrand(), p.isActive());
+                        p.getPrice(), pricingService.unitPrice(p), v.getAvailableQuantity(), p.getAverageRating(),
+                        p.getReviewCount(), p.getBrand(), p.isActive() && v.isActive());
+                variant = new CartResponse.Variant(v.getId(), v.getTitle());
             } else {
                 ProductCombo c = i.getCombo();
                 item = new CartResponse.Item("COMBO", c.getId(), c.getName(), c.getSlug(), comboImages.get(c.getId()),
@@ -212,7 +256,7 @@ public class CartService {
             subtotal = subtotal.add(lineTotal);
             itemCount += i.getQuantity();
             problems |= !item.isActive() || i.getQuantity() > item.availableQuantity();
-            lines.add(new CartResponse.Line(i.getId(), item, i.getQuantity(), lineTotal));
+            lines.add(new CartResponse.Line(i.getId(), item, variant, i.getQuantity(), lineTotal));
         }
         return new CartResponse(lines, subtotal, itemCount, problems);
     }

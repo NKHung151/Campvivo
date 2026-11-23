@@ -29,6 +29,8 @@
    lan doi bien the. Khi CA truc deu het thi JS khong gan class nay -> van bam de dat truoc duoc. */
 .pg-shop .variants .list button.cv-unavail { pointer-events: none; cursor: not-allowed; }
 .pg-shop .cv-var-note { margin-top: 6px; font-size: 12px; color: #65676b; line-height: 1.4; }
+/* Giỏ hàng: màu / size khách đã chọn (D-40) */
+.pg-shop #TableCart .cv-cart-variant { margin-top: 4px; font-size: 13px; color: #65676b; }
 
 /* Biến thể HẾT HÀNG: mờ + gạch chéo góc trên-trái -> dưới-phải (vẫn bấm được để đặt trước) */
 .pg-shop .variants .list button.soldout { position: relative; opacity: .55; color: #9aa0a6; }

@@ -111,6 +111,8 @@ class VoucherFlowIntegrationTest {
                 "INSERT INTO categories (name, slug, path) VALUES ('Lều', 'leu', '/') RETURNING id", Long.class);
         productId = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
                 + "VALUES (?, 'Lều 2 người', 'leu-2-nguoi', 500000, 50) RETURNING id", Long.class, category);
+        // Sản phẩm luôn có ít nhất 1 biến thể (D-37); giỏ hàng lưu biến thể (D-40)
+        jdbc.update("INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM products WHERE id = ?", productId);
         comboId = jdbc.queryForObject("INSERT INTO product_combos (category_id, name, slug, combo_price, stock_quantity) "
                 + "VALUES (?, 'Combo cắm trại', 'combo-cam-trai', 900000, 10) RETURNING id", Long.class, category);
         customerId = customer("buyer@campvivo.vn").getId();
@@ -148,7 +150,7 @@ class VoucherFlowIntegrationTest {
 
     /** 1 lều 500.000, mã 10% (tối đa 50.000) → giảm 50.000, ship 30.000 → 480.000. */
     private CreateOrderResponse orderOneTent(Long userId, PaymentMethod method, String code) {
-        cartService.addItem(userId, new CartRequests.AddItem(productId, null, 1));
+        cartService.addItem(userId, new CartRequests.AddItem(productId, null, null, 1));
         return orderService.create(userId, request(method, code, 480_000, null), "127.0.0.1");
     }
 
@@ -225,7 +227,7 @@ class VoucherFlowIntegrationTest {
         // PRICE_CHANGED sau khi đã trừ lượt → rollback cả lượt voucher
         long v2 = voucher("TWO", "PERCENTAGE", 10, 50_000L, 0, 5, true);
         Long c = customer("c@campvivo.vn").getId();
-        cartService.addItem(c, new CartRequests.AddItem(productId, null, 1));
+        cartService.addItem(c, new CartRequests.AddItem(productId, null, null, 1));
         assertThat(errorOf(() -> orderService.create(c, request(PaymentMethod.COD, "TWO", 1, null), "127.0.0.1")))
                 .isEqualTo("PRICE_CHANGED");
         assertThat(usedCount(v2)).isZero();
@@ -238,7 +240,7 @@ class VoucherFlowIntegrationTest {
         List<Long> buyers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             Long id = customer("race" + i + "@campvivo.vn").getId();
-            cartService.addItem(id, new CartRequests.AddItem(productId, null, 1));
+            cartService.addItem(id, new CartRequests.AddItem(productId, null, null, 1));
             buyers.add(id);
         }
         List<String> outcomes = runConcurrently(buyers.stream().<Callable<String>>map(id ->
@@ -253,8 +255,8 @@ class VoucherFlowIntegrationTest {
     @Test
     void sameCustomerTwoParallelOrdersUsesCodeOnce() throws Exception {
         long v = voucher("SALE10", "PERCENTAGE", 10, 50_000L, 0, 5, true);
-        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, 1));
-        cartService.addItem(customerId, new CartRequests.AddItem(null, comboId, 1));
+        cartService.addItem(customerId, new CartRequests.AddItem(productId, null, null, 1));
+        cartService.addItem(customerId, new CartRequests.AddItem(null, null, comboId, 1));
         List<Long> lineIds = cartService.getCart(customerId).items().stream().map(l -> l.id()).toList();
         Long tentLine = cartService.getCart(customerId).items().stream()
                 .filter(l -> l.item().type().equals("PRODUCT")).findFirst().orElseThrow().id();
@@ -303,7 +305,7 @@ class VoucherFlowIntegrationTest {
                 """);
         MockMvc customer = AdminMockMvc.as(Role.CUSTOMER, context, users, jwt);
         Long me = users.findByEmail("test-customer@campvivo.vn").orElseThrow().getId();
-        cartService.addItem(me, new CartRequests.AddItem(productId, null, 1));
+        cartService.addItem(me, new CartRequests.AddItem(productId, null, null, 1));
 
         customer.perform(get("/api/vouchers/available"))
                 .andExpect(status().isOk())

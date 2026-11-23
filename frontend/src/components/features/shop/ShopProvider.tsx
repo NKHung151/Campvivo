@@ -7,6 +7,7 @@ import type { Cart } from "@/types/api/order";
 import { useAuth } from "@/components/features/auth/AuthProvider";
 import { loginHref } from "@/lib/auth/redirect";
 import { getErrorMessage } from "@/lib/errorMessages";
+import { isApiError } from "@/services/apiError";
 import * as cartApi from "@/services/cartService";
 
 /*
@@ -18,8 +19,8 @@ import * as cartApi from "@/services/cartService";
 
 export type CartStatus = "idle" | "loading" | "ready" | "error";
 
-/** Mặt hàng thêm vào giỏ: đúng một trong hai id. */
-export type CartItemRef = { productId: number; comboId?: never } | { comboId: number; productId?: never };
+/** Mặt hàng thêm vào giỏ: đúng một trong hai id; `variantId` = màu / size đã chọn (D-40). */
+export type CartItemRef = { productId: number; variantId?: number; comboId?: never } | { comboId: number; productId?: never; variantId?: never };
 
 interface ShopState {
   ready: boolean;
@@ -49,6 +50,15 @@ interface ShopState {
 }
 
 const ShopContext = createContext<ShopState | null>(null);
+
+/** Lỗi giỏ hàng: giữ câu cụ thể của server (chưa chọn màu / size, biến thể nào hết hàng) thay vì câu chung theo mã lỗi. */
+function cartErrorMessage(err: unknown): string {
+  if (isApiError(err)) {
+    if (err.fieldErrors.variantId) return err.fieldErrors.variantId;
+    if ((err.errorCode === "OUT_OF_STOCK" || err.errorCode === "PRODUCT_INACTIVE") && err.message) return err.message;
+  }
+  return getErrorMessage(err);
+}
 const KEY = "campvivo-shop-v1";
 
 interface Persisted {
@@ -169,7 +179,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         setCartStatus("ready");
         return true;
       } catch (err) {
-        notify(getErrorMessage(err));
+        notify(cartErrorMessage(err));
         return false;
       }
     },
@@ -181,7 +191,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       try {
         setCart(await cartApi.updateCartItem(cartItemId, qty));
       } catch (err) {
-        notify(getErrorMessage(err));
+        notify(cartErrorMessage(err));
         await refreshCart();
       }
     },

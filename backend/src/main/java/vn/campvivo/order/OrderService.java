@@ -7,6 +7,7 @@ import vn.campvivo.cart.CartService;
 import vn.campvivo.cart.CartService.CheckoutLine;
 import vn.campvivo.catalog.Product;
 import vn.campvivo.catalog.ProductService;
+import vn.campvivo.catalog.ProductVariant;
 import vn.campvivo.combo.ComboService;
 import vn.campvivo.combo.ProductCombo;
 import vn.campvivo.common.config.AppProperties;
@@ -82,9 +83,9 @@ public class OrderService {
         this.clock = clock;
     }
 
-    /** Một dòng đã tính giá từ dữ liệu mặt hàng hiện tại. */
-    private record PricedLine(CheckoutLine source, String type, Long itemId, String name, BigDecimal originalPrice,
-                              BigDecimal unitPrice, boolean active) {
+    /** Một dòng đã tính giá từ dữ liệu mặt hàng hiện tại. `variantTitle` null với combo / biến thể mặc định. */
+    private record PricedLine(CheckoutLine source, String type, Long itemId, String name, String variantTitle,
+                              BigDecimal originalPrice, BigDecimal unitPrice, boolean active) {
         BigDecimal lineTotal() {
             return unitPrice.multiply(BigDecimal.valueOf(source.quantity()));
         }
@@ -130,10 +131,11 @@ public class OrderService {
         ShippingFeeResponse ship = shippingService.quote(req.shippingDistrictId(), wardCode, quantity(lines),
                 estimatedSubtotal.subtract(estimatedDiscount).longValueExact());
 
-        // 2. Khoá sản phẩm (id tăng dần) rồi combo (id tăng dần), tính lại giá trên dữ liệu đã khoá (BR-4, BR-14)
+        // 2. Khoá sản phẩm, combo rồi biến thể (id tăng dần), tính lại giá trên dữ liệu đã khoá (BR-4, BR-14)
         List<PricedLine> priced = price(lines, load(lines, true));
         List<Map<String, Object>> inactive = priced.stream().filter(p -> !p.active())
-                .map(p -> InventoryService.shortage(p.type(), p.itemId(), p.name(), 0)).toList();
+                .map(p -> InventoryService.shortage(p.type(), p.itemId(), p.source().variantId(), displayName(p), 0))
+                .toList();
         if (!inactive.isEmpty()) {
             throw new BusinessException(ErrorCode.PRODUCT_INACTIVE,
                     "\"" + inactive.get(0).get("name") + "\" đã ngừng kinh doanh. Vui lòng bỏ khỏi giỏ hàng.",
@@ -155,7 +157,8 @@ public class OrderService {
 
         // 4. Giữ chỗ tồn kho (thiếu → OUT_OF_STOCK kèm danh sách)
         inventoryService.reserve(lines.stream().map(l -> l.productId() != null
-                ? StockLine.product(l.productId(), l.quantity()) : StockLine.combo(l.comboId(), l.quantity())).toList());
+                ? StockLine.product(l.productId(), l.variantId(), l.quantity())
+                : StockLine.combo(l.comboId(), l.quantity())).toList());
 
         // 5. Tạo đơn + dòng (snapshot) + lịch sử, bản ghi thanh toán PENDING
         OffsetDateTime now = OffsetDateTime.now(clock);
@@ -167,8 +170,8 @@ public class OrderService {
         Map<String, String> images = imageUrls(lines);
         for (PricedLine p : priced) {
             CheckoutLine l = p.source();
-            order.addItem(l.productId(), l.comboId(), p.name(), images.get(p.type() + ":" + p.itemId()),
-                    p.originalPrice(), p.unitPrice(), l.quantity());
+            order.addItem(l.productId(), l.variantId(), p.variantTitle(), l.comboId(), p.name(),
+                    images.get(p.type() + ":" + p.itemId()), p.originalPrice(), p.unitPrice(), l.quantity());
         }
         orderRepository.saveAndFlush(order);
         paymentService.createFor(order.getId(), order.getPaymentMethod(), order.getFinalAmount());
@@ -215,7 +218,9 @@ public class OrderService {
     private StockItems load(List<CheckoutLine> lines, boolean lock) {
         List<Long> productIds = lines.stream().filter(l -> l.productId() != null).map(CheckoutLine::productId).toList();
         List<Long> comboIds = lines.stream().filter(l -> l.comboId() != null).map(CheckoutLine::comboId).toList();
-        return lock ? inventoryService.lock(productIds, comboIds) : inventoryService.load(productIds, comboIds);
+        List<Long> variantIds = lines.stream().filter(l -> l.variantId() != null).map(CheckoutLine::variantId).toList();
+        return lock ? inventoryService.lock(productIds, comboIds, variantIds)
+                : inventoryService.load(productIds, comboIds, variantIds);
     }
 
     private List<PricedLine> price(List<CheckoutLine> lines, StockItems items) {
@@ -223,16 +228,20 @@ public class OrderService {
         for (CheckoutLine l : lines) {
             if (l.productId() != null) {
                 Product p = items.products().get(l.productId());
-                if (p == null) {
+                ProductVariant v = items.variants().get(l.variantId());
+                if (p == null || v == null) {
                     throw new BusinessException(ErrorCode.NOT_FOUND);
                 }
-                out.add(new PricedLine(l, "PRODUCT", p.getId(), p.getName(), p.getPrice(), pricingService.unitPrice(p), p.isActive()));
+                // Mọi biến thể cùng giá sản phẩm (D-37); biến thể tắt bán coi như ngừng kinh doanh
+                out.add(new PricedLine(l, "PRODUCT", p.getId(), p.getName(), v.getTitle(), p.getPrice(),
+                        pricingService.unitPrice(p), p.isActive() && v.isActive()));
             } else {
                 ProductCombo c = items.combos().get(l.comboId());
                 if (c == null) {
                     throw new BusinessException(ErrorCode.NOT_FOUND);
                 }
-                out.add(new PricedLine(l, "COMBO", c.getId(), c.getName(), c.getComboPrice(), pricingService.unitPrice(c), c.isActive()));
+                out.add(new PricedLine(l, "COMBO", c.getId(), c.getName(), null, c.getComboPrice(),
+                        pricingService.unitPrice(c), c.isActive()));
             }
         }
         return out;
@@ -248,8 +257,9 @@ public class OrderService {
 
     private OrderPreviewResponse toPreview(Totals t) {
         List<OrderPreviewResponse.Item> items = t.lines().stream()
-                .map(p -> new OrderPreviewResponse.Item(p.source().cartItemId(), p.type(), p.itemId(), p.name(),
-                        p.source().quantity(), p.originalPrice(), p.unitPrice(), p.lineTotal()))
+                .map(p -> new OrderPreviewResponse.Item(p.source().cartItemId(), p.type(), p.itemId(),
+                        p.source().variantId(), p.variantTitle(), p.name(), p.source().quantity(), p.originalPrice(),
+                        p.unitPrice(), p.lineTotal()))
                 .toList();
         return new OrderPreviewResponse(items, t.subtotal(), t.discount(), t.shippingFee(), t.finalAmount(),
                 t.voucherCode(), t.shippingCalculated(), t.freeShipping(),
@@ -263,6 +273,11 @@ public class OrderService {
         comboService.coverImageUrls(lines.stream().filter(l -> l.comboId() != null).map(CheckoutLine::comboId).toList())
                 .forEach((id, url) -> out.put("COMBO:" + id, url));
         return out;
+    }
+
+    /** "Áo mưa — Tím / M" cho thông báo lỗi. */
+    private static String displayName(PricedLine p) {
+        return p.variantTitle() == null ? p.name() : p.name() + " — " + p.variantTitle();
     }
 
     private static BigDecimal subtotal(List<PricedLine> priced) {

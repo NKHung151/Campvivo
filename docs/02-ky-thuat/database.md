@@ -104,10 +104,10 @@ mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng
 | created_at, updated_at | timestamptz | |
 
 `CHECK (stock_quantity >= 0 AND reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)`.
-Biến thể (D-37, V10): `stock_quantity`/`reserved_quantity` ở đây là số giỏ hàng / đơn hàng dùng (giữ chỗ, trừ kho theo
-tổng sản phẩm). Tồn chi tiết theo biến thể ở `product_variants`; nhập/xuất/đóng gói/tháo đổi cả biến thể và tổng. Đơn
-hàng chỉ trừ tổng → "hàng đã bán chưa phân bổ" = Σ tồn biến thể − `stock_quantity` (sản phẩm có ≥ 2 biến thể), nhân viên
-phân bổ ở trang Tồn kho. Sản phẩm 1 biến thể: tồn biến thể luôn theo `stock_quantity`.
+Biến thể (D-37, V10): `stock_quantity`/`reserved_quantity` ở đây là tổng của sản phẩm. Tồn chi tiết theo biến thể ở
+`product_variants`; nhập/xuất/đóng gói/tháo và đơn hàng có biến thể (D-40, V15) đổi cả biến thể và tổng. Đơn cũ (trước
+V15) chỉ trừ tổng → "hàng đã bán chưa phân bổ" = Σ tồn biến thể − `stock_quantity` (sản phẩm có ≥ 2 biến thể), nhân viên
+phân bổ ở trang Tồn kho. Sản phẩm 1 biến thể: tồn biến thể luôn theo `stock_quantity`, giữ chỗ chỉ tính ở sản phẩm.
 
 #### 3.3a `product_options` (+, D-37) — tuỳ chọn của sản phẩm, tối đa 2
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -134,7 +134,7 @@ phân bổ ở trang Tồn kho. Sản phẩm 1 biến thể: tồn biến thể 
 | option2_value_id | BIGINT | N, FK → product_option_values(id); chỉ có khi option1 có |
 | sku | VARCHAR(64) | N, U — mã hàng nội bộ |
 | stock_quantity | INT | mặc định 0 |
-| reserved_quantity | INT | mặc định 0 — chưa dùng cho tới khi giỏ hàng / đơn hàng lưu biến thể |
+| reserved_quantity | INT | mặc định 0 — giữ chỗ cho đơn PENDING theo biến thể (D-40); biến thể duy nhất luôn 0 (giữ ở sản phẩm) |
 | is_active | BOOLEAN | mặc định true; false = tắt bán (không hiện ở cửa hàng) |
 | position | INT | thứ tự hiển thị |
 | created_at, updated_at | timestamptz | |
@@ -197,12 +197,14 @@ Unique `(combo_id, product_id)` — mỗi sản phẩm một dòng, dòng đó c
 | id | BIGINT | PK |
 | cart_id | BIGINT | FK → carts(id) `ON DELETE CASCADE` |
 | product_id | BIGINT | N, FK → products(id) |
+| variant_id | BIGINT | (+, D-40, V15) N, FK → product_variants(id) `ON DELETE CASCADE` — màu / size khách chọn |
 | combo_id | BIGINT | N, FK → product_combos(id) |
 | quantity | INT | `CHECK (quantity > 0)` |
 | created_at, updated_at | timestamptz | |
 
-`CHECK (num_nonnulls(product_id, combo_id) = 1)`; unique một phần
-`(cart_id, product_id) WHERE product_id IS NOT NULL` và `(cart_id, combo_id) WHERE combo_id IS NOT NULL`.
+`CHECK (num_nonnulls(product_id, combo_id) = 1)`, `CHECK ((product_id IS NULL) = (variant_id IS NULL))`; unique một phần
+`(cart_id, variant_id) WHERE variant_id IS NOT NULL` (cùng sản phẩm khác màu / size là hai dòng) và
+`(cart_id, combo_id) WHERE combo_id IS NOT NULL`.
 **Không có cột giá** (D-04).
 
 ### 3.9 `orders`
@@ -240,6 +242,8 @@ final_amount = subtotal − discount_amount + shipping_fee)`. FK `fk_orders_vouc
 | id | BIGINT | PK |
 | order_id | BIGINT | FK → orders(id) `ON DELETE CASCADE` |
 | product_id | BIGINT | N, FK → products(id) |
+| variant_id | BIGINT | (+, D-40, V15) N, FK → product_variants(id) `ON DELETE SET NULL`; chỉ có khi có product_id. Đơn trước V15: NULL |
+| variant_title | VARCHAR(255) | (+, D-40) N — snapshot tên biến thể lúc đặt ("Tím / M"); NULL với biến thể mặc định |
 | combo_id | BIGINT | (+) N, FK → product_combos(id) |
 | item_name | VARCHAR(255) | (+) snapshot tên lúc đặt |
 | item_image_url | VARCHAR(500) | (+) N — snapshot ảnh chính |
@@ -281,8 +285,11 @@ Tạo cùng lúc với đơn (`PENDING`). COD chuyển `SUCCESS` khi đơn COMPL
 |---|---|---|
 | id | BIGINT | PK |
 | order_id | BIGINT | U, FK → orders(id) — 1 yêu cầu/đơn |
-| reason | VARCHAR(1000) | |
-| status | VARCHAR(30) | `PENDING` \| `APPROVED` \| `REJECTED` \| `COMPLETED` |
+| reason | VARCHAR(30) | (D-41) mã lý do: `MISSING_ITEMS` \| `WRONG_ITEM` \| `DAMAGED` \| `DEFECTIVE` \| `EXPIRED` \| `NOT_AS_DESCRIBED` \| `USED` \| `COUNTERFEIT` \| `CHANGED_MIND` |
+| description | VARCHAR(2000) | (+, D-41) N — mô tả thêm của khách |
+| image_urls | JSONB | (+, D-41) mảng 1–2 URL ảnh khách chụp / tải lên (Cloudinary) |
+| refund_amount | NUMERIC(19,0) | (+, D-41) tạm tính − giảm giá lúc gửi (phí vận chuyển không hoàn) |
+| status | VARCHAR(30) | `PENDING` \| `APPROVED` \| `REJECTED` (D-41: bỏ `COMPLETED`) |
 | processed_by | BIGINT | (+) N, FK → users(id) — nhân viên xử lý gần nhất |
 | processed_at | timestamptz | N |
 | note | VARCHAR(1000) | N — ghi chú của nhân viên (bắt buộc khi REJECTED) |
@@ -451,13 +458,13 @@ Mọi tham số có tên `app.*` là cấu hình trong `application.yml` (không
 `available`.
 
 **BR-2 — Vòng đời giữ/trừ tồn kho** (áp cho từng dòng `order_items`, theo `product_id` hoặc
-`combo_id`):
+`combo_id`; dòng có `variant_id` áp thêm cho biến thể đó — D-40):
 | Sự kiện | stock_quantity | reserved_quantity |
 |---|---|---|
 | Tạo đơn (→ PENDING) | — | + qty |
 | PENDING → CONFIRMED | − qty | − qty |
 | PENDING → CANCELLED / PAYMENT_FAILED | — | − qty |
-| ReturnRequest → COMPLETED (đơn → RETURNED) | + qty (ghi `inventory_logs` reason=RETURN) | — |
+| ReturnRequest → APPROVED (đơn → RETURNED, D-41) | + qty (ghi `inventory_logs` reason=RETURN) | — |
 | Điều chỉnh thủ công (FR-08) | ± change (ghi `inventory_logs`) | — |
 Các bước sau CONFIRMED (SHIPPING, COMPLETED) không đổi tồn kho.
 
@@ -514,10 +521,10 @@ không ghi log (truy được qua `order_status_history`). Điều chỉnh khôn
 **BR-9 — Trả hàng** (D-07).
 - Tạo yêu cầu khi: đơn của chính khách, `status = COMPLETED`,
   `now() ≤ completed_at + app.return.window-days` (mặc định 7), chưa có yêu cầu nào cho đơn.
-- Trả nguyên đơn. Chuyển trạng thái yêu cầu theo mục 5.2; mỗi bước ghi `processed_by`,
-  `processed_at`.
-- `COMPLETED`: với từng dòng `stock_quantity += quantity` (BR-2) + log reason=RETURN; đơn
-  `COMPLETED → RETURNED` (ghi history); payment giữ nguyên (hoàn tiền ngoài hệ thống).
+- Trả nguyên đơn. Khách chọn 1 lý do, gửi 1–2 ảnh, mô tả không bắt buộc (D-41). Chuyển trạng thái yêu cầu theo mục 5.2;
+  mỗi bước ghi `processed_by`, `processed_at`.
+- `APPROVED` (D-41 — duyệt là hoàn tất): với từng dòng `stock_quantity += quantity` (BR-2; dòng có biến thể cộng cả biến thể)
+  + log reason=RETURN; đơn `COMPLETED → RETURNED` (ghi history); payment giữ nguyên (hoàn tiền ngoài hệ thống).
 - `REJECTED`: bắt buộc `note`; đơn giữ `COMPLETED`; khách không gửi lại được.
 
 **BR-10 — Đánh giá** (D-09).
@@ -593,7 +600,7 @@ PENDING ──► CONFIRMED ──► SHIPPING ──► COMPLETED ──► RET
 | PENDING | PAYMENT_FAILED | System | IPN báo thất bại → giải phóng giữ chỗ, trả lượt voucher |
 | CONFIRMED | SHIPPING | Employee, Admin | Đã bàn giao vận chuyển (note: mã vận đơn) |
 | SHIPPING | COMPLETED | Employee, Admin | Khách đã nhận hàng → gán `completed_at`; COD: payment `SUCCESS`, `paid_at` |
-| COMPLETED | RETURNED | System (do nhân viên hoàn tất trả hàng) | Chỉ qua ReturnRequest → COMPLETED (BR-9) |
+| COMPLETED | RETURNED | System (do nhân viên duyệt trả hàng) | Chỉ qua ReturnRequest → APPROVED (BR-9, D-41) |
 
 Mọi chuyển khác → `INVALID_STATUS_TRANSITION`. Trạng thái cuối: CANCELLED, PAYMENT_FAILED, RETURNED
 (và COMPLETED nếu không có trả hàng). Định nghĩa bảng chuyển hợp lệ trong enum `OrderStatus`
@@ -601,15 +608,14 @@ Mọi chuyển khác → `INVALID_STATUS_TRANSITION`. Trạng thái cuối: CANC
 
 ### 5.2 Yêu cầu trả hàng (`return_requests.status`)
 ```
-PENDING ──► APPROVED ──► COMPLETED
+PENDING ──► APPROVED
    └──► REJECTED
 ```
 | Từ | Đến | Ai | Hiệu ứng |
 |---|---|---|---|
 | (mới) | PENDING | Customer | BR-9; thông báo cho nhân viên (RETURN_NEW) |
-| PENDING | APPROVED | Employee, Admin | Thông báo + email cho khách |
+| PENDING | APPROVED | Employee, Admin | (D-41) Cộng tồn kho + log, đơn → RETURNED; thông báo + email cho khách |
 | PENDING | REJECTED | Employee, Admin | Bắt buộc note; thông báo + email |
-| APPROVED | COMPLETED | Employee, Admin | Cộng tồn kho + log, đơn → RETURNED; thông báo + email |
 
 ### 5.3 Thanh toán (`payments.status`)
 `PENDING → SUCCESS` (IPN thành công hoặc đơn COD COMPLETED) · `PENDING → FAILED` (IPN thất bại).
@@ -618,7 +624,7 @@ PENDING ──► APPROVED ──► COMPLETED
 ## 6. Khoá & chống bán vượt tồn kho
 
 **Thứ tự khoá toàn hệ thống** (mọi transaction phải khoá theo đúng thứ tự này để tránh deadlock):
-`orders` → `products` (id tăng dần) → `product_combos` (id tăng dần) → `vouchers`.
+`orders` → `products` (id tăng dần) → `product_combos` (id tăng dần) → `product_variants` (id tăng dần) → `vouchers`.
 Khoá bằng `@Lock(LockModeType.PESSIMISTIC_WRITE)` trên repository (`SELECT … FOR UPDATE`).
 
 **Tạo đơn** (một `@Transactional`, isolation mặc định READ COMMITTED):

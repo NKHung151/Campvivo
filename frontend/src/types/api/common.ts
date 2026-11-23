@@ -15,7 +15,8 @@ export type OrderStatus =
   | "RETURNED";
 export type PaymentMethod = "VNPAY" | "COD";
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
-export type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+/** D-41: duyệt là hoàn tất (cộng lại kho, đơn RETURNED). */
+export type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 export type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
 export type NotificationType =

@@ -70,10 +70,10 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
       notify(`${chosen.values.join(" / ")} đã hết hàng`);
       return false;
     }
-    // TODO(Người 1): giỏ hàng chưa lưu biến thể (cart_items.variant_id) — gửi thêm chosen.id khi API giỏ hàng hỗ trợ (D-37)
-    // Giỏ hàng ở server (FR-09): lỗi hết hàng/ngừng bán/chưa đăng nhập đã được ShopProvider báo
+    // Giỏ hàng ở server (FR-09) lưu biến thể đã chọn (D-40); sản phẩm không có tuỳ chọn → server dùng biến thể duy nhất.
+    // Lỗi hết hàng/ngừng bán/chưa đăng nhập đã được ShopProvider báo
     setAdding(true);
-    const ok = await addToCart({ productId: p.id }, qty);
+    const ok = await addToCart({ productId: p.id, variantId: chosen?.id }, qty);
     setAdding(false);
     if (!ok) return false;
     if (go) router.push("/cart");

@@ -11,9 +11,13 @@ public final class CartRequests {
     private CartRequests() {
     }
 
-    /** POST /cart/items — đúng một trong productId, comboId. */
+    /**
+     * POST /cart/items — đúng một trong productId, comboId. `variantId` = biến thể khách chọn (D-40): bắt buộc khi sản
+     * phẩm có nhiều biến thể, bỏ trống thì dùng biến thể duy nhất của sản phẩm.
+     */
     public record AddItem(
             Long productId,
+            Long variantId,
             Long comboId,
             @NotNull(message = "Vui lòng nhập số lượng")
             @Min(value = 1, message = "Số lượng phải từ 1") @Max(value = 999, message = "Số lượng tối đa 999")
@@ -21,7 +25,7 @@ public final class CartRequests {
     ) {
         @AssertTrue(message = "Chọn đúng một sản phẩm hoặc một combo")
         public boolean isExactlyOneItem() {
-            return (productId == null) != (comboId == null);
+            return (productId == null) != (comboId == null) && (variantId == null || productId != null);
         }
     }
 

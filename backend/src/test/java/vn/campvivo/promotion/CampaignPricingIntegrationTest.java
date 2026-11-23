@@ -108,8 +108,11 @@ class CampaignPricingIntegrationTest {
     }
 
     private long product(String name, String slug, long price) {
-        return jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
+        long id = jdbc.queryForObject("INSERT INTO products (category_id, name, slug, price, stock_quantity) "
                 + "VALUES (?, ?, ?, ?, 20) RETURNING id", Long.class, category, name, slug, price);
+        // Sản phẩm luôn có ít nhất 1 biến thể (D-37); giỏ hàng lưu biến thể (D-40)
+        jdbc.update("INSERT INTO product_variants (product_id, stock_quantity) SELECT id, stock_quantity FROM products WHERE id = ?", id);
+        return id;
     }
 
     /** `from`/`to`: khoảng so với now() của DB, vd. "-1 day", "+1 day". */
@@ -212,8 +215,8 @@ class CampaignPricingIntegrationTest {
             u.setEmailVerified(true);
             return users.saveAndFlush(u);
         });
-        cartService.addItem(buyer.getId(), new CartRequests.AddItem(tent, null, 1));
-        cartService.addItem(buyer.getId(), new CartRequests.AddItem(null, combo, 1));
+        cartService.addItem(buyer.getId(), new CartRequests.AddItem(tent, null, null, 1));
+        cartService.addItem(buyer.getId(), new CartRequests.AddItem(null, null, combo, 1));
         assertThat(cartService.getCart(buyer.getId()).subtotal()).isEqualByComparingTo("1300000");
 
         CreateOrderResponse res = orderService.create(buyer.getId(), new OrderRequests.Create("Nguyễn Văn A", "0901234567",

@@ -1,11 +1,13 @@
 import { apiClient } from "@/services/apiClient";
 import type {
+  CreateReturnRequest,
   CreateOrderRequest,
   CreateOrderResponse,
   OrderDetail,
   OrderPreview,
   OrderPreviewRequest,
   OrderSummary,
+  ReturnRequestDto,
   VnpayReturnResult,
 } from "@/types/api/order";
 import type { OrderStatus, Page } from "@/types/api/common";
@@ -32,6 +34,15 @@ export function listMyOrders(params: { status?: OrderStatus; page?: number; limi
 /** Huỷ đơn khi còn PENDING; trả về chi tiết đơn sau khi huỷ. */
 export function cancelOrder(id: number, reason?: string): Promise<OrderDetail> {
   return apiClient.post<OrderDetail>(`/orders/${id}/cancel`, { reason });
+}
+
+/** Gửi yêu cầu trả hàng (FR-19a, D-41): multipart lý do + mô tả + 1–2 ảnh (server tải ảnh lên Cloudinary). */
+export function createReturn(orderId: number, body: CreateReturnRequest): Promise<ReturnRequestDto> {
+  const form = new FormData();
+  form.append("reason", body.reason);
+  if (body.description) form.append("description", body.description);
+  body.images.forEach((f) => form.append("images", f));
+  return apiClient.post<ReturnRequestDto>(`/orders/${orderId}/returns`, form, { timeout: 60_000 });
 }
 
 /**

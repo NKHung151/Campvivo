@@ -25,6 +25,7 @@ import vn.campvivo.order.admin.AdminOrderResponses.Summary;
 import vn.campvivo.order.admin.AdminOrderResponses.Tracking;
 import vn.campvivo.order.admin.AdminOrderResponses.TrackingLog;
 import vn.campvivo.order.dto.OrderDetailResponse;
+import vn.campvivo.order.returns.ReturnService;
 import vn.campvivo.payment.PaymentMethod;
 import vn.campvivo.payment.PaymentService;
 import vn.campvivo.payment.PaymentStatus;
@@ -60,16 +61,18 @@ public class AdminOrderService {
     private final PaymentService paymentService;
     private final UserService userService;
     private final GhnService ghnService;
+    private final ReturnService returnService;
 
     public AdminOrderService(OrderRepository orderRepository, OrderStateService orderStateService,
                              OrderShipmentService shipmentService, PaymentService paymentService,
-                             UserService userService, GhnService ghnService) {
+                             UserService userService, GhnService ghnService, ReturnService returnService) {
         this.orderRepository = orderRepository;
         this.orderStateService = orderStateService;
         this.shipmentService = shipmentService;
         this.paymentService = paymentService;
         this.userService = userService;
         this.ghnService = ghnService;
+        this.returnService = returnService;
     }
 
     /** Trạng thái nhân viên được chuyển tới từ trạng thái hiện tại của đơn. */
@@ -179,7 +182,10 @@ public class AdminOrderService {
 
     private Detail toDetail(Order order) {
         UserProfileResponse profile = userService.profiles(List.of(order.getUserId())).get(order.getUserId());
-        OrderDetailResponse detail = OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null));
+        // Nhân viên chỉ xem yêu cầu trả hàng (nếu có); `canReturn` là quyền của khách
+        OrderDetailResponse.ReturnInfo returns = returnService.infoFor(order);
+        OrderDetailResponse detail = OrderDetailResponse.from(order, paymentService.findByOrderId(order.getId()).orElse(null),
+                new OrderDetailResponse.ReturnInfo(returns.request(), returns.deadline(), false));
         boolean canShip = order.getShippingOrderCode() == null
                 && (order.getStatus() == OrderStatus.CONFIRMED || order.getStatus() == OrderStatus.SHIPPING);
         return new Detail(detail, customer(profile), List.copyOf(staffTargets(order)), canShip);

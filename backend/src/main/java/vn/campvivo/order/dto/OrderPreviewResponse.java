@@ -18,6 +18,7 @@ public record OrderPreviewResponse(
         boolean freeShipping,
         BigDecimal freeShippingThreshold
 ) {
-    public record Item(Long cartItemId, String type, Long id, String name, int quantity,
-                       BigDecimal originalPrice, BigDecimal unitPrice, BigDecimal lineTotal) {}
+    /** `variantId` / `variantTitle`: biến thể khách chọn (D-40), null với combo; title null với biến thể mặc định. */
+    public record Item(Long cartItemId, String type, Long id, Long variantId, String variantTitle, String name,
+                       int quantity, BigDecimal originalPrice, BigDecimal unitPrice, BigDecimal lineTotal) {}
 }
