@@ -127,10 +127,17 @@ Nhân viên: /admin/support → danh sách hội thoại (mới nhất lên đ�
 
 ## 12. Thông báo (FR-22)
 ```
-Sự kiện (đơn đổi trạng thái, trả hàng, tin nhắn hỗ trợ, đơn mới/yêu cầu trả hàng mới cho nhân viên)
-→ lưu notifications → đẩy WS /user/queue/notifications → chuông tăng số chưa đọc + toast
+Sự kiện (danh sách loại theo role: D-42) → lưu notifications (mỗi người nhận một dòng; sự kiện lặp gộp vào dòng đang mở)
+→ đẩy WS /user/queue/notifications {event: CREATED | UPDATED} → chuông tăng số chưa đọc + toast
 → bấm thông báo → đánh dấu đã đọc [PATCH /notifications/{id}/read] → đi tới link
-→ /account/notifications: lọc, "Đánh dấu tất cả đã đọc" [PATCH /notifications/read-all]
+→ /account/notifications (khách) hoặc /admin/notifications (nhân viên): lọc, "Đánh dấu tất cả đã đọc" [PATCH /notifications/read-all]
+```
+
+Nhân viên — việc đã có người làm (D-43):
+```
+NV A và NV B cùng nhận "Đơn mới #CV108" → NV A xác nhận đơn [PATCH /admin/orders/108/status]
+→ thông báo của A và B chuyển "Đã xử lý bởi A lúc …"; B nhận WS {event: RESOLVED}: mục mờ đi, badge giảm
+→ nếu B vẫn bấm xác nhận (trước khi WS tới) → 409 INVALID_STATUS_TRANSITION → "Đã có người xử lý", tải lại đơn
 ```
 
 ## 13. Quản trị nội dung (FR-05, 06, 14–17, 21) — tóm tắt

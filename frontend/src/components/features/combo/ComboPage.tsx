@@ -5,12 +5,13 @@ import { productHref, vnd } from "@/lib/format";
 import { Breadcrumb } from "@/components/features/layout/Breadcrumb";
 import { ProductGallery } from "@/components/features/product/ProductGallery";
 import { ComboBuyBox } from "@/components/features/combo/ComboBuyBox";
+import { FavoriteButton } from "@/components/features/favorite/FavoriteButton";
 import { ReviewSection } from "@/components/features/review/ReviewSection";
 import { StarRatingDisplay } from "@/components/features/review/Stars";
 
 /**
- * Trang chi tiết combo (FR-07, FR-09, FR-18): ảnh, điểm đánh giá, giá so với mua lẻ, tình trạng, mua/thêm giỏ,
- * các món trong combo, mô tả, khối đánh giá.
+ * Trang chi tiết combo (FR-07, FR-09, FR-18, FR-20): ảnh, điểm đánh giá, giá so với mua lẻ, tình trạng, mua/thêm giỏ,
+ * yêu thích, các món trong combo, mô tả, khối đánh giá.
  */
 export function ComboPage({ c }: { c: ComboDetail }) {
   const saving = c.itemsTotal - c.price;
@@ -55,6 +56,8 @@ export function ComboPage({ c }: { c: ComboDetail }) {
               </div>
             </div>
             <ComboBuyBox comboId={c.id} available={c.availableQuantity} />
+            <div className="cb h15" />
+            <FavoriteButton item={{ type: "COMBO", id: c.id }} />
             <div className="cv-combo-items">
               <div className="cv-combo-items-title">
                 Combo gồm {pieces} sản phẩm

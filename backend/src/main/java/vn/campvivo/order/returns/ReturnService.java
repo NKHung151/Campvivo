@@ -1,5 +1,6 @@
 package vn.campvivo.order.returns;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -60,13 +61,15 @@ public class ReturnService {
     private final PaymentService paymentService;
     private final UserService userService;
     private final TransactionTemplate tx;
+    private final ApplicationEventPublisher events;
     private final int windowDays;
     private final Clock clock;
 
     public ReturnService(ReturnRequestRepository repository, OrderRepository orderRepository,
                          OrderStateService orderStateService, InventoryService inventoryService,
                          ImageUploadService imageUploadService, PaymentService paymentService, UserService userService,
-                         PlatformTransactionManager transactionManager, AppProperties appProperties, Clock clock) {
+                         PlatformTransactionManager transactionManager, ApplicationEventPublisher events,
+                         AppProperties appProperties, Clock clock) {
         this.repository = repository;
         this.orderRepository = orderRepository;
         this.orderStateService = orderStateService;
@@ -75,6 +78,7 @@ public class ReturnService {
         this.paymentService = paymentService;
         this.userService = userService;
         this.tx = new TransactionTemplate(transactionManager);
+        this.events = events;
         this.windowDays = appProperties.returns().windowDays();
         this.clock = clock;
     }
@@ -109,6 +113,8 @@ public class ReturnService {
             BigDecimal refund = order.getSubtotal().subtract(order.getDiscountAmount());
             ReturnRequest saved = repository.save(new ReturnRequest(order.getId(), reason, text, urls, refund,
                     OffsetDateTime.now(clock)));
+            events.publishEvent(new ReturnRequestCreatedEvent(saved.getId(), order.getId(), order.getOrderCode(), userId,
+                    reason.getLabel()));
             return ReturnRequestResponse.from(saved);
         });
     }
@@ -177,6 +183,8 @@ public class ReturnService {
             r.process(ReturnStatus.APPROVED, staffId, note, now);
         }
         repository.flush();
+        events.publishEvent(new ReturnRequestProcessedEvent(r.getId(), order.getId(), order.getOrderCode(), order.getUserId(),
+                r.getStatus(), note, r.getRefundAmount(), staffId));
         return toDetail(r, order);
     }
 

@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { ProductCard } from "@/types/shop";
-import { GridCard } from "@/components/features/catalog/ProductCard";
+import { useState } from "react";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { FavoriteList } from "@/components/features/favorite/FavoriteList";
 import { MyOrders } from "@/components/features/account/MyOrders";
 import { ProfileForm } from "@/components/features/account/ProfileForm";
 import { ChangePasswordForm } from "@/components/features/account/ChangePasswordForm";
 import { SupportChat } from "@/components/features/support/SupportChat";
+import { NotificationList } from "@/components/features/notification/NotificationList";
 
-export type AccountTab = "orders" | "wishlist" | "address" | "profile" | "password" | "support";
+export type AccountTab = "orders" | "notifications" | "wishlist" | "address" | "profile" | "password" | "support";
 type Tab = AccountTab;
 const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Đơn hàng của tôi" },
+  { id: "notifications", label: "Thông báo" },
   { id: "wishlist", label: "Danh sách yêu thích" },
   { id: "address", label: "Địa chỉ nhận hàng" },
   { id: "support", label: "Hỗ trợ" },
@@ -21,21 +22,12 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 /**
- * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); hồ sơ và đổi mật khẩu gọi API thật (FR-04); yêu thích và địa chỉ
- * giao gần nhất còn lưu ở trình duyệt (chưa có API favorites — Tier 2).
+ * Khu vực thành viên: đơn hàng của tôi lấy từ API (FR-12); hồ sơ và đổi mật khẩu gọi API thật (FR-04); yêu thích từ API
+ * (FR-20); địa chỉ giao gần nhất còn lưu ở trình duyệt.
  */
 export function AccountPage({ initialTab = "orders" }: { initialTab?: AccountTab }) {
-  const { ready, user, wishlist, customer, openLogin, logout } = useShop();
+  const { ready, user, canBuy, customer, openLogin, logout } = useShop();
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [wish, setWish] = useState<ProductCard[]>([]);
-
-  useEffect(() => {
-    if (tab !== "wishlist" || !wishlist.length) return;
-    fetch(`/api/catalog/cards?slugs=${wishlist.join(",")}`)
-      .then((r) => r.json())
-      .then(setWish)
-      .catch(() => {});
-  }, [tab, wishlist]);
 
   if (!ready) return <div className="pageContent" style={{ minHeight: 400 }} />;
   if (!user) {
@@ -70,21 +62,12 @@ export function AccountPage({ initialTab = "orders" }: { initialTab?: AccountTab
         <section>
           <h1>{TABS.find((t) => t.id === tab)!.label}</h1>
           {tab === "orders" && <MyOrders />}
+          {tab === "notifications" && <NotificationList />}
           {tab === "support" && <SupportChat />}
           {tab === "profile" && <ProfileForm />}
           {tab === "password" && <ChangePasswordForm />}
           {tab === "wishlist" &&
-            (wishlist.length ? (
-              <div id="ProductCategory" style={{ width: "100%" }}>
-                <div className="group_items">
-                  {wish.map((p) => (
-                    <GridCard key={p.slug} p={p} />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="cv-empty">Chưa có sản phẩm yêu thích.</div>
-            ))}
+            (canBuy ? <FavoriteList /> : <div className="cv-empty">Tài khoản nhân viên không có danh sách yêu thích.</div>)}
           {tab === "address" &&
             (customer ? (
               <div className="cv-order">

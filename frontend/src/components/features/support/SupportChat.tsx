@@ -5,6 +5,7 @@ import { ChatPanel } from "@/components/features/support/ChatPanel";
 import { useConversationMessages } from "@/components/features/support/useConversationMessages";
 import { useSupportSocket } from "@/components/features/support/useSupportSocket";
 import { useAuth } from "@/components/features/auth/AuthProvider";
+import { useAutoReadNotifications } from "@/components/features/notification/NotificationProvider";
 import { listMyMessages, sendMyMessage } from "@/services/supportService";
 import type { SupportMessage } from "@/types/api/support";
 
@@ -17,6 +18,9 @@ export function SupportChat() {
   const isCustomer = user?.role === "CUSTOMER";
   const conv = useConversationMessages(isCustomer ? listMyMessages : null, user?.id);
   const { add, refresh } = conv;
+
+  // Đang mở chat → thông báo "Nhân viên đã trả lời bạn" coi như đã đọc, kể cả tin tới trong lúc đang mở (pages.md).
+  useAutoReadNotifications("SUPPORT_MESSAGE", isCustomer);
 
   const connection = useSupportSocket({
     enabled: isCustomer,

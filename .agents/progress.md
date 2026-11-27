@@ -17,6 +17,39 @@ KHÔNG sửa/xoá dòng cũ — chỉ thêm dòng mới lên đầu danh sách b
 
 ---
 
+### 2026-11-27 — Người 4 — notification Phần 9 (QA)
+- Đã làm (chưa commit): `NotificationRealtimeIntegrationTest` 4 test (STOMP thật: CREATED / UPDATED / RESOLVED, người xử lý không
+  nhận lại); cả bộ backend 661 xanh. Kịch bản E2E trên stack local (khách + admin + staff seed, chat → SUPPORT_NEW → RESOLVED →
+  SUPPORT_MESSAGE, lọc, đọc, read-all, 404, 401) 18/18 đạt. Roadmap tick F-09, N4-03, N4-04. V17/V18 vẫn trống trên `origin`.
+- Còn dang dở / TODO tiếp theo: người dùng thử giao diện trên trình duyệt → đổi 🟡 → ✅ ở `pages.md`, chuyển `notification.md`,
+  `favorite.md` sang `completed/`. Tên tài khoản seed trong DB local bị lưu thành `?` (lỗi mã hoá lúc chèn tay, không phải code).
+- Plan liên quan: `.agents/plans/active/notification.md`
+
+### 2026-11-27 — Người 4 — notification Phần 8 (frontend FR-22)
+- Đã làm (nhánh `feature/notification`, chưa commit): `types/api/notification.ts`, `notificationService`, `useNotificationSocket`,
+  `NotificationProvider` (badge, 10 mục mới nhất, áp `CREATED/UPDATED/RESOLVED`, đồng bộ lại khi nối lại / quay lại tab, tự đọc
+  `SUPPORT_MESSAGE` khi đang mở chat), `NotificationBell` ở `Header` (chỉ khách) và `AdminShell`, toast (storefront tự vẽ, admin
+  dùng antd), `NotificationList` cho `/account/notifications` (tab của `/account`) và `/admin/notifications` (+ mục nav, tab
+  "Chưa xử lý"). Thêm `apiClient.getWithPagination`. `OrderDetailView` / `ReturnDetailView`: câu "đã có người xử lý".
+  `tsc`, eslint, `next build` sạch.
+- Còn dang dở / TODO tiếp theo: Phần 9 — `NotificationRealtimeIntegrationTest`, thử tay 3 cửa sổ (khách + 2 NV), docs trạng thái,
+  chuyển plan sang `completed/`, kiểm lại V17/V18 trên `origin`. Báo Người 1 (2 view admin), Người 3 (`apiClient`).
+- Plan liên quan: `.agents/plans/active/notification.md`
+
+### 2026-11-27 — Người 4 — favorite (FR-20, D-47) + notification Phần 0–7 (FR-22, D-42 – D-46)
+- Đã làm (nhánh `feature/notification`, chưa commit): thông báo backend Phần 0–7 (`V17__notifications.sql`, lõi fan-out / gộp /
+  đã xử lý, REST, listener đơn / trả hàng / chat / tồn kho / đánh giá / voucher, `PromotionAnnouncementJob`). Module `favorite`:
+  `V18__favorites.sql`, `POST/DELETE /favorites`, `GET /users/me/favorites[/ids]` (bỏ `isFavorite` ở trang chi tiết — D-47),
+  `FavoriteNotificationListener` (`FAVORITE_ON_SALE`, `FAVORITE_BACK_IN_STOCK` gộp theo mặt hàng tới khi đọc). Frontend yêu thích:
+  `ShopProvider` dùng API (bỏ `wishlist` localStorage), nút ở trang sản phẩm / combo / giỏ hàng, tab tài khoản Sản phẩm / Combo;
+  `toCard` / `comboCard` chuyển sang `lib/catalogCards.ts`.
+- Đụng module người khác (đã ghi trong plan): `ProductService`, `ComboService` (+ `activeSummaries`, `isActive`), `article`
+  (+ `ArticleQueryService`), `SecurityConfig` (+ `/api/users/me/favorites/**`), `InventoryService`, `AdminInventoryService`,
+  `AdminComboService`, `ReturnService`, review, promotion repository, `PostgresTestContainerConfig`.
+- Còn dang dở / TODO tiếp theo: notification Phần 8 (frontend chuông, trang thông báo), Phần 9 (QA, thử tay); thử tay giao diện
+  yêu thích; tab "Bài viết" của yêu thích chờ trang blog nối API; kiểm lại số V17/V18 trên `origin` trước khi mở PR.
+- Plan liên quan: `.agents/plans/active/notification.md`, `.agents/plans/active/favorite.md`
+
 ### 2026-11-23 — Người 1 (Claude Code) — order (trả hàng FR-19, D-41)
 - Đã làm (nhánh `feature/order-payment-service`, chưa commit): migration `V16__return_request_details.sql` (lý do = mã cố định,
   `description`, `image_urls` 1–2 ảnh, `refund_amount`; trạng thái chỉ PENDING/APPROVED/REJECTED). Backend gói `order.returns`:

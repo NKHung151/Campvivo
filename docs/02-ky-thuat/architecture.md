@@ -65,11 +65,31 @@ nghiệp vụ) → `Repository` (Spring Data JPA). Entity không trả thẳng r
 - Đổi kiến trúc này cần thống nhất lại và ghi vào `docs/99-ghi-chu/decisions.md`.
 
 ## Sự kiện & side-effect (D-15)
-- Nghiệp vụ phát sự kiện bằng `ApplicationEventPublisher`: `OrderCreatedEvent`,
-  `OrderStatusChangedEvent`, `ReturnRequestChangedEvent`, `SupportMessageCreatedEvent`.
+- Nghiệp vụ phát sự kiện bằng `ApplicationEventPublisher` (danh sách đầy đủ ở bảng bên dưới; tạo đơn dùng chung
+  `OrderStatusChangedEvent` với `oldStatus = null`).
 - Module `notification` nghe bằng `@TransactionalEventListener(phase = AFTER_COMMIT)`: tạo bản ghi
   `notifications` (transaction mới, `REQUIRES_NEW`), đẩy WebSocket, gửi email `@Async`.
 - Module `order` KHÔNG gọi trực tiếp `notification`. Giao dịch rollback → không có thông báo/email.
+- Sự kiện module `notification` nghe (D-42 – D-45; record do module phát sở hữu, không import gì của `notification`):
+
+  | Sự kiện | Module phát, chỗ phát | Thông báo sinh ra |
+  |---|---|---|
+  | `OrderStatusChangedEvent` (đã có) | `order` — `OrderStateService.apply`, `OrderService.create` | `ORDER_STATUS`, `ORDER_NEW`, `ORDER_PAID`; đánh dấu đã xử lý |
+  | `ReturnRequestCreatedEvent`, `ReturnRequestProcessedEvent` | `order.returns` — `ReturnService.create/process` | `RETURN_NEW`, `RETURN_STATUS` |
+  | `SupportMessageSentEvent` (đã có) | `support` — `SupportService` | `SUPPORT_NEW`, `SUPPORT_MESSAGE` |
+  | `StockLevelsChangedEvent` (khả dụng trước/sau, nhân viên gây ra) | `inventory` — `InventoryService.reserve/commit/release/restockReturn`, `AdminInventoryService.adjust`; `combo` — `AdminComboService.pack/unpack` (dùng `inventory.StockLevelSnapshot` chụp trên entity đã khoá) | `LOW_STOCK`, `FAVORITE_BACK_IN_STOCK` |
+  | `ReviewFlaggedEvent`, `ReviewModeratedEvent` (`addedToQueue`) | `review` — `ReviewService.create/update/delete`, `AdminReviewService.hide/unhide/clearSensitive/delete` (chỉ khi hàng chờ `status=SENSITIVE` đổi) | `REVIEW_FLAGGED` |
+  | `VoucherAnnouncedEvent`, `CampaignStartedEvent` | `promotion` — `PromotionAnnouncementJob` | `VOUCHER_NEW`, `FAVORITE_ON_SALE` |
+- Thông báo cho nhiều người (mọi nhân viên, mọi khách, người yêu thích) lưu một dòng cho mỗi người (fan-out — D-42), ghi theo lô
+  `app.notification.fan-out-batch-size`. Người yêu thích lấy qua `FavoriteService.customersFavoriting` (khách đang hoạt động —
+  D-47); `FavoriteNotificationListener` nghe `CampaignStartedEvent` và `StockLevelsChangedEvent` (riêng với
+  `StockNotificationListener` của `LOW_STOCK`).
+- **Hàng đợi một luồng (`NotificationDispatcher`, D-46):** listener `AFTER_COMMIT` của `notification` KHÔNG ghi DB tại chỗ mà gửi
+  việc vào một hàng đợi một luồng rồi trả về ngay. Lý do: trong `AFTER_COMMIT` luồng nghiệp vụ vẫn giữ kết nối của transaction gốc,
+  ghi thêm (`REQUIRES_NEW`) cần kết nối thứ hai → nhiều yêu cầu đồng thời làm cạn pool và treo (đã tái hiện bằng test). Một luồng
+  nên sự kiện được xử lý đúng thứ tự commit (vd. "đã xử lý" không chạy trước "tạo"). Lỗi của từng việc chỉ ghi log; việc còn trong
+  hàng đợi khi tắt máy được chờ tối đa 10 giây. Không dùng `@Async` mặc định (chạy song song, mất thứ tự) và hàng đợi không phải
+  bean `Executor` (không thay executor mặc định mà `OrderShipmentListener` dùng).
 - Ngoại lệ: email OTP gửi đồng bộ trong `auth` (người dùng cần biết ngay nếu gửi lỗi).
 
 ## Thanh toán mở rộng được (D-08)
@@ -99,6 +119,10 @@ public interface PaymentGateway {
 
 ## Job định kỳ
 - `OrderTimeoutJob` (BR-3) — đăng ký bằng `SchedulingConfigurer`, chu kỳ `app.order.timeout-job-delay` (60s).
+- `PromotionAnnouncementJob` (D-45, module `promotion`) — chu kỳ `app.notification.announce-job-delay` (60s): công bố voucher công
+  khai / chiến dịch vừa tới `start_date` (khoá `FOR UPDATE SKIP LOCKED`, gán `announced_at`, phát sự kiện; lô 50, lần đầu sau một
+  chu kỳ). Test tích hợp đặt chu kỳ 1h trong `PostgresTestContainerConfig` (context được cache vẫn chạy job trên DB dùng chung) và
+  gọi `announceDue()` trực tiếp.
 - Bật `@EnableScheduling`, `@EnableAsync` trong `common/config/AsyncSchedulingConfig`.
 
 ## Frontend — hai root layout, phân theo feature (D-18)

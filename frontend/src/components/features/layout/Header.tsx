@@ -9,6 +9,7 @@ import { useAuth } from "@/components/features/auth/AuthProvider";
 import { landingFor } from "@/lib/auth/redirect";
 import { CartIcon, PinIcon, UserIcon } from "@/components/ui/icons";
 import { SearchBox } from "@/components/features/layout/SearchBox";
+import { NotificationBell } from "@/components/features/notification/NotificationBell";
 
 export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQuery?: string }) {
   const { cartCount, user, ready, openLogin } = useShop();
@@ -101,6 +102,8 @@ export function Header({ menu, initialQuery = "" }: { menu: MenuItem[]; initialQ
                 </div>
               </div>
             </div>
+            {/* Chỉ hiện với khách đã đăng nhập (StoreNotifications bật Provider) */}
+            <NotificationBell allHref="/account/notifications" className="action" />
             <Link className="action" href="/cart">
               <CartIcon /> Giỏ hàng (<span className="CountItemsInCart">{count}</span>)
             </Link>

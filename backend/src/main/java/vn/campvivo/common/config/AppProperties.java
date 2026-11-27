@@ -32,6 +32,7 @@ public record AppProperties(
         @Valid @DefaultValue Cloudinary cloudinary,
         @Valid @DefaultValue Mail mail,
         @Valid @DefaultValue Cors cors,
+        @Valid @DefaultValue Notification notification,
         @NotBlank @DefaultValue("http://localhost:3000") String frontendUrl
 ) {
 
@@ -162,5 +163,11 @@ public record AppProperties(
 
     public record Cors(
             @NotNull @Size(min = 1) @DefaultValue("http://localhost:3000") List<String> allowedOrigins
+    ) {}
+
+    /** Thông báo in-app (D-42, D-45): chu kỳ job công bố voucher / chiến dịch, số người nhận mỗi lô khi gửi hàng loạt. */
+    public record Notification(
+            @NotNull @DefaultValue("60s") Duration announceJobDelay,
+            @Min(1) @DefaultValue("500") int fanOutBatchSize
     ) {}
 }

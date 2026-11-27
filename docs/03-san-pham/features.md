@@ -66,7 +66,7 @@ Lưu ý thiết kế xuyên tier:
 
 | Mã | Yêu cầu | Tier | Use case (báo cáo) |
 |---|---|---|---|
-| FR-22 | Thông báo in-app realtime; xem, lọc đã đọc/chưa đọc, đánh dấu tất cả đã đọc | 2 | Push realtime notification, View notification, Filter by status, Mark as read all |
+| FR-22 | Thông báo in-app realtime theo role (khách: đơn, trả hàng, trả lời chat, voucher mới, yêu thích giảm giá / có hàng lại; nhân viên: đơn COD mới, đơn VNPay đã thanh toán, trả hàng mới, khách nhắn tin, sắp hết hàng, đánh giá cần kiểm duyệt — D-42); thông báo cần xử lý hiện "Đã xử lý bởi …" ở mọi nhân viên (D-43); xem, lọc đã đọc/chưa đọc (nhân viên: thêm chưa xử lý), đánh dấu tất cả đã đọc | 2 | Push realtime notification, View notification, Filter by status, Mark as read all |
 | FR-23 | Email tự động: OTP (Tier 1, thuộc FR-01/03), xác nhận đặt hàng, đổi trạng thái đơn, kết quả trả hàng | 2 | Send email |
 | FR-25 | Gợi ý sản phẩm/combo mua kèm (co-purchase bằng SQL) | 2 | Gợi ý combo, sản phẩm |
 | FR-26 | Kênh chat realtime (hạ tầng cho FR-26a/b) | 2 | Chat |
@@ -241,7 +241,10 @@ xem BR-xx trong `database.md`.
 
 ### FR-20 Yêu thích
 - **Chính:** thêm/bỏ sản phẩm, combo, bài viết; xem danh sách theo loại. Thêm lại mục đã có →
-  trả thành công (idempotent).
+  trả thành công (idempotent). Trang chi tiết / giỏ hàng biết mục nào đã thích qua `GET /users/me/favorites/ids` (D-47).
+- **Ngoại lệ:** mặt hàng không tồn tại / đang tắt, bài chưa xuất bản → `NOT_FOUND`; chưa đăng nhập → chuyển `/login`; tài
+  khoản nhân viên không có yêu thích. Mặt hàng bị ẩn sau khi thích: không hiện trong danh sách (không xoá), bật lại là hiện lại.
+- Khách nhận thông báo khi mặt hàng yêu thích vào chiến dịch giảm giá / có hàng trở lại (FR-22).
 
 ### FR-21 Bài viết
 - **Chính:** tiêu đề, slug, tóm tắt, nội dung (HTML đã sanitize), ảnh đại diện, phân loại

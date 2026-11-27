@@ -247,10 +247,8 @@ export function CartPage({ csvcHtml, pvcHtml }: { csvcHtml: string; pvcHtml: str
               setUnchecked={setUnchecked}
               onQuantity={(id, qty) => void shop.updateCartItem(id, qty)}
               onRemove={(id) => void shop.removeCartItem(id)}
-              onFavorite={(l) => {
-                if (!shop.wishlist.includes(l.item.slug)) shop.toggleWishlist(l.item.slug);
-                shop.notify("Đã thêm vào danh sách yêu thích");
-              }}
+              onFavorite={(l) => void shop.addFavorite({ type: l.item.type, id: l.item.id })}
+              isFavorite={(l) => shop.isFavorite({ type: l.item.type, id: l.item.id })}
               subtotal={selected.reduce((n, l) => n + l.lineTotal, 0)}
               count={count}
             />

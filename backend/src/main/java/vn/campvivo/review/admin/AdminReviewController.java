@@ -59,19 +59,19 @@ public class AdminReviewController {
     }
 
     @PatchMapping("/{id}/unhide")
-    public ApiResponse<AdminReview> unhide(@PathVariable Long id) {
-        return ApiResponse.of(service.unhide(id));
+    public ApiResponse<AdminReview> unhide(@PathVariable Long id, @CurrentUserId Long staffId) {
+        return ApiResponse.of(service.unhide(id, staffId));
     }
 
     @PatchMapping("/{id}/clear-sensitive")
-    public ApiResponse<AdminReview> clearSensitive(@PathVariable Long id) {
-        return ApiResponse.of(service.clearSensitive(id));
+    public ApiResponse<AdminReview> clearSensitive(@PathVariable Long id, @CurrentUserId Long staffId) {
+        return ApiResponse.of(service.clearSensitive(id, staffId));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+    public ApiResponse<Void> delete(@PathVariable Long id, @CurrentUserId Long staffId) {
+        service.delete(id, staffId);
         return ApiResponse.of(null);
     }
 }

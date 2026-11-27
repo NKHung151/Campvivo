@@ -236,6 +236,59 @@ body {
   }
 }
 
+/* Danh sách yêu thích (FR-20): tab Sản phẩm / Combo, mỗi thẻ kèm nút "Bỏ yêu thích" */
+.cv-fav-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.cv-fav-tabs button {
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cv-fav-tabs button.active {
+  border-color: #2f6a3f;
+  background: #2f6a3f;
+  color: #fff;
+}
+.pg-shop #ProductCategory .cv-fav-item {
+  width: calc((100% - 30px) / 3);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.pg-shop #ProductCategory .cv-fav-item .item {
+  width: 100%;
+  flex: 1;
+}
+.cv-fav-remove {
+  margin: 0 12px 12px;
+  padding: 7px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cv-fav-remove:hover:not(:disabled) {
+  border-color: #c7370f;
+  color: #c7370f;
+}
+.cv-fav-remove:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+@media (max-width: 767px) {
+  .pg-shop #ProductCategory .cv-fav-item {
+    width: calc((100% - 15px) / 2);
+  }
+}
+
 /* Text logo until the brand mark is designed */
 .masthead .logo .cv-logo {
   display: inline-block;
@@ -314,6 +367,10 @@ body {
 .cv-combo-stock.out {
   background: #f5f5f5;
   color: #888;
+}
+/* Nút yêu thích đã bật (FR-20) — dùng chung trang sản phẩm / combo */
+.pg-shop #ProductDetail a.addtofav.active {
+  font-weight: 600;
 }
 .cv-combo-items {
   margin-top: 18px;

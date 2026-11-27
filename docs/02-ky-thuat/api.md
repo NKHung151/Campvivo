@@ -101,7 +101,11 @@ type ReturnReason = "MISSING_ITEMS" | "WRONG_ITEM" | "DAMAGED" | "DEFECTIVE" | "
                   | "USED" | "COUNTERFEIT" | "CHANGED_MIND";
 type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
-type NotificationType = "ORDER_STATUS" | "ORDER_NEW" | "RETURN_STATUS" | "RETURN_NEW" | "SUPPORT_MESSAGE";
+type NotificationType =                                      // D-42
+  | "ORDER_STATUS" | "RETURN_STATUS" | "SUPPORT_MESSAGE"     // khách
+  | "VOUCHER_NEW" | "FAVORITE_ON_SALE" | "FAVORITE_BACK_IN_STOCK"
+  | "ORDER_NEW" | "ORDER_PAID" | "RETURN_NEW"                // nhân viên (EMPLOYEE, ADMIN)
+  | "SUPPORT_NEW" | "LOW_STOCK" | "REVIEW_FLAGGED";
 
 interface UserProfile { id: number; email: string; fullName: string; phone: string | null;
   address: string | null; role: Role; }
@@ -159,7 +163,8 @@ Hành vi đã hiện thực (N3-04, khớp `features.md` FR-03 và BR-11):
 | GET | `/users/me` | User | → `UserProfile` |
 | PUT | `/users/me` | User | `{fullName, phone, address}` → `UserProfile` |
 | PUT | `/users/me/password` | User | `{currentPassword, newPassword}` → 200 (token cũ hết hiệu lực) |
-| GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ArticleSummary, createdAt}]` |
+| GET | `/users/me/favorites` | Customer | `?type=PRODUCT\|COMBO\|ARTICLE&page&limit` → `[{id, type, item: ItemSummary \| ComboSummary \| ArticleSummary, createdAt}]` + `pagination` (mục 4.6) |
+| GET | `/users/me/favorites/ids` | Customer | → `{productIds: number[], comboIds: number[], articleIds: number[]}` — tô tim ở trang chi tiết / giỏ hàng (D-47) |
 
 Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
 - `PUT /users/me` thay thế đúng ba trường `fullName`, `phone`, `address`; **email và role không sửa được** — gửi kèm trong body (cũng như `isActive`, `tokenVersion`...) bị bỏ qua.
@@ -190,7 +195,7 @@ Hành vi đã hiện thực (N3-05, khớp `features.md` FR-04):
 | GET | `/campaigns` | Public | → `[{id, name, slug, bannerUrl, discountType, discountValue, endDate, productCount}]` chiến dịch đang hiệu lực, sắp kết thúc trước (PromoBar, trang `/promotions`); `productCount` = số sản phẩm đang bán |
 | GET | `/campaigns/{slug}` | Public | → `{id, name, slug, description, bannerUrl, discountType, discountValue, startDate, endDate, products: [ItemSummary]}` (chỉ chiến dịch đang hiệu lực, ngược lại 404) |
 | GET | `/articles` | Public | `category`, `page`, `limit` (1..50, mặc định 12) → `[ArticleSummary]` (chỉ đã xuất bản, mới nhất trước) |
-| GET | `/articles/{slug}` | Public | → `ArticleDetail`; bài nháp hoặc không có → `NOT_FOUND` (`isFavorite` chờ module yêu thích) |
+| GET | `/articles/{slug}` | Public | → `ArticleDetail`; bài nháp hoặc không có → `NOT_FOUND` |
 
 Hành vi đã hiện thực của `GET /search` (N2-11):
 - Phản hồi: `{success, data: {products, combos, articles}, totals: {products, combos, articles}, pagination?}`. `data` luôn có đủ ba mảng (loại không được hỏi thì rỗng, không bao giờ null). `totals` là TỔNG số kết quả của từng loại, luôn có đủ ba số (để tab hiện "(n)"). `pagination` chỉ có khi hỏi `type` và mô tả loại đó.
@@ -210,8 +215,7 @@ interface ProductDetail extends ItemSummary {
   category: { id: number; name: string; slug: string; path: {name: string; slug: string}[] };
   images: { url: string; isPrimary: boolean }[];
   campaign: { name: string; slug: string; endDate: string } | null;   // chiến dịch đang áp
-  isFavorite?: boolean;                                                // khi có token
-}
+}   // đã thích chưa: GET /users/me/favorites/ids (D-47) — trang chi tiết tải ở server, không kèm token
 interface ComboSummary extends ItemSummary { itemsTotal: Money; itemCount: number;
   category: { id: number; name: string; slug: string }; }              // danh mục cấp 1 (D-23)
 interface ComboDetail extends ItemSummary {
@@ -220,11 +224,10 @@ interface ComboDetail extends ItemSummary {
                         // ảnh đầu = primaryImageUrl
   itemsTotal: Money;                                                   // tổng giá lẻ hiện tại các món
   items: { product: ItemSummary; quantity: number }[];                 // chỉ hiển thị
-  isFavorite?: boolean;
 }
 interface ArticleSummary { id: number; title: string; slug: string; summary: string | null;
   thumbnailUrl: string | null; category: ArticleCategory; publishedAt: string; }
-interface ArticleDetail extends ArticleSummary { content: string; authorName: string; isFavorite?: boolean; }
+interface ArticleDetail extends ArticleSummary { content: string; authorName: string; }
 interface Review { id: number; userFullName: string; rating: number; content: string | null;
   isSensitive: boolean;            // hệ thống bắt được ngôn từ không phù hợp → giao diện làm mờ nội dung (D-33)
   createdAt: string; updatedAt: string; }   // updatedAt > createdAt = chủ đã sửa ("(đã chỉnh sửa)")
@@ -368,12 +371,45 @@ interface MyReview extends Review { itemType: ItemType; itemId: number;
 - Mỗi lần viết/sửa, hệ thống kiểm tra nội dung bằng từ điển (D-33): bắt được → `isSensitive = true`; **không chặn đăng**.
 - `PUT`/`DELETE` đánh giá không phải của mình → `NOT_FOUND`. `PUT` đánh giá đang bị ẩn → `REVIEW_HIDDEN`.
 
+Yêu thích (FR-20, D-47):
+- `POST /favorites`: đúng 1 trong `productId`/`comboId`/`articleId`, không thì `VALIDATION_ERROR`. Mặt hàng không tồn tại, đang
+  tắt, hoặc bài viết chưa xuất bản → `NOT_FOUND`. Chưa thích → 201 `{id}`; đã thích → 200 `{id}` cũ (hai yêu cầu song song cũng
+  chỉ tạo một dòng).
+- `DELETE /favorites?…`: đúng 1 tham số như trên; chưa thích vẫn 200 (idempotent). `DELETE /favorites/{id}` không phải của mình /
+  không tồn tại → `NOT_FOUND`. Cả hai bỏ được kể cả khi mặt hàng đang ẩn.
+- `GET /users/me/favorites`: `type` bỏ trống = cả 3 loại; `page` ≥ 1, `limit` 1–100 (mặc định 12); mới thích trước (`createdAt
+  DESC, id DESC`). Chỉ trả mặt hàng đang hiển thị (sản phẩm / combo đang bán, bài đã xuất bản) — mặt hàng bị ẩn không xoá dòng,
+  bật lại là hiện lại; `pagination` chỉ đếm mục đang hiển thị. `item` là `ItemSummary` (sản phẩm), `ComboSummary` (combo),
+  `ArticleSummary` (bài viết).
+- `GET /users/me/favorites/ids`: mọi mục của khách (kể cả mặt hàng đang ẩn), mỗi mảng sắp theo id tăng dần.
+- Chỉ role CUSTOMER (nhân viên → `FORBIDDEN`, chưa đăng nhập → `UNAUTHORIZED`).
+
 ### 4.7 notification — FR-22
 | Method | Path | Quyền | Body → Response |
 |---|---|---|---|
-| GET | `/notifications` | User | `?isRead=true\|false&page&limit` → `[{id, type, title, content, link, isRead, createdAt}]` + `unreadCount` trong `data` wrapper: `{items, unreadCount}` |
-| PATCH | `/notifications/{id}/read` | User (chủ) | → 200 |
-| PATCH | `/notifications/read-all` | User | → `{updated: number}` |
+| GET | `/notifications` | User | `?isRead=true\|false&resolved=true\|false&page&limit` → `{success, data: {items: [Notification], unreadCount}, pagination}`; mới nhất trước (`createdAt DESC, id DESC`) |
+| PATCH | `/notifications/{id}/read` | User (chủ) | → `{unreadCount}` |
+| PATCH | `/notifications/read-all` | User | → `{updated: number, unreadCount}` |
+
+```ts
+interface Notification {
+  id: number; type: NotificationType; title: string; content: string;
+  link: string | null;               // route frontend, vd. "/account/orders/108"
+  eventCount: number;                // > 1 = dòng gộp nhiều sự kiện (D-43)
+  isRead: boolean;
+  createdAt: string;                 // thời điểm sự kiện mới nhất
+  actionable: boolean;               // loại cần xử lý (chỉ có ở nhân viên)
+  resolvedAt: string | null;         // có giá trị = đã có người xử lý
+  resolvedBy: { id: number; fullName: string } | null;   // null khi resolvedAt có giá trị = Hệ thống
+}
+```
+
+Hành vi (D-42, D-43):
+- Mọi role đã đăng nhập (CUSTOMER, EMPLOYEE, ADMIN) dùng chung 3 endpoint; chỉ thấy thông báo của chính mình. `{id}` của người
+  khác hoặc không tồn tại → 404 `NOT_FOUND`. `limit` mặc định 20 (1–100).
+- `unreadCount` = số thông báo chưa đọc VÀ chưa xử lý (`resolvedAt = null`). `resolved=false` = chỉ loại cần xử lý mà chưa ai làm.
+- `read` / `read-all` idempotent (đọc lại không lỗi). `read-all` chỉ đánh dấu của chính mình, `updated` = số dòng vừa đổi.
+- Khách và nhân viên nhận các loại khác nhau (danh sách và điều kiện ở D-42, D-43). Người gây ra sự kiện không nhận thông báo về nó.
 
 ### 4.8 support chat — FR-26
 | Method | Path | Quyền | Body → Response |
@@ -401,14 +437,26 @@ Hành vi đã hiện thực (N4-06):
 - **Realtime:** đẩy SAU khi commit (giao dịch bị huỷ thì không đẩy). Hộp thư là CHUNG cho mọi nhân viên (D-05): tin của khách → mọi nhân viên đang kết nối; tin của nhân viên → đúng khách đó
   VÀ các nhân viên còn lại (để thấy đồng nghiệp đã trả lời). Người gửi KHÔNG nhận lại tin của mình qua WebSocket (đã có trong phản hồi REST). Client không biết tin `isFromStaff` do nhân viên nào gửi
   (không lưu, KI-02). Đẩy hỏng không làm mất tin đã lưu.
-  Notification `SUPPORT_MESSAGE` (khi nhân viên trả lời) chưa làm: chờ N4-03.
+- **Thông báo** (4.7): tin của nhân viên → khách có `SUPPORT_MESSAGE` (gộp tới khi khách đọc); tin của khách → mọi nhân viên có
+  `SUPPORT_NEW` (gộp theo khách), một nhân viên trả lời → `SUPPORT_NEW` của khách đó chuyển "đã xử lý" ở mọi nhân viên.
 
 ### 4.9 WebSocket (STOMP) — FR-22, FR-26
 - Endpoint: `/ws` (SockJS fallback). Header CONNECT: `Authorization: Bearer <JWT>`.
 - Server đẩy (client SUBSCRIBE):
-  - `/user/queue/notifications` → `{id, type, title, content, link, isRead, createdAt}`
+  - `/user/queue/notifications` → `NotificationPush` (bên dưới)
   - `/user/queue/support` → `SupportMessage` (khách nhận tin của nhân viên; nhân viên nhận tin của mọi khách)
 - Client chỉ gửi qua REST (POST ở 4.8); WebSocket chỉ để nhận. Mất kết nối → client gọi lại REST để đồng bộ.
+
+```ts
+type NotificationPush =                                           // D-43
+  | { event: "CREATED"; notification: Notification; unreadCount: number }
+  | { event: "UPDATED"; notification: Notification; unreadCount: number }  // dòng gộp đổi (thêm sự kiện, hoặc chỉ sửa số
+                                                                          // như "Còn 4" — khi đó isRead giữ nguyên): thay dòng cũ cùng id
+  | { event: "RESOLVED"; ids: number[]; resolvedAt: string;
+      resolvedBy: { id: number; fullName: string } | null; unreadCount: number };  // có người đã xử lý
+```
+- Đẩy SAU khi commit, sau khi đã lưu dòng (transaction huỷ → không có thông báo). `unreadCount` là giá trị mới của chính người nhận.
+- `RESOLVED` không gửi cho người vừa xử lý (họ đã có kết quả qua phản hồi REST).
 
 Hành vi đã hiện thực (N3-08):
 - Bắt tay WebSocket/SockJS là công khai (trình duyệt không đặt được header ở bước này); **xác thực nằm ở khung CONNECT**. Thiếu header,

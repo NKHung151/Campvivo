@@ -83,8 +83,8 @@ quyết định.
 | View articles | Guest+ | FR-21 | `GET /articles?category=` | `/blog`, `/journal`, `/guides` | articles |
 | View article detail | Guest+ | FR-21 | `GET /articles/{slug}` | `/blog/[slug]`, `/journal/[slug]` | articles |
 | Manage favorites / View individual favorite | Customer | FR-20 | `GET /users/me/favorites` | `/account/favorites` | favorites |
-| Add to favorite | Customer | FR-20 | `POST /favorites` | trang chi tiết | favorites |
-| Remove favorite | Customer | FR-20 | `DELETE /favorites/{id}` | `/account/favorites` | favorites |
+| Add to favorite | Customer | FR-20 | `POST /favorites` (trạng thái tim: `GET /users/me/favorites/ids` — D-47) | trang chi tiết, giỏ hàng | favorites |
+| Remove favorite | Customer | FR-20 | `DELETE /favorites/{id}`, `DELETE /favorites?productId=\|comboId=\|articleId=` | `/account/favorites`, trang chi tiết | favorites |
 | Exchange support messages | Customer, Employee, Admin | FR-26 | `/support/messages`, `/admin/support/*`, WS | `/account/support`, `/admin/support` | support_messages |
 
 ## Hệ thống (bảng 2.7)
@@ -93,8 +93,8 @@ quyết định.
 | Push realtime notification | System | FR-22 | Event listener AFTER_COMMIT → WS `/user/queue/notifications` | notifications |
 | Send email | System | FR-23 | `notification` module, Thymeleaf template, `@Async` | — |
 | Chat | System | FR-26 | WS `/user/queue/support` (chat với nhân viên; chatbot AI là FR-28, chưa làm — D-05) | support_messages |
-| View notification | User | FR-22 | `GET /notifications`, route `/account/notifications` | notifications |
+| View notification | User | FR-22 | `GET /notifications`, route `/account/notifications` (khách), `/admin/notifications` (nhân viên); chuông ở header / admin shell | notifications |
 | Mark as read all | User | FR-22 | `PATCH /notifications/read-all` | notifications |
-| Filter by status | User | FR-22 | `GET /notifications?isRead=` | notifications |
+| Filter by status | User | FR-22 | `GET /notifications?isRead=&resolved=` (`resolved` cho nhân viên — D-43) | notifications |
 | Giữ chỗ / giải phóng tồn kho | System | FR-10/11 | `InventoryService`, `OrderTimeoutJob` (BR-2, BR-3) | products, product_combos |
 | Gợi ý combo, sản phẩm | System | FR-25 | `GET /products/{id}/recommendations`, `/combos/{id}/recommendations` | order_items, orders |

@@ -13,6 +13,119 @@ không xoá, chỉ đánh dấu "Đã bị thay thế".
 
 ---
 
+## Yêu thích (2026-11-27)
+
+### 2026-11-27 — D-47: Trạng thái yêu thích lấy qua `/users/me/favorites/ids`, không gắn vào trang chi tiết
+- **Bối cảnh:** api.md dự kiến `isFavorite?` trong `ProductDetail` / `ComboDetail` / `ArticleDetail` "khi có token". Nhưng
+  storefront tải trang chi tiết ở server (`serverGet`, không gửi token của khách) nên trường đó không bao giờ có giá trị; trang
+  giỏ hàng cũng cần biết mặt hàng nào đã thích.
+- **Quyết định:**
+  - Bỏ `isFavorite` khỏi ba kiểu chi tiết. Thêm `GET /users/me/favorites/ids` → `{productIds, comboIds, articleIds}` (mọi mục
+    của khách, kể cả mặt hàng đang ẩn). Client tải một lần khi khách đăng nhập, cập nhật tại chỗ sau mỗi lần thêm / bỏ.
+  - `POST /favorites` chỉ nhận mặt hàng đang hiển thị (sản phẩm / combo `is_active`, bài viết `is_published`), không thì
+    `NOT_FOUND`; đã có → 200 + id cũ. Ghi bằng `INSERT … ON CONFLICT DO NOTHING` trên unique index một phần nên hai yêu cầu song
+    song không lỗi và cùng trả một id.
+  - `DELETE /favorites?…` idempotent (chưa thích vẫn 200); `DELETE /favorites/{id}` của người khác → `NOT_FOUND`. Bỏ được cả khi
+    mặt hàng đang ẩn.
+  - `GET /users/me/favorites` chỉ trả mặt hàng đang hiển thị, mới thích trước; mặt hàng bị ẩn không mất dòng (bật lại là hiện lại).
+  - Người nhận `FAVORITE_ON_SALE` / `FAVORITE_BACK_IN_STOCK` = khách **đang hoạt động** có dòng yêu thích mặt hàng đó.
+    `FAVORITE_ON_SALE`: mỗi khách MỘT thông báo cho mỗi chiến dịch — chỉ tính sản phẩm đang bán và thật sự rẻ hơn giá gốc lúc
+    xử lý; một sản phẩm → chi tiết giá, nhiều sản phẩm → gộp "N sản phẩm bạn yêu thích đang giảm giá" (link trang chiến dịch).
+    `FAVORITE_BACK_IN_STOCK`: lần đổi kho làm khả dụng từ ≤ 0 lên > 0, và lúc xử lý mặt hàng vẫn đang bán + còn hàng (đọc lại);
+    gộp theo mặt hàng tới khi khách đọc (`group_key = BACK_IN_STOCK:{PRODUCT|COMBO}:{id}`).
+- **Lý do:** giữ trang chi tiết dùng chung cho mọi người (không phụ thuộc phiên); một request nhỏ thay vì gọi riêng ở từng trang.
+- **Phương án khác đã cân nhắc:** gửi token khi tải trang ở server (mất khả năng dùng chung kết quả, phải đọc cookie phiên ở
+  server); `GET /favorites/status?productId=` ở mỗi trang (nhiều request, giỏ hàng phải gọi từng dòng).
+- **Đánh đổi:** khách có rất nhiều mục yêu thích thì `/ids` lớn dần (chỉ là danh sách số; chưa giới hạn số mục).
+
+## Thông báo (2026-11-27)
+
+### 2026-11-27 — D-46: Listener thông báo chuyển việc sang hàng đợi một luồng
+- **Bối cảnh:** listener `AFTER_COMMIT` ghi thông báo trong transaction mới (`REQUIRES_NEW`). Test 6 khách gửi tin cùng lúc (pool 5
+  kết nối) bị treo: trong `AFTER_COMMIT` luồng nghiệp vụ vẫn giữ kết nối của transaction gốc nên mỗi luồng cần 2 kết nối cùng lúc.
+- **Quyết định:** `NotificationDispatcher` (module `notification`) — `ExecutorService` một luồng, vào trước làm trước. Listener chỉ
+  `submit` rồi trả về; NotificationService chạy trên luồng đó (mỗi lúc một kết nối). `drain()` chờ hàng đợi chạy hết (dùng trong
+  test). Không phải bean `Executor`.
+- **Lý do:** hết treo pool; luồng nghiệp vụ (đặt hàng, IPN, chat) không chờ việc tạo thông báo; giữ thứ tự sự kiện nên "đã xử lý"
+  không bao giờ chạy trước "tạo" của cùng một đối tượng.
+- **Phương án khác đã cân nhắc:** `@Async` mặc định (nhiều luồng → mất thứ tự, có thể để lại thông báo chưa xử lý sai); tăng pool
+  (chỉ đẩy ngưỡng treo lên); outbox (quá phạm vi).
+- **Đánh đổi:** thông báo tới trễ vài mili giây sau phản hồi REST; gửi hàng loạt (voucher cho mọi khách) làm các thông báo sau phải
+  chờ; việc còn trong hàng đợi mất nếu máy chủ sập (thông báo không phải dữ liệu nghiệp vụ); chỉ đúng với một instance backend
+  (như simple broker STOMP).
+
+### 2026-11-27 — D-42: Danh mục thông báo theo role, lưu fan-out, Admin nhận như Staff
+- **Bối cảnh:** FR-22 chỉ nói "thông báo in-app realtime"; api.md có 5 loại (`ORDER_STATUS`, `ORDER_NEW`, `RETURN_STATUS`,
+  `RETURN_NEW`, `SUPPORT_MESSAGE`). Người dùng (Người 4) muốn mỗi role nhận đủ những gì họ cần biết hoặc cần làm.
+- **Quyết định:**
+  - **Customer:** `ORDER_STATUS` (đơn sang CONFIRMED, SHIPPING, COMPLETED, CANCELLED, PAYMENT_FAILED — không gửi lúc tạo, không gửi
+    RETURNED vì đã có `RETURN_STATUS`, không gửi khi chính khách đổi), `RETURN_STATUS`, `SUPPORT_MESSAGE` (nhân viên trả lời),
+    `VOUCHER_NEW` (mã công khai bắt đầu hiệu lực), `FAVORITE_ON_SALE` (sản phẩm yêu thích vào chiến dịch giảm giá),
+    `FAVORITE_BACK_IN_STOCK` (mặt hàng yêu thích từ hết hàng có hàng lại).
+  - **Staff (EMPLOYEE) và ADMIN — giống nhau:** `ORDER_NEW` (đơn COD mới), `ORDER_PAID` (đơn VNPay đã thanh toán — đơn VNPay chưa trả
+    tiền KHÔNG báo), `RETURN_NEW`, `SUPPORT_NEW` (khách nhắn tin), `LOW_STOCK`, `REVIEW_FLAGGED` (đánh giá bị gắn SENSITIVE).
+  - Không gửi thông báo cho chính người gây ra sự kiện.
+  - **Fan-out:** mỗi người nhận một dòng `notifications` (giữ `user_id`, không thêm bảng). Thông báo cho nhân viên tạo một dòng cho
+    mỗi EMPLOYEE/ADMIN đang hoạt động lúc sự kiện xảy ra.
+- **Lý do:** giữ đúng schema và API sẵn có (`GET /notifications` dùng chung mọi role); trạng thái đã đọc riêng từng người; số nhân
+  viên nhỏ nên số dòng không đáng kể.
+- **Phương án khác đã cân nhắc:** một dòng cho cả role + bảng `notification_reads` (nhân viên mới vẫn thấy thông báo cũ, nhưng thêm
+  bảng ngoài 22 bảng, truy vấn và `unreadCount` phức tạp hơn); Admin có loại riêng (chưa có nhu cầu).
+- **Đánh đổi:** nhân viên tạo SAU sự kiện không thấy thông báo cũ. Voucher công khai gửi cho mọi khách → insert theo lô.
+
+### 2026-11-27 — D-43: Thông báo cần xử lý có trạng thái "đã xử lý"; thông báo lặp được gộp
+- **Bối cảnh:** với fan-out, khi nhân viên A đã xác nhận đơn thì nhân viên B vẫn thấy thông báo "đơn mới" như chưa ai làm; chat và
+  tồn kho sinh nhiều sự kiện liên tiếp cho cùng một đối tượng.
+- **Quyết định:**
+  - Cột `ref_type`/`ref_id` (đối tượng liên quan), `resolved_at`/`resolved_by` (NULL + `resolved_at` có giá trị = Hệ thống). Loại
+    **cần xử lý** và điều kiện: `ORDER_NEW` — đơn rời PENDING; `ORDER_PAID` — đơn CONFIRMED → SHIPPING; `RETURN_NEW` — yêu cầu
+    APPROVED/REJECTED; `SUPPORT_NEW` — một nhân viên trả lời khách đó; `LOW_STOCK` — khả dụng > ngưỡng; `REVIEW_FLAGGED` — không còn
+    đánh giá nào đang chờ (đúng bộ lọc `status=SENSITIVE` của `/admin/reviews`).
+  - Xử lý xong → đánh dấu MỌI dòng đang mở cùng `(type, ref_type, ref_id)` và đẩy WS `RESOLVED` cho những người đó. `unreadCount`
+    chỉ đếm dòng chưa đọc VÀ chưa xử lý. `resolved_by` chỉ ghi nhân viên; đơn bị khách tự huỷ hoặc job huỷ quá hạn → `resolved_by`
+    NULL (hiện "Hệ thống").
+  - **Gộp:** `group_key` khác NULL = dòng gộp đang mở, unique một phần `(user_id, group_key)`; sự kiện mới ghi bằng `INSERT … ON
+    CONFLICT DO UPDATE` (`event_count + 1`, nội dung mới nhất, `created_at = now()`, `is_read = false`). Áp cho `SUPPORT_MESSAGE`
+    (theo khách, đóng nhóm khi đọc), `FAVORITE_BACK_IN_STOCK` (theo mặt hàng, đóng nhóm khi đọc — kho dao động 0 ↔ 1 không sinh
+    nhiều dòng; thêm 2026-11-27, D-47), `SUPPORT_NEW` (theo khách), `LOW_STOCK` (theo mặt hàng), `REVIEW_FLAGGED` (một nhóm) — ba
+    loại sau đóng nhóm khi đã xử lý.
+  - Chống hai người cùng thao tác vẫn nằm ở tầng nghiệp vụ (`INVALID_STATUS_TRANSITION` của đơn và trả hàng); thông báo chỉ giúp
+    người khác biết sớm.
+- **Lý do:** người nhận thấy ngay "Đã xử lý bởi X lúc …" mà không phải mở từng đơn; badge không đếm việc đã có người làm; một câu SQL
+  nên hai sự kiện cùng lúc không tạo hai dòng gộp.
+- **Phương án khác đã cân nhắc:** chỉ dựa vào trang đối tượng (badge vẫn đếm việc đã xong); hàng đợi việc dùng chung có "nhận xử lý"
+  (quá phạm vi).
+
+### 2026-11-27 — D-44: Sắp hết hàng dùng ngưỡng chung, theo dõi ở mức sản phẩm và combo
+- **Bối cảnh:** cần quyết định ngưỡng cho `LOW_STOCK` và theo dõi tới mức nào.
+- **Quyết định:** dùng `app.inventory.low-stock-threshold` (đã có, mặc định 5 — cùng ngưỡng với bộ lọc "sắp hết" của trang Tồn kho).
+  Báo khi khả dụng (`stock − reserved`) của sản phẩm (tổng mọi biến thể) hoặc combo sau một lần đổi kho ≤ ngưỡng (0 = "hết hàng");
+  hết báo khi > ngưỡng. `inventory` phát `StockLevelsChangedEvent` (khả dụng trước/sau) ở mọi chỗ đổi `stock`/`reserved` của
+  sản phẩm/combo (gồm đóng gói / tháo combo); cũng dùng cho `FAVORITE_BACK_IN_STOCK` (trước ≤ 0 < sau).
+  - Listener đọc lại khả dụng HIỆN TẠI lúc xử lý (hai lần đổi kho có thể tới hàng đợi lệch thứ tự commit): > ngưỡng → đã xử lý
+    (người xử lý = nhân viên nhập/đóng gói/duyệt trả hàng; huỷ đơn → Hệ thống); ≤ ngưỡng và lần đổi làm GIẢM khả dụng (mặt hàng
+    đang bán) → báo / gộp ("Còn N", chưa đọc lại); ≤ ngưỡng nhưng TĂNG → chỉ sửa số trên dòng đang mở, không báo lại.
+  - Cùng cách "chỉ sửa số" cho `REVIEW_FLAGGED`: kiểm duyệt bớt hàng chờ (ẩn, đánh dấu an toàn, xoá, khách sửa bỏ từ nhạy cảm) →
+    sửa "Có N đánh giá…" không báo lại; về 0 → đã xử lý; nhân viên hiện lại một đánh giá SENSITIVE → báo các nhân viên khác.
+- **Lý do:** không thêm cột vào `products`/`product_combos`; một định nghĩa "sắp hết" cho cả trang Tồn kho và thông báo.
+- **Phương án khác đã cân nhắc:** ngưỡng riêng từng sản phẩm (thêm cột + giao diện); báo theo từng biến thể màu/size (để sau);
+  job quét định kỳ (trễ, không biết được lúc từ 0 lên có hàng).
+
+### 2026-11-27 — D-45: Voucher / chiến dịch được công bố bằng job, đánh dấu `announced_at`
+- **Bối cảnh:** voucher và chiến dịch có `start_date` trong tương lai; giá sau chiến dịch tính động (`@Formula`) nên không có sự kiện
+  nào lúc chiến dịch bắt đầu.
+- **Quyết định:** cột `announced_at` (nullable) ở `vouchers` và `discount_campaigns`. `PromotionAnnouncementJob` (module
+  `promotion`, mỗi `app.notification.announce-job-delay` = 60s) khoá bằng `FOR UPDATE SKIP LOCKED` các voucher `is_public AND
+  is_active AND start_date <= now < expiry_date AND used_count < quantity AND announced_at IS NULL` và chiến dịch `is_active AND
+  start_date <= now < end_date AND announced_at IS NULL`, gán `announced_at` rồi phát `VoucherAnnouncedEvent` / `CampaignStartedEvent`.
+  Migration gán `announced_at = now()` cho dữ liệu đã có (không gửi hàng loạt mã/chiến dịch cũ khi triển khai). Sửa voucher/chiến
+  dịch sau khi đã công bố không gửi lại. Mã đang ẩn / tắt / hết lượt thì chưa gán `announced_at` — mở công khai / bật / còn lượt
+  sau đó (trong hạn) mới được công bố. Mỗi lô 50 dòng một transaction; lần chạy đầu sau một chu kỳ kể từ khi khởi động. Fan-out
+  `VOUCHER_NEW` tới mọi khách chạy trên hàng đợi thông báo (D-46), theo lô `fan-out-batch-size` — không dùng `@Async`.
+- **Lý do:** một đường đi duy nhất cho cả "tạo xong là hiệu lực ngay" và "hẹn giờ"; công bố đúng một lần kể cả khi job chạy chồng.
+- **Phương án khác đã cân nhắc:** phát sự kiện ngay khi admin tạo (bỏ sót voucher hẹn giờ); kiểm trùng bằng cách tìm trong
+  `notifications` (chậm và sai khi chưa có khách nào).
+
 ## Trả hàng (2026-11-23)
 
 ### 2026-11-23 — D-41: Trả hàng có ảnh, lý do chọn sẵn; nhân viên duyệt là hoàn tất

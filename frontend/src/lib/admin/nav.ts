@@ -30,7 +30,13 @@ export const isNavParent = (e: AdminNavEntry): e is AdminNavParent => "children"
 
 /** Menu admin — route và quyền theo docs/03-san-pham/pages.md (mục Admin). */
 export const ADMIN_NAV: AdminNavGroup[] = [
-  { label: "Tổng quan", entries: [{ href: "/admin", label: "Dashboard", roles: ADMIN_ONLY }] },
+  {
+    label: "Tổng quan",
+    entries: [
+      { href: "/admin", label: "Dashboard", roles: ADMIN_ONLY },
+      { href: "/admin/notifications", label: "Thông báo", roles: STAFF },
+    ],
+  },
   {
     label: "Bán hàng",
     entries: [

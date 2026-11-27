@@ -12,6 +12,7 @@ import "@/styles/shop/custom.css";
 import "@/styles/shop/review.css";
 import "@/styles/shop/ui.css";
 import "@/styles/shop/auth.css";
+import "@/styles/notification.css";
 import { AuthProvider } from "@/components/features/auth/AuthProvider";
 
 /**

@@ -65,7 +65,6 @@ export interface ProductDetail extends ItemSummary {
   category: CategoryRef;
   images: ImageRef[];
   campaign: { name: string; slug: string; endDate: string } | null;
-  isFavorite?: boolean;
 }
 
 /** Sản phẩm bán chạy của một danh mục cấp 2 (GET /products/best-sellers — D-38), bán chạy nhất trước. */

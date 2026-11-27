@@ -3,6 +3,7 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { AdminProviders } from "@/components/admin/shell/AdminProviders";
 import { AuthProvider } from "@/components/features/auth/AuthProvider";
 import "@/styles/admin/admin.css";
+import "@/styles/notification.css";
 
 /**
  * Root layout riêng của khu vực admin (route group `(admin)`). Tách khỏi `(store)` để CSS storefront

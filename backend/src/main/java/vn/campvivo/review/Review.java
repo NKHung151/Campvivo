@@ -119,6 +119,9 @@ public class Review {
 
     public boolean isSensitive() { return moderationStatus == ModerationStatus.SENSITIVE; }
 
+    /** Đang chờ nhân viên kiểm duyệt — đúng bộ lọc `status=SENSITIVE` của `/admin/reviews`: chưa ẩn và SENSITIVE. */
+    public boolean isPendingModeration() { return !hidden && isSensitive(); }
+
     public boolean isForProduct() { return productId != null; }
 
     /** "PRODUCT" / "COMBO" — cùng cách ghi với ItemSummary, OrderDetail. */

@@ -48,4 +48,18 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long>, JpaSpec
             order by v.expiryDate asc, v.id asc
             """)
     List<Voucher> findPublicAvailable(@Param("now") OffsetDateTime now);
+
+    /**
+     * Voucher công khai vừa tới lúc hiệu lực, còn lượt, chưa công bố (D-45) — khoá `FOR UPDATE SKIP LOCKED` để hai lần chạy
+     * job chồng nhau không công bố cùng một mã.
+     */
+    @Query(value = """
+            select * from vouchers
+            where is_public and is_active and start_date <= :now and expiry_date > :now and used_count < quantity
+              and announced_at is null
+            order by id
+            limit :limit
+            for update skip locked
+            """, nativeQuery = true)
+    List<Voucher> lockDueForAnnouncement(@Param("now") OffsetDateTime now, @Param("limit") int limit);
 }
