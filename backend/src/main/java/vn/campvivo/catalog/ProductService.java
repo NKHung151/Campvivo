@@ -91,6 +91,23 @@ public class ProductService {
                 .collect(Collectors.toMap(i -> i.getProduct().getId(), ProductImage::getImageUrl, (a, b) -> a));
     }
 
+    /** Sản phẩm ĐANG BÁN theo id (yêu thích, thông báo); id không tồn tại / đang tắt bị bỏ. */
+    @Transactional(readOnly = true)
+    public Map<Long, ItemSummary> activeSummaries(Collection<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Product> products = productRepository.findAllById(productIds).stream().filter(Product::isActive).toList();
+        Map<Long, String> urls = primaryImageUrls(products.stream().map(Product::getId).toList());
+        return products.stream().collect(Collectors.toMap(Product::getId, p -> ItemSummary.from(p, urls.get(p.getId()))));
+    }
+
+    /** Sản phẩm tồn tại và đang bán. */
+    @Transactional(readOnly = true)
+    public boolean isActive(Long productId) {
+        return productRepository.findById(productId).map(Product::isActive).orElse(false);
+    }
+
     @Transactional(readOnly = true)
     public ProductDetailResponse getBySlug(String slug) {
         Product product = productRepository.findBySlugAndActiveTrue(slug)

@@ -76,6 +76,23 @@ public class ComboService {
         return comboRepository.findCoverImageUrls(comboIds);
     }
 
+    /** Combo ĐANG BÁN theo id (yêu thích); id không tồn tại / đang tắt bị bỏ. */
+    @Transactional(readOnly = true)
+    public Map<Long, ComboSummary> activeSummaries(Collection<Long> comboIds) {
+        if (comboIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ProductCombo> combos = comboRepository.findAllById(comboIds).stream().filter(ProductCombo::isActive).toList();
+        Map<Long, String> covers = comboRepository.findCoverImageUrls(combos.stream().map(ProductCombo::getId).toList());
+        return combos.stream().collect(Collectors.toMap(ProductCombo::getId, c -> ComboSummary.from(c, covers.get(c.getId()))));
+    }
+
+    /** Combo tồn tại và đang bán. */
+    @Transactional(readOnly = true)
+    public boolean isActive(Long comboId) {
+        return comboRepository.findById(comboId).map(ProductCombo::isActive).orElse(false);
+    }
+
     @Transactional(readOnly = true)
     public ComboDetailResponse getBySlug(String slug) {
         ProductCombo combo = comboRepository.findBySlugAndActiveTrue(slug)

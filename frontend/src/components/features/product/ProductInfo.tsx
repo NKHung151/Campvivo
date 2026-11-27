@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import type { ProductFull, PdpStatic } from "@/types/product";
 import { vnd } from "@/lib/format";
 import { useShop } from "@/components/features/shop/ShopProvider";
+import { FavoriteButton } from "@/components/features/favorite/FavoriteButton";
 import { fmtRating } from "@/components/features/review/Stars";
 
 /** Thời gian còn lại tới hết chiến dịch: [ngày, giờ, phút, giây]; đã hết → toàn 0 (tải lại trang sẽ thấy giá gốc). */
@@ -28,7 +29,7 @@ function useCountdown(iso: string | null) {
 }
 
 export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
-  const { addToCart, wishlist, toggleWishlist, notify, markViewed } = useShop();
+  const { addToCart, notify, markViewed } = useShop();
   const router = useRouter();
   // Biến thể (D-37): chọn lần lượt từng tuỳ chọn (vd. Màu sắc rồi Size); tuỳ chọn chỉ 1 giá trị thì chọn sẵn
   const hasOptions = p.options.length > 0;
@@ -46,7 +47,6 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
   const chosen = hasOptions && picked.every(Boolean) ? (p.variants.find((v) => v.values.every((x, i) => x === picked[i])) ?? null) : null;
   const missing = p.options.filter((_, i) => !picked[i]).map((o) => o.name.toLowerCase());
   const allSoldOut = hasOptions ? !p.variants.some((v) => v.inv > 0) : p.maxQty === 0;
-  const fav = wishlist.includes(p.slug);
   const max = Math.max(1, chosen ? chosen.inv : p.maxQty || 1000);
   const pick = (i: number, value: string) => {
     setPicked((prev) => prev.map((x, j) => (j === i ? (x === value ? null : value) : x)));
@@ -317,17 +317,7 @@ export function ProductInfo({ p, st }: { p: ProductFull; st: PdpStatic }) {
             )}
           </div>
           <div className="cb h15" />
-          <a
-            className="addtofav"
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              toggleWishlist(p.slug);
-              notify(fav ? "Đã bỏ khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích");
-            }}
-          >
-            {fav ? "Đã thêm vào Danh sách yêu thích" : "Thêm vào Danh sách yêu thích"}
-          </a>
+          <FavoriteButton item={{ type: "PRODUCT", id: p.id }} />
           <div className="box-check-store">
             <Link href="/pages/he-thong-cua-hang" className="check-store">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">

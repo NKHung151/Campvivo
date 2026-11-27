@@ -31,7 +31,9 @@
 | `app.shipping.free-threshold` | `1000000` | Miễn phí ship từ ngưỡng này (D-27, thay D-17) |
 | `app.ghn.token` / `shop-id` / `base-url` / `from-district-id` / `from-ward-code` / `service-type-id` / `default-weight` | env `GHN_*` | D-27. `default-weight` = gram mỗi món |
 | `app.ghn.parcel-length` / `parcel-width` / `parcel-height` / `required-note` / `master-data-cache-ttl` / `timeout` | `20` / `15` / `10` (cm) / `CHOXEMHANGKHONGTHU` / `12h` / `10s` | D-27 |
-| `app.inventory.low-stock-threshold` | `5` | FR-08 |
+| `app.inventory.low-stock-threshold` | `5` | FR-08; cũng là ngưỡng thông báo `LOW_STOCK` (D-44) |
+| `app.notification.announce-job-delay` | `60s` | Chu kỳ job công bố voucher / chiến dịch (D-45) |
+| `app.notification.fan-out-batch-size` | `500` | Số dòng `notifications` mỗi lô khi gửi cho nhiều người (D-42) |
 | `app.vnpay.tmn-code` / `hash-secret` / `pay-url` / `return-url` / `ipn-url` | env `VNP_TMN_CODE`, `VNP_HASH_SECRET`, `VNP_URL`, `VNP_RETURN_URL`, `VNP_IPN_URL` | D-28. `return-url` = trang frontend `/payment/vnpay-return` |
 | `app.vnpay.locale` / `order-type` | `vn` / `other` | Tham số `vnp_Locale`, `vnp_OrderType` |
 | `app.order.timeout-job-delay` | `60s` | Chu kỳ job huỷ đơn quá hạn (BR-3) |

@@ -9,18 +9,31 @@ import { loginHref } from "@/lib/auth/redirect";
 import { getErrorMessage } from "@/lib/errorMessages";
 import { isApiError } from "@/services/apiError";
 import * as cartApi from "@/services/cartService";
+import * as favoriteApi from "@/services/favoriteService";
+import type { FavoriteRef, FavoriteType } from "@/types/api/favorite";
 
 /*
  * Trạng thái dùng chung của storefront.
  * - Đăng nhập: phiên thật (AuthProvider). Giỏ hàng: API /cart (FR-09) — chỉ khách hàng (role CUSTOMER) có giỏ.
+ * - Yêu thích: id các mục đã thích từ API /users/me/favorites/ids (FR-20, D-47) — chỉ khách hàng.
  * - Đơn hàng: API /orders (FR-12) — không lưu ở đây.
- * - Còn lưu localStorage (chưa có API): thông tin giao hàng gần nhất (`customer`, kèm mã GHN), yêu thích, đã xem.
+ * - Còn lưu localStorage (chưa có API): thông tin giao hàng gần nhất (`customer`, kèm mã GHN), đã xem.
  */
 
 export type CartStatus = "idle" | "loading" | "ready" | "error";
 
 /** Mặt hàng thêm vào giỏ: đúng một trong hai id; `variantId` = màu / size đã chọn (D-40). */
 export type CartItemRef = { productId: number; variantId?: number; comboId?: never } | { comboId: number; productId?: never; variantId?: never };
+
+/** Mục yêu thích: loại + id. */
+export interface FavoriteKey {
+  type: FavoriteType;
+  id: number;
+}
+
+const favKey = (k: FavoriteKey) => `${k.type}:${k.id}`;
+const favRef = (k: FavoriteKey): FavoriteRef =>
+  k.type === "PRODUCT" ? { productId: k.id } : k.type === "COMBO" ? { comboId: k.id } : { articleId: k.id };
 
 interface ShopState {
   ready: boolean;
@@ -31,9 +44,19 @@ interface ShopState {
   cartStatus: CartStatus;
   cartCount: number;
   customer: Customer | null;
-  wishlist: string[];
   viewed: string[];
   toast: string | null;
+  /** Đã thích chưa (false khi chưa đăng nhập / chưa tải xong). */
+  isFavorite: (item: FavoriteKey) => boolean;
+  /**
+   * Thêm / bỏ yêu thích (chưa đăng nhập → /login; nhân viên → thông báo). Đổi ngay trên giao diện, lỗi thì trả lại như cũ.
+   * Trả về trạng thái sau cùng.
+   */
+  toggleFavorite: (item: FavoriteKey) => Promise<boolean>;
+  /** Thêm (không bỏ nếu đã thích) — nút "Yêu thích" ở giỏ hàng. */
+  addFavorite: (item: FavoriteKey) => Promise<void>;
+  /** Đồng bộ sau khi trang khác bỏ thích (vd. tab yêu thích của tài khoản). */
+  forgetFavorite: (item: FavoriteKey) => void;
   /** Thêm vào giỏ (chưa đăng nhập → chuyển /login). Trả về true nếu thành công; lỗi đã được báo bằng toast. */
   addToCart: (item: CartItemRef, qty?: number) => Promise<boolean>;
   updateCartItem: (cartItemId: number, qty: number) => Promise<void>;
@@ -44,7 +67,6 @@ interface ShopState {
   /** Chuyển tới /login, quay lại trang hiện tại sau khi đăng nhập. */
   openLogin: () => void;
   saveCustomer: (c: Customer) => void;
-  toggleWishlist: (slug: string) => void;
   markViewed: (slug: string) => void;
   notify: (msg: string) => void;
 }
@@ -63,21 +85,27 @@ const KEY = "campvivo-shop-v1";
 
 interface Persisted {
   customer: Customer | null;
-  wishlist: string[];
   viewed: string[];
 }
 
-const EMPTY: Persisted = { customer: null, wishlist: [], viewed: [] };
+const EMPTY: Persisted = { customer: null, viewed: [] };
 
 function load(): Persisted {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return EMPTY;
-    // Bỏ dữ liệu mock cũ: `user` (đăng nhập giả), `cart`, `orders` (giỏ và đơn giờ nằm ở server).
-    const { user: _legacyUser, cart: _legacyCart, orders: _legacyOrders, ...saved } = JSON.parse(raw) as Partial<Persisted> & {
+    // Bỏ dữ liệu mock cũ: `user` (đăng nhập giả), `cart`, `orders`, `wishlist` (giỏ, đơn, yêu thích giờ nằm ở server).
+    const {
+      user: _legacyUser,
+      cart: _legacyCart,
+      orders: _legacyOrders,
+      wishlist: _legacyWishlist,
+      ...saved
+    } = JSON.parse(raw) as Partial<Persisted> & {
       user?: unknown;
       cart?: unknown;
       orders?: unknown;
+      wishlist?: unknown;
     };
     return { ...EMPTY, ...saved };
   } catch {
@@ -152,6 +180,44 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth.status, canBuy, authUser?.id, refreshCart]);
 
+  // Yêu thích theo phiên: khách hàng → tải tập id; còn lại → rỗng.
+  const [favorites, setFavorites] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    if (auth.status === "loading") return;
+    setFavorites(new Set());
+    if (!canBuy) return;
+    let cancelled = false;
+    favoriteApi
+      .getFavoriteIds()
+      .then((ids) => {
+        if (cancelled) return;
+        setFavorites(
+          new Set([
+            ...ids.productIds.map((id) => favKey({ type: "PRODUCT", id })),
+            ...ids.comboIds.map((id) => favKey({ type: "COMBO", id })),
+            ...ids.articleIds.map((id) => favKey({ type: "ARTICLE", id })),
+          ]),
+        );
+      })
+      .catch(() => {
+        /* không tải được: tim hiện "chưa thích", bấm vẫn gọi API bình thường */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.status, canBuy, authUser?.id]);
+
+  const setFavorite = useCallback((item: FavoriteKey, on: boolean) => {
+    setFavorites((prev) => {
+      const key = favKey(item);
+      if (prev.has(key) === on) return prev;
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
   const update = useCallback((fn: (s: Persisted) => Persisted) => {
     if (pending.current) pending.current.push(fn);
     else setState((s) => fn(s));
@@ -184,6 +250,53 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [authUser, canBuy, notify, openLogin],
+  );
+
+  /** Kiểm đăng nhập + role trước khi đụng tới yêu thích; false = đã báo cho người dùng. */
+  const canFavorite = useCallback(() => {
+    if (!authUser) {
+      notify("Vui lòng đăng nhập để lưu yêu thích");
+      openLogin();
+      return false;
+    }
+    if (!canBuy) {
+      notify("Tài khoản nhân viên không dùng danh sách yêu thích");
+      return false;
+    }
+    return true;
+  }, [authUser, canBuy, notify, openLogin]);
+
+  const toggleFavorite = useCallback(
+    async (item: FavoriteKey) => {
+      const was = favorites.has(favKey(item));
+      if (!canFavorite()) return was;
+      setFavorite(item, !was);
+      try {
+        if (was) await favoriteApi.removeFavorite(favRef(item));
+        else await favoriteApi.addFavorite(favRef(item));
+        notify(was ? "Đã bỏ khỏi danh sách yêu thích" : "Đã thêm vào danh sách yêu thích");
+        return !was;
+      } catch (err) {
+        setFavorite(item, was);
+        notify(getErrorMessage(err));
+        return was;
+      }
+    },
+    [favorites, canFavorite, setFavorite, notify],
+  );
+
+  const addFavorite = useCallback(
+    async (item: FavoriteKey) => {
+      if (!canFavorite()) return;
+      try {
+        await favoriteApi.addFavorite(favRef(item));
+        setFavorite(item, true);
+        notify("Đã thêm vào danh sách yêu thích");
+      } catch (err) {
+        notify(getErrorMessage(err));
+      }
+    },
+    [canFavorite, setFavorite, notify],
   );
 
   const updateCartItem = useCallback(
@@ -227,17 +340,16 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       logout: () => void authLogout(),
       openLogin,
       saveCustomer: (c) => update((s) => ({ ...s, customer: c })),
-      toggleWishlist: (slug) =>
-        update((s) => ({
-          ...s,
-          wishlist: s.wishlist.includes(slug) ? s.wishlist.filter((w) => w !== slug) : [slug, ...s.wishlist],
-        })),
+      isFavorite: (item) => favorites.has(favKey(item)),
+      toggleFavorite,
+      addFavorite,
+      forgetFavorite: (item) => setFavorite(item, false),
       markViewed: (slug) =>
         update((s) => ({ ...s, viewed: [slug, ...s.viewed.filter((v) => v !== slug)].slice(0, 12) })),
       notify,
     }),
     [ready, state, user, canBuy, cart, cartStatus, toast, addToCart, updateCartItem, removeCartItem, refreshCart,
-      authLogout, openLogin, update, notify],
+      authLogout, openLogin, update, notify, favorites, toggleFavorite, addFavorite, setFavorite],
   );
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;

@@ -61,6 +61,7 @@ export function CartLines({
   onQuantity,
   onRemove,
   onFavorite,
+  isFavorite,
   subtotal,
   count,
 }: {
@@ -70,6 +71,7 @@ export function CartLines({
   onQuantity: (id: number, qty: number) => void;
   onRemove: (id: number) => void;
   onFavorite: (line: CartLine) => void;
+  isFavorite: (line: CartLine) => boolean;
   subtotal: number;
   count: number;
 }) {
@@ -134,7 +136,11 @@ export function CartLines({
               </td>
               <td align="center">
                 <div className="btn-action">
-                  {l.item.type === "PRODUCT" && (
+                  {isFavorite(l) ? (
+                    <span className="nav" style={{ cursor: "default" }}>
+                      Đã yêu thích
+                    </span>
+                  ) : (
                     <span className="nav" onClick={() => onFavorite(l)}>
                       Yêu thích
                     </span>

@@ -23,7 +23,8 @@ Lý do các chỗ bổ sung so với báo cáo: `docs/99-ghi-chu/decisions.md` (
   migration đầu tiên, `V2__catalog_schema.sql` (F-06) tạo 5 bảng catalog (mục 3.2–3.6), `V5__order_schema.sql` (F-08) tạo 7 bảng
 mua hàng (mục 3.7–3.13; V3/V4 là seed), `V6__promotion.sql` tạo 3 bảng khuyến mãi (V7 là seed), `V8__reviews.sql` tạo bảng
   `reviews` (mục 3.17), `V13__support_messages.sql` tạo bảng `support_messages` (mục 3.19; số V13 vì V8–V12 đã dùng), `V14__search_extensions.sql` bật extension `unaccent` và `pg_trgm`, thêm hàm `f_unaccent` (IMMUTABLE) và 4 chỉ mục trigram (D-39), `V12__articles.sql` tạo bảng `articles` (mục 3.21; thêm ràng buộc đã đăng thì phải có
-  `published_at` và index `idx_articles_category_published_at` cho danh sách public); các bảng còn lại được thêm dần bằng migration mới theo
+  `published_at` và index `idx_articles_category_published_at` cho danh sách public), `V17__notifications.sql` tạo bảng
+  `notifications` (mục 3.20) và thêm cột `announced_at` cho `vouchers`, `discount_campaigns` (D-42, D-43, D-45), `V18__favorites.sql` tạo bảng `favorites` (mục 3.18, D-47); các bảng còn lại được thêm dần bằng migration mới theo
   `.agents/plans/active/backend-roadmap.md` (F-06 → F-09). Từ V1 trở đi KHÔNG sửa migration đã merge
   (decisions D-14).
 
@@ -310,6 +311,7 @@ Tạo cùng lúc với đơn (`PENDING`). COD chuyển `SUCCESS` khi đơn COMPL
 | expiry_date | timestamptz | `CHECK (expiry_date > start_date)` |
 | is_active | BOOLEAN | (+) mặc định true |
 | is_public | BOOLEAN | (+) mặc định true — hiện trong danh sách mã ở trang thanh toán và PromoBar (D-29); false = mã ẩn, chỉ nhập tay |
+| announced_at | timestamptz | (+) N — lúc đã gửi thông báo `VOUCHER_NEW` (D-45); NULL = chưa công bố. V17 gán `now()` cho mã đã có |
 | created_at, updated_at | timestamptz | |
 
 `CHECK (used_count >= 0 AND used_count <= quantity)`, `CHECK (code = upper(code))`, `CHECK (expiry_date > start_date)`;
@@ -328,6 +330,7 @@ PERCENTAGE: `discount_value` 1–100; FIXED_AMOUNT: `discount_value > 0` và `ma
 | start_date | timestamptz | |
 | end_date | timestamptz | `CHECK (end_date > start_date)` |
 | is_active | BOOLEAN | (+) mặc định true |
+| announced_at | timestamptz | (+) N — lúc đã gửi thông báo `FAVORITE_ON_SALE` (D-45); NULL = chưa công bố. V17 gán `now()` cho chiến dịch đã có |
 | created_at, updated_at | timestamptz | |
 
 ### 3.16 `discount_campaign_products`
@@ -371,7 +374,11 @@ Migration: `V8__reviews.sql`.
 | article_id | BIGINT | (+) N, FK → articles(id) `ON DELETE CASCADE` |
 | created_at | timestamptz | |
 
-`CHECK (num_nonnulls(product_id, combo_id, article_id) = 1)`; unique một phần theo từng loại.
+`CHECK (num_nonnulls(product_id, combo_id, article_id) = 1)`; unique một phần theo từng loại: `(user_id, product_id) WHERE
+product_id IS NOT NULL`, tương tự `combo_id`, `article_id` — `POST /favorites` ghi bằng `ON CONFLICT DO NOTHING` trên các index
+này (D-47). Index `(user_id, created_at DESC)` cho danh sách của khách; `product_id`, `combo_id` (một phần, khác NULL) để tìm người
+yêu thích một mặt hàng (`FAVORITE_ON_SALE`, `FAVORITE_BACK_IN_STOCK`); `article_id` (một phần) cho FK. Xoá cứng.
+Migration: `V18__favorites.sql`.
 
 ### 3.19 `support_messages` (D-05)
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -390,13 +397,28 @@ trạng thái đã đọc.
 | Cột | Kiểu | Ràng buộc / ghi chú |
 |---|---|---|
 | id | BIGINT | PK |
-| user_id | BIGINT | FK → users(id) `ON DELETE CASCADE` — người nhận |
-| type | VARCHAR(30) | (+) `ORDER_STATUS` \| `ORDER_NEW` \| `RETURN_STATUS` \| `RETURN_NEW` \| `SUPPORT_MESSAGE` |
+| user_id | BIGINT | FK → users(id) `ON DELETE CASCADE` — người nhận (fan-out: mỗi người một dòng — D-42) |
+| type | VARCHAR(30) | (+) khách: `ORDER_STATUS` \| `RETURN_STATUS` \| `SUPPORT_MESSAGE` \| `VOUCHER_NEW` \| `FAVORITE_ON_SALE` \| `FAVORITE_BACK_IN_STOCK`; nhân viên (EMPLOYEE, ADMIN): `ORDER_NEW` \| `ORDER_PAID` \| `RETURN_NEW` \| `SUPPORT_NEW` \| `LOW_STOCK` \| `REVIEW_FLAGGED` |
 | title | VARCHAR(255) | |
 | content | VARCHAR(1000) | |
 | link | VARCHAR(500) | (+) N — route frontend, vd. `/account/orders/108` |
+| ref_type | VARCHAR(20) | (+) N — đối tượng liên quan: `ORDER` \| `RETURN` \| `CONVERSATION` \| `PRODUCT` \| `COMBO` \| `VOUCHER` \| `CAMPAIGN` \| `REVIEW_QUEUE` (D-43) |
+| ref_id | BIGINT | (+) N — id đối tượng (không FK: trỏ nhiều bảng; `CONVERSATION` = id khách; `REVIEW_QUEUE` = NULL) |
+| group_key | VARCHAR(100) | (+) N — khác NULL = dòng gộp đang mở, vd. `SUPPORT_NEW:42`, `LOW_STOCK:PRODUCT:12` (D-43) |
+| event_count | INT | (+) mặc định 1 — số sự kiện đã gộp vào dòng |
 | is_read | BOOLEAN | mặc định false |
-| created_at | timestamptz | |
+| resolved_at | timestamptz | (+) N — chỉ loại cần xử lý: lúc đã có người xử lý (D-43) |
+| resolved_by | BIGINT | (+) N, FK → users(id) `ON DELETE SET NULL` — người xử lý; NULL khi `resolved_at` có giá trị = Hệ thống |
+| created_at | timestamptz | thời điểm sự kiện MỚI NHẤT (dòng gộp được cập nhật lại) |
+
+`CHECK` danh sách `type`, `ref_type`; `CHECK (event_count >= 1)`; `CHECK (resolved_by IS NULL OR resolved_at IS NOT NULL)`;
+unique một phần `uq_notifications_user_group (user_id, group_key) WHERE group_key IS NOT NULL`. Migration `V17__notifications.sql`.
+- **Gộp:** sự kiện mới cho nhóm đang mở ghi bằng một câu `INSERT … ON CONFLICT (user_id, group_key) WHERE group_key IS NOT NULL
+  DO UPDATE` (`event_count + 1`, title/content mới nhất, `created_at = now()`, `is_read = false`). Đóng nhóm = gán `group_key = NULL`:
+  `SUPPORT_MESSAGE`, `FAVORITE_BACK_IN_STOCK` (`BACK_IN_STOCK:PRODUCT:12`) khi đọc; `SUPPORT_NEW`, `LOW_STOCK`, `REVIEW_FLAGGED`
+  khi đã xử lý (đọc không đóng nhóm).
+- **Đã xử lý:** đánh dấu mọi dòng còn mở cùng `(type, ref_type, ref_id)` một lần. Điều kiện từng loại: D-43.
+- **`unreadCount`** = số dòng của người gọi có `is_read = false AND resolved_at IS NULL`.
 
 ### 3.21 `articles`
 | Cột | Kiểu | Ràng buộc / ghi chú |
@@ -442,6 +464,8 @@ từng sản phẩm thành phần `EXPORT`/`IMPORT` ± số lượng.
 - `idx_products_name_lower (lower(name))`, `idx_articles_title_lower (lower(title))` — tìm kiếm
   (`ILIKE`). Chuyển sang `pg_trgm` nếu chậm.
 - `idx_notifications_user_id_is_read (user_id, is_read, created_at DESC)`.
+- `idx_notifications_open_ref (type, ref_type, ref_id) WHERE resolved_at IS NULL` — đánh dấu đã xử lý (D-43);
+  `idx_notifications_resolved_by` (FK).
 - `idx_support_messages_user_id_created_at (user_id, created_at)`.
 - `idx_discount_campaigns_active_dates (is_active, start_date, end_date)`.
 - `idx_discount_campaign_products_product_id` — subquery giá sau chiến dịch theo sản phẩm (D-30).
