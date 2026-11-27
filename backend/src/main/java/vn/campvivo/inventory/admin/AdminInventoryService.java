@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,6 +31,7 @@ import vn.campvivo.inventory.InventoryLog;
 import vn.campvivo.inventory.InventoryLogRepository;
 import vn.campvivo.inventory.InventoryLogService;
 import vn.campvivo.inventory.InventoryReason;
+import vn.campvivo.inventory.StockLevelSnapshot;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.Item;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemSort;
 import vn.campvivo.inventory.admin.AdminInventoryResponses.ItemType;
@@ -70,12 +72,14 @@ public class AdminInventoryService {
     private final EntityManager entityManager;
     private final Clock clock;
     private final int lowStockThreshold;
+    private final ApplicationEventPublisher events;
 
     public AdminInventoryService(ProductRepository productRepository, ProductVariantRepository variantRepository,
                                  ProductImageRepository productImageRepository,
                                  ProductComboRepository comboRepository, InventoryLogRepository logRepository,
                                  InventoryLogService logService, EntityManager entityManager, Clock clock,
-                                 AppProperties appProperties) {
+                                 AppProperties appProperties, ApplicationEventPublisher events) {
+        this.events = events;
         this.entityManager = entityManager;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
@@ -230,7 +234,9 @@ public class AdminInventoryService {
         if (p.getStockQuantity() + change < p.getReservedQuantity()) {
             throw belowReserved(p.getStockQuantity() + change, p.getReservedQuantity());
         }
+        StockLevelSnapshot levels = new StockLevelSnapshot().products(List.of(p));
         v.adjustStock(change, OffsetDateTime.now(clock));
+        levels.publish(events, userId);
         return LogEntry.from(logService.record(v, userId, change, req.reason(), req.note()));
     }
 
@@ -262,7 +268,9 @@ public class AdminInventoryService {
         if (c.getStockQuantity() + change < c.getReservedQuantity()) {
             throw belowReserved(c.getStockQuantity() + change, c.getReservedQuantity());
         }
+        StockLevelSnapshot levels = new StockLevelSnapshot().combos(List.of(c));
         c.writeOff(-change, OffsetDateTime.now(clock));
+        levels.publish(events, userId);
         return LogEntry.from(logService.record(c, userId, change, req.reason(), req.note()));
     }
 

@@ -73,6 +73,21 @@ public interface DiscountCampaignRepository extends JpaRepository<DiscountCampai
                                 @Param("endDate") OffsetDateTime endDate,
                                 @Param("excludeId") long excludeId);
 
+    /** Chiến dịch vừa bắt đầu, chưa công bố (D-45) — khoá `FOR UPDATE SKIP LOCKED` như voucher. */
+    @Query(value = """
+            select * from discount_campaigns
+            where is_active and start_date <= :now and end_date > :now and announced_at is null
+            order by id
+            limit :limit
+            for update skip locked
+            """, nativeQuery = true)
+    List<DiscountCampaign> lockDueForAnnouncement(@Param("now") OffsetDateTime now, @Param("limit") int limit);
+
+    /** id sản phẩm của chiến dịch (kể cả sản phẩm đang tắt — bên nhận tự lọc). */
+    @Query(value = "select product_id from discount_campaign_products where campaign_id = :id order by product_id",
+            nativeQuery = true)
+    List<Long> findProductIds(@Param("id") Long campaignId);
+
     /** Số sản phẩm của từng chiến dịch: [campaignId, count]. */
     @Query("select c.id, count(p) from DiscountCampaign c left join c.products p where c.id in :ids group by c.id")
     List<Object[]> countProducts(@Param("ids") Collection<Long> ids);

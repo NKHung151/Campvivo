@@ -48,6 +48,10 @@ public class DiscountCampaign {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /** Lúc đã gửi thông báo FAVORITE_ON_SALE (D-45); null = chưa công bố. Chỉ job công bố gán. */
+    @Column(name = "announced_at")
+    private OffsetDateTime announcedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -115,6 +119,11 @@ public class DiscountCampaign {
     public OffsetDateTime getStartDate() { return startDate; }
     public OffsetDateTime getEndDate() { return endDate; }
     public boolean isActive() { return active; }
+    public OffsetDateTime getAnnouncedAt() { return announcedAt; }
+
+    /** D-45: đánh dấu đã công bố (gọi khi đã khoá dòng). */
+    public void markAnnounced(OffsetDateTime now) { this.announcedAt = now; }
+
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
     public Set<Product> getProducts() { return products; }

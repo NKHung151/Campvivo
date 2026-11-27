@@ -104,3 +104,6 @@ app:
     # Deploy: đặt APP_CORS_ALLOWED_ORIGINS=https://<domain frontend> (nhiều origin cách nhau dấu phẩy)
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
   frontend-url: ${APP_FRONTEND_URL:http://localhost:3000}
+  notification:
+    announce-job-delay: 60s
+    fan-out-batch-size: 500

@@ -18,6 +18,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long>, JpaSpecif
     /** Đánh giá của chính khách (của người khác → coi như không tồn tại). */
     Optional<Review> findByIdAndUserId(Long id, Long userId);
 
+    /** Hàng chờ kiểm duyệt (`status=SENSITIVE` của `/admin/reviews`): chưa ẩn và có trạng thái `status`. */
+    long countByHiddenFalseAndModerationStatus(ModerationStatus status);
+
     /** Đánh giá của khách cho các dòng hàng trong một đơn (chi tiết đơn — 1 truy vấn cho mọi sản phẩm). */
     List<Review> findByUserIdAndProductIdIn(Long userId, Collection<Long> productIds);
 

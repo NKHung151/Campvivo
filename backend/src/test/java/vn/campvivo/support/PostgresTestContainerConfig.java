@@ -18,7 +18,10 @@ public class PostgresTestContainerConfig
             new PostgreSQLContainer<>("postgres:16")
                     .withDatabaseName("campvivo_test")
                     .withUsername("campvivo")
-                    .withPassword("campvivo");
+                    .withPassword("campvivo")
+                    // Mỗi context test được cache giữ một pool riêng (5 kết nối, xem bên dưới); số lớp test tăng dần nên 100 kết
+                    // nối mặc định không đủ ("too many clients already" ở các lớp chạy cuối).
+                    .withCommand("postgres", "-c", "max_connections=200");
 
     static {
         POSTGRES.start();
@@ -32,7 +35,10 @@ public class PostgresTestContainerConfig
                 "spring.datasource.password=" + POSTGRES.getPassword(),
                 // Mỗi lớp test tích hợp có Spring context riêng và được giữ trong cache tới hết lần chạy; mặc định mỗi context
                 // giữ 10 kết nối nên cả bộ test vượt max_connections (100) của PostgreSQL ("too many clients already").
-                "spring.datasource.hikari.maximum-pool-size=5"
+                "spring.datasource.hikari.maximum-pool-size=5",
+                // Context test được cache vẫn chạy job theo lịch trên DB dùng chung: job công bố khuyến mãi của lớp này có thể
+                // gửi VOUCHER_NEW cho khách của lớp đang chạy. Test của job gọi announceDue() trực tiếp.
+                "app.notification.announce-job-delay=1h"
         ).applyTo(context.getEnvironment());
     }
 }

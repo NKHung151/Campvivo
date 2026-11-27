@@ -87,11 +87,13 @@ export function ReturnDetailView({ id }: { id: number }) {
       setAction(null);
       setNote("");
     } catch (e) {
-      message.error(isApiError(e) && Object.values(e.fieldErrors)[0] ? Object.values(e.fieldErrors)[0] : getErrorMessage(e));
-      // Nhân viên khác vừa xử lý → tải lại để thấy trạng thái mới
+      // Nhân viên khác vừa xử lý → tải lại để thấy trạng thái mới (user-flows.md mục 12)
       if (isApiError(e) && e.errorCode === "INVALID_STATUS_TRANSITION") {
+        message.warning("Yêu cầu đã có người xử lý. Đã tải lại trạng thái mới nhất.");
         setAction(null);
         reload();
+      } else {
+        message.error(isApiError(e) && Object.values(e.fieldErrors)[0] ? Object.values(e.fieldErrors)[0] : getErrorMessage(e));
       }
     } finally {
       setBusy(false);

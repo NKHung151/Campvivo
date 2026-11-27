@@ -100,6 +100,12 @@ public class ReviewQueryService {
         }
     }
 
+    /** Số đánh giá đang chờ kiểm duyệt — cùng điều kiện bộ lọc `status=SENSITIVE` của `/admin/reviews` (REVIEW_FLAGGED). */
+    @Transactional(readOnly = true)
+    public long countPendingSensitive() {
+        return reviewRepository.countByHiddenFalseAndModerationStatus(ModerationStatus.SENSITIVE);
+    }
+
     MyReviewResponse toMine(Review r) {
         return MyReviewResponse.from(r, fullNames(List.of(r.getUserId())).get(r.getUserId()));
     }

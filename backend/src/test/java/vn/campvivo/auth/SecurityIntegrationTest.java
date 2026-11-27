@@ -156,9 +156,9 @@ class SecurityIntegrationTest {
     void anyRoleCanReachUserScopedEndpointsPastSecurity() throws Exception {
         User employee = saveUser("e2@campvivo.vn", Role.EMPLOYEE);
 
-        // /api/notifications chưa có controller (N4-03): qua được security nên là 404, không phải 401/403
+        // /api/notifications (N4-03) dành cho mọi role đã đăng nhập: nhân viên qua được security → 200, không phải 401/403
         mvc.perform(get("/api/notifications").header(HttpHeaders.AUTHORIZATION, bearer(employee)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     // --- CORS ---

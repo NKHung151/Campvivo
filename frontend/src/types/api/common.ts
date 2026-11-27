@@ -19,12 +19,20 @@ export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED";
 export type ReturnStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT";
 export type ArticleCategory = "BLOG" | "JOURNAL" | "GUIDE";
+/** D-42 — khách: 6 loại đầu; nhân viên (EMPLOYEE, ADMIN): 6 loại sau. */
 export type NotificationType =
   | "ORDER_STATUS"
-  | "ORDER_NEW"
   | "RETURN_STATUS"
+  | "SUPPORT_MESSAGE"
+  | "VOUCHER_NEW"
+  | "FAVORITE_ON_SALE"
+  | "FAVORITE_BACK_IN_STOCK"
+  | "ORDER_NEW"
+  | "ORDER_PAID"
   | "RETURN_NEW"
-  | "SUPPORT_MESSAGE";
+  | "SUPPORT_NEW"
+  | "LOW_STOCK"
+  | "REVIEW_FLAGGED";
 
 /** Thông tin người dùng đăng nhập (api.md mục 3). */
 export interface UserProfile {

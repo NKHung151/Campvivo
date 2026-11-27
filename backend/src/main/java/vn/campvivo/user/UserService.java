@@ -102,6 +102,18 @@ public class UserService {
                 .collect(Collectors.toMap(User::getId, UserProfileResponse::from));
     }
 
+    /** Id mọi nhân viên (EMPLOYEE, ADMIN) còn hoạt động — người nhận thông báo cho nhân viên (D-42). */
+    @Transactional(readOnly = true)
+    public List<Long> activeStaffIds() {
+        return userRepository.findActiveIdsByRoleIn(List.of(Role.EMPLOYEE, Role.ADMIN));
+    }
+
+    /** Id mọi khách còn hoạt động — người nhận thông báo gửi cho tất cả khách (VOUCHER_NEW, D-42). */
+    @Transactional(readOnly = true)
+    public List<Long> activeCustomerIds() {
+        return userRepository.findActiveIdsByRoleIn(List.of(Role.CUSTOMER));
+    }
+
     /** Id user có email / họ tên chứa từ khoá (không phân biệt hoa thường), tối đa `max` kết quả. */
     @Transactional(readOnly = true)
     public List<Long> findIdsByKeyword(String keyword, int max) {

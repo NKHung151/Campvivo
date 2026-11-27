@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { clearToken, getToken } from "@/lib/authToken";
-import type { ApiSuccessBody, Page } from "@/types/api/common";
+import type { ApiSuccessBody, Page, Pagination } from "@/types/api/common";
 import { API_BASE_URL } from "@/services/apiConfig";
 import { ApiError, CLIENT_ERROR_CODES, networkError, toApiError } from "@/services/apiError";
 
@@ -98,6 +98,15 @@ export const apiClient = {
   /** GET danh sách phân trang → `{ data, pagination }`. */
   async getPage<T>(url: string, config?: AxiosRequestConfig): Promise<Page<T>> {
     const body = requireSuccessBody<T[]>(await http.get(url, config));
+    if (!body.pagination) {
+      throw toApiError(200, body);
+    }
+    return { data: body.data, pagination: body.pagination };
+  },
+
+  /** Như `getPage` nhưng `data` không phải mảng (vd. `GET /notifications` trả `{items, unreadCount}` kèm `pagination`). */
+  async getWithPagination<T>(url: string, config?: AxiosRequestConfig): Promise<{ data: T; pagination: Pagination }> {
+    const body = requireSuccessBody<T>(await http.get(url, config));
     if (!body.pagination) {
       throw toApiError(200, body);
     }

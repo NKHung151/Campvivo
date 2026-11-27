@@ -2,6 +2,7 @@ package vn.campvivo.inventory;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +40,14 @@ public class InventoryService {
     private final EntityManager em;
     private final InventoryLogService logService;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
-    public InventoryService(EntityManager em, InventoryLogService logService, Clock clock) {
+    public InventoryService(EntityManager em, InventoryLogService logService, Clock clock,
+                            ApplicationEventPublisher events) {
         this.em = em;
         this.logService = logService;
         this.clock = clock;
+        this.events = events;
     }
 
     /** Sản phẩm/combo/biến thể theo id (id không tồn tại thì không có trong map). */
@@ -134,10 +138,16 @@ public class InventoryService {
         if (!shortages.isEmpty()) {
             throw outOfStock(shortages);
         }
+        StockLevelSnapshot levels = snapshot(locked);
         // Tổng sản phẩm trước rồi mới tới biến thể (biến thể duy nhất dùng giữ chỗ của tổng)
         productQty.forEach((id, qty) -> locked.products().get(id).reserve(qty));
         comboQty.forEach((id, qty) -> locked.combos().get(id).reserve(qty));
         variantQty.forEach((id, qty) -> locked.variants().get(id).reserve(qty));
+        levels.publish(events, null);
+    }
+
+    private static StockLevelSnapshot snapshot(StockItems locked) {
+        return new StockLevelSnapshot().products(locked.products().values()).combos(locked.combos().values());
     }
 
     /** PENDING → CONFIRMED: stock −= qty, reserved −= qty. */
@@ -164,6 +174,7 @@ public class InventoryService {
         Map<Long, Integer> productQty = sum(lines, StockLine::productId);
         Map<Long, Integer> comboQty = sum(lines, StockLine::comboId);
         StockItems locked = lock(productQty.keySet(), comboQty.keySet(), Set.of());
+        StockLevelSnapshot levels = snapshot(locked);
 
         Map<Long, Integer> variantQty = sum(lines, StockLine::variantId);
         Map<Long, Integer> productOnly = new TreeMap<>();
@@ -196,6 +207,7 @@ public class InventoryService {
                 logService.record(c, staffId, qty, InventoryReason.RETURN, note);
             }
         });
+        levels.publish(events, staffId);
     }
 
     private interface StockChange<T> {
@@ -209,6 +221,8 @@ public class InventoryService {
         Map<Long, Integer> comboQty = sum(lines, StockLine::comboId);
         Map<Long, Integer> variantQty = sum(lines, StockLine::variantId);
         StockItems locked = lock(productQty.keySet(), comboQty.keySet(), variantQty.keySet());
+        // commit (stock và reserved cùng giảm) thường không đổi khả dụng → không có mặt hàng nào trong sự kiện
+        StockLevelSnapshot levels = snapshot(locked);
         productQty.forEach((id, qty) -> {
             Product p = locked.products().get(id);
             if (p != null) {
@@ -227,6 +241,7 @@ public class InventoryService {
                 onVariant.apply(v, qty);
             }
         });
+        levels.publish(events, null);
     }
 
     /** Gộp số lượng theo id (bỏ dòng không có id đó), TreeMap để duyệt theo id tăng dần. */

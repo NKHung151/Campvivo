@@ -1,5 +1,6 @@
 package vn.campvivo.review;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +31,12 @@ public class ReviewService {
     private final OrderQueryService orderQueryService;
     private final ContentModerator moderator;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public ReviewService(ReviewRepository reviewRepository, ReviewQueryService reviewQueryService,
-                         OrderQueryService orderQueryService, ContentModerator moderator, Clock clock) {
+                         OrderQueryService orderQueryService, ContentModerator moderator, Clock clock,
+                         ApplicationEventPublisher events) {
+        this.events = events;
         this.reviewRepository = reviewRepository;
         this.reviewQueryService = reviewQueryService;
         this.orderQueryService = orderQueryService;
@@ -69,6 +73,9 @@ public class ReviewService {
             // Hai yêu cầu gửi gần như cùng lúc: unique index một phần là chốt cuối
             throw new BusinessException(ErrorCode.REVIEW_ALREADY_EXISTS);
         }
+        if (review.isPendingModeration()) {
+            events.publishEvent(new ReviewFlaggedEvent(review.getId()));
+        }
         return reviewQueryService.toMine(review);
     }
 
@@ -89,14 +96,25 @@ public class ReviewService {
         }
         String content = normalizeContent(req.content());
         ModerationResult moderation = moderator.check(content);
+        boolean wasPending = review.isPendingModeration();
         review.edit(req.rating(), content, moderation.sensitive(), moderation.flaggedTerms(), OffsetDateTime.now(clock));
+        // Nội dung mới vẫn / mới bị gắn cờ → nhân viên cần xem lại; sửa bỏ từ nhạy cảm → hàng chờ bớt một
+        if (review.isPendingModeration()) {
+            events.publishEvent(new ReviewFlaggedEvent(review.getId()));
+        } else if (wasPending) {
+            events.publishEvent(new ReviewModeratedEvent(review.getId(), null, false));
+        }
         return reviewQueryService.toMine(review);
     }
 
     /** Xoá cứng, được cả khi đang bị ẩn; xoá xong viết lại được (D-09). */
     @Transactional
     public void delete(Long userId, Long reviewId) {
-        reviewRepository.delete(owned(userId, reviewId));
+        Review review = owned(userId, reviewId);
+        reviewRepository.delete(review);
+        if (review.isPendingModeration()) {
+            events.publishEvent(new ReviewModeratedEvent(review.getId(), null, false));
+        }
     }
 
     private Review owned(Long userId, Long reviewId) {

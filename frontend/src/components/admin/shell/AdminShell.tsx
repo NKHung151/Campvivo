@@ -7,6 +7,7 @@ import { Avatar, Button, Dropdown, Layout, Menu, Result, Space, Spin, Tag, Typog
 import type { MenuProps } from "antd";
 import {
   AppstoreOutlined,
+  BellOutlined,
   CompassOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
@@ -27,6 +28,9 @@ import type { Role } from "@/types/api/common";
 import { ADMIN_NAV, findNavItem, findParentKey, isNavParent, type AdminNavItem } from "@/lib/admin/nav";
 import { useAdmin } from "@/components/admin/shell/AdminSession";
 import { loginHref } from "@/lib/auth/redirect";
+import { NotificationProvider } from "@/components/features/notification/NotificationProvider";
+import { NotificationBell } from "@/components/features/notification/NotificationBell";
+import { AdminNotificationToaster } from "@/components/admin/shell/AdminNotificationToaster";
 
 const { Sider, Header, Content } = Layout;
 
@@ -36,6 +40,7 @@ const { Sider, Header, Content } = Layout;
  */
 const NAV_ICON: Record<string, React.ReactNode> = {
   "/admin": <DashboardOutlined />,
+  "/admin/notifications": <BellOutlined />,
   orders: <ShoppingCartOutlined />,
   "/admin/support": <CustomerServiceOutlined />,
   "/admin/reviews": <StarOutlined />,
@@ -58,7 +63,15 @@ const leaf = (i: AdminNavItem, icon?: React.ReactNode): MenuItem => ({
 const ROLE_LABEL: Record<Role, string> = { ADMIN: "Quản trị viên", EMPLOYEE: "Nhân viên", CUSTOMER: "Khách hàng" };
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  return <ShellFrame>{children}</ShellFrame>;
+  const { user } = useAdmin();
+  // Thông báo của nhân viên (FR-22, D-42): khách lạc vào /admin không nối WS.
+  const isStaff = user?.role === "ADMIN" || user?.role === "EMPLOYEE";
+  return (
+    <NotificationProvider enabled={isStaff}>
+      <ShellFrame>{children}</ShellFrame>
+      <AdminNotificationToaster />
+    </NotificationProvider>
+  );
 }
 
 function ShellFrame({ children }: { children: React.ReactNode }) {
@@ -215,6 +228,7 @@ function ShellFrame({ children }: { children: React.ReactNode }) {
         >
           <Typography.Text type="secondary">{current?.label ?? "Quản trị"}</Typography.Text>
           <Space size={16}>
+            <NotificationBell allHref="/admin/notifications" className="cv-ntf--admin" />
             <Dropdown menu={userMenu} placement="bottomRight">
               <Space style={{ cursor: "pointer" }}>
                 <Avatar size="small" icon={<UserOutlined />} />

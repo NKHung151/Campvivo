@@ -4,6 +4,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -19,6 +20,7 @@ import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.review.ModerationStatus;
 import vn.campvivo.review.Review;
+import vn.campvivo.review.ReviewModeratedEvent;
 import vn.campvivo.review.ReviewRepository;
 import vn.campvivo.review.admin.AdminReviewResponses.AdminReview;
 import vn.campvivo.review.admin.AdminReviewResponses.ItemRef;
@@ -57,9 +59,12 @@ public class AdminReviewService {
     private final ProductRepository productRepository;
     private final ProductComboRepository comboRepository;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public AdminReviewService(ReviewRepository reviewRepository, UserRepository userRepository,
-                              ProductRepository productRepository, ProductComboRepository comboRepository, Clock clock) {
+                              ProductRepository productRepository, ProductComboRepository comboRepository, Clock clock,
+                              ApplicationEventPublisher events) {
+        this.events = events;
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
@@ -89,29 +94,46 @@ public class AdminReviewService {
     @Transactional
     public AdminReview hide(Long id, String reason, Long staffId) {
         Review review = find(id);
+        boolean wasPending = review.isPendingModeration();
         review.hide(reason.strip(), staffId, OffsetDateTime.now(clock));
+        queueChanged(review, wasPending, staffId);
         return toResponse(List.of(review)).apply(review);
     }
 
     @Transactional
-    public AdminReview unhide(Long id) {
+    public AdminReview unhide(Long id, Long staffId) {
         Review review = find(id);
+        boolean wasPending = review.isPendingModeration();
         review.unhide();
+        queueChanged(review, wasPending, staffId);
         return toResponse(List.of(review)).apply(review);
     }
 
     /** SENSITIVE → CLEARED (bỏ làm mờ); trạng thái khác giữ nguyên. */
     @Transactional
-    public AdminReview clearSensitive(Long id) {
+    public AdminReview clearSensitive(Long id, Long staffId) {
         Review review = find(id);
+        boolean wasPending = review.isPendingModeration();
         review.clearSensitive();
+        queueChanged(review, wasPending, staffId);
         return toResponse(List.of(review)).apply(review);
     }
 
     /** Xoá cứng — khách viết lại được. */
     @Transactional
-    public void delete(Long id) {
-        reviewRepository.delete(find(id));
+    public void delete(Long id, Long staffId) {
+        Review review = find(id);
+        reviewRepository.delete(review);
+        if (review.isPendingModeration()) {
+            events.publishEvent(new ReviewModeratedEvent(review.getId(), staffId, false));
+        }
+    }
+
+    /** Hàng chờ kiểm duyệt đổi (vào hoặc ra) do nhân viên → `REVIEW_FLAGGED` cập nhật số / đã xử lý (D-43). */
+    private void queueChanged(Review review, boolean wasPending, Long staffId) {
+        if (wasPending != review.isPendingModeration()) {
+            events.publishEvent(new ReviewModeratedEvent(review.getId(), staffId, review.isPendingModeration()));
+        }
     }
 
     // ------------------------------------------------------------------

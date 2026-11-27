@@ -10,12 +10,14 @@ import vn.campvivo.common.exception.BusinessException;
 import vn.campvivo.common.exception.ErrorCode;
 import vn.campvivo.common.dto.PageResponse;
 import vn.campvivo.order.dto.OrderDetailResponse;
+import vn.campvivo.order.dto.OrderNotificationInfo;
 import vn.campvivo.order.returns.ReturnService;
 import vn.campvivo.order.dto.OrderSummaryResponse;
 import vn.campvivo.payment.PaymentService;
 import vn.campvivo.review.ReviewQueryService;
 
 import java.util.List;
+import java.util.Optional;
 
 /** Đọc đơn hàng (FR-12). Đơn của người khác → 404 NOT_FOUND (không tiết lộ đơn tồn tại). */
 @Service
@@ -32,6 +34,17 @@ public class OrderQueryService {
         this.paymentService = paymentService;
         this.reviewQueryService = reviewQueryService;
         this.returnService = returnService;
+    }
+
+    /** Dữ liệu dựng thông báo cho đơn `orderId` (D-42); đơn không còn → rỗng. */
+    @Transactional(readOnly = true)
+    public Optional<OrderNotificationInfo> notificationInfo(Long orderId) {
+        return orderRepository.findById(orderId).map(o -> {
+            List<OrderStatusHistory> history = o.getHistory();
+            String lastNote = history.isEmpty() ? null : history.get(history.size() - 1).getNote();
+            return new OrderNotificationInfo(o.getId(), o.getOrderCode(), o.getUserId(), o.getPaymentMethod(),
+                    o.getFinalAmount(), o.totalQuantity(), lastNote);
+        });
     }
 
     /** Đơn của chính khách, mới nhất trước, lọc theo trạng thái (FR-12). */

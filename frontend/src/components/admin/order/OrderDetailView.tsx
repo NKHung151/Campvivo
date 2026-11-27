@@ -103,11 +103,13 @@ export function OrderDetailView({ id }: { id: number }) {
       // Vận đơn GHN được tạo bất đồng bộ sau khi xác nhận — tải lại thêm một lần để thấy mã vận đơn
       if (action === "CONFIRMED") setTimeout(reload, 2500);
     } catch (e) {
-      message.error(getErrorMessage(e));
-      // Người khác vừa xử lý → tải lại để thấy trạng thái mới
+      // Người khác vừa xử lý → tải lại để thấy trạng thái mới (user-flows.md mục 12)
       if (isApiError(e) && e.errorCode === "INVALID_STATUS_TRANSITION") {
+        message.warning("Đơn đã có người xử lý. Đã tải lại trạng thái mới nhất.");
         setAction(null);
         reload();
+      } else {
+        message.error(getErrorMessage(e));
       }
     } finally {
       setBusy(false);

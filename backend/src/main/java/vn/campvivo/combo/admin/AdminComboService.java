@@ -1,6 +1,7 @@
 package vn.campvivo.combo.admin;
 
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,6 +27,7 @@ import vn.campvivo.common.util.HtmlSanitizer;
 import vn.campvivo.common.util.SlugUtil;
 import vn.campvivo.inventory.InventoryLogService;
 import vn.campvivo.inventory.InventoryReason;
+import vn.campvivo.inventory.StockLevelSnapshot;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -69,11 +71,14 @@ public class AdminComboService {
     private final InventoryLogService logService;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public AdminComboService(ProductComboRepository comboRepository, ProductRepository productRepository,
                              ProductVariantRepository variantRepository,
                              ProductImageRepository productImageRepository, CategoryRepository categoryRepository,
-                             InventoryLogService logService, EntityManager entityManager, Clock clock) {
+                             InventoryLogService logService, EntityManager entityManager, Clock clock,
+                             ApplicationEventPublisher events) {
+        this.events = events;
         this.comboRepository = comboRepository;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
@@ -232,6 +237,7 @@ public class AdminComboService {
         }
         OffsetDateTime now = OffsetDateTime.now(clock);
         String note = "Đóng gói " + sets + " bộ combo \"" + combo.getName() + "\"";
+        StockLevelSnapshot levels = snapshot(combo, variants);
         combo.getItems().forEach(i -> {
             ProductVariant v = variants.get(i.getVariant().getId());
             v.takeForCombo(i.getQuantity() * sets, now);
@@ -239,6 +245,7 @@ public class AdminComboService {
         });
         combo.addPackedSets(sets, now);
         logService.record(combo, userId, sets, InventoryReason.IMPORT, note);
+        levels.publish(events, userId);
         return detail(combo);
     }
 
@@ -253,6 +260,7 @@ public class AdminComboService {
         Map<Long, ProductVariant> variants = lockVariants(combo);
         OffsetDateTime now = OffsetDateTime.now(clock);
         String note = "Tháo " + sets + " bộ combo \"" + combo.getName() + "\"";
+        StockLevelSnapshot levels = snapshot(combo, variants);
         combo.removePackedSets(sets, now);
         logService.record(combo, userId, -sets, InventoryReason.EXPORT, note);
         combo.getItems().forEach(i -> {
@@ -260,7 +268,15 @@ public class AdminComboService {
             v.returnFromCombo(i.getQuantity() * sets, now);
             logService.record(v, userId, i.getQuantity() * sets, InventoryReason.IMPORT, note);
         });
+        levels.publish(events, userId);
         return detail(combo);
+    }
+
+    /** Khả dụng trước khi đóng gói/tháo của combo và các sản phẩm thành phần (đã khoá) — thông báo sắp hết (D-44). */
+    private static StockLevelSnapshot snapshot(ProductCombo combo, Map<Long, ProductVariant> variants) {
+        return new StockLevelSnapshot()
+                .products(variants.values().stream().map(ProductVariant::getProduct).distinct().toList())
+                .combos(List.of(combo));
     }
 
     /**
